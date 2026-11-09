@@ -169,7 +169,7 @@ def verificar_prazo_cancelamento(
         raise ForaDoPrazo(
             f"Passou o prazo de {prazo_dias} dias que a sua prefeitura dá para "
             "cancelar direto. É preciso pedir análise fiscal ao município; "
-            "seu contador foi avisado."
+            "fale com o seu contador."
         )
 
 

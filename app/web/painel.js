@@ -198,7 +198,7 @@
 
     const regras = el("section", { class: "card regras" },
       el("h2", { class: "titulo" }, "Regras da empresa"),
-      el("div", { class: "linha" }, el("span", {}, "Alíquota de ISS"), el("strong", {}, `${c.aliquota_iss}%`)),
+      el("div", { class: "linha" }, el("span", {}, "Alíquota de ISS"), el("strong", {}, `${String(c.aliquota_iss).replace(".", ",")}%`)),
       el("div", { class: "linha" }, el("span", {}, "Prazo para cancelar"),
         el("strong", {}, c.prazo_cancelamento_dias ? `${c.prazo_cancelamento_dias} dias` : "Definido pela prefeitura")),
     );

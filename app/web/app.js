@@ -335,7 +335,7 @@
               cancelar(e.currentTarget);
             },
           }, "Cancelar nota"),
-          el("p", { class: "ajuda-pequena", style: "text-align:center" }, "Não dá para desfazer. Seu contador será avisado.")),
+          el("p", { class: "ajuda-pequena", style: "text-align:center" }, "Não dá para desfazer. A nota cancelada aparece no painel do seu contador.")),
       ];
     },
 
