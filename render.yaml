@@ -1,0 +1,19 @@
+# Configuração do Render (Blueprint): https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: emitta
+    runtime: python
+    plan: free
+    region: virginia
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # Por enquanto só simulação: a API ainda não tem login.
+      - key: NFSE_AMBIENTE
+        value: simulacao
+      - key: NFSE_BANCO
+        value: dados/emissor.db

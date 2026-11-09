@@ -45,6 +45,20 @@ pytest -v
 
 Os testes também rodam sozinhos no GitHub a cada envio (aba **Actions**).
 
+## Publicar no Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/laviniasa/emitta)
+
+O arquivo `render.yaml` já tem tudo configurado (plano gratuito, modo simulação).
+Cada envio para a branch `main` atualiza o site sozinho.
+
+No plano gratuito, o servidor "dorme" depois de um tempo sem uso (o primeiro acesso
+demora uns 30 segundos) e **os dados do banco somem quando ele reinicia**. Serve
+para demonstração; para uso real será preciso um banco PostgreSQL.
+
+O sistema **se recusa a iniciar** em homologação ou produção enquanto não houver
+login, para ninguém emitir notas reais por um endereço aberto.
+
 ## Como o código está organizado
 
 | Arquivo | O que faz |

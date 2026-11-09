@@ -79,3 +79,9 @@ def test_empresa_duplicada(api):
         "municipio_nome": "São Paulo", "aliquota_iss": "3",
     })
     assert resp.status_code == 409
+
+
+def test_status_na_raiz(api):
+    resp = api.get("/")
+    assert resp.status_code == 200
+    assert resp.json()["ambiente"] == "simulacao"

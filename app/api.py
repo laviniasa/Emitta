@@ -12,6 +12,7 @@ ATENÇÃO: ainda não há login. Antes de colocar no ar, adicione autenticação
 (contador e cliente) — está nos próximos passos do README.
 """
 
+import os
 from decimal import Decimal
 
 from fastapi import FastAPI, HTTPException
@@ -68,6 +69,12 @@ class PedidoCancelamento(BaseModel):
 def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
     if servico is None:
         config = carregar_config()
+        if config.ambiente != "simulacao" and os.getenv("EMITTA_LOGIN_ATIVO") != "1":
+            # Sem login, qualquer pessoa com o endereço poderia emitir notas reais.
+            raise RuntimeError(
+                "Ambiente real bloqueado: a API ainda não tem login. "
+                "Use NFSE_AMBIENTE=simulacao até a autenticação estar pronta."
+            )
         sefin = SefinSimulada() if config.ambiente == "simulacao" else SefinNacional(config.url_sefin)
         servico = ServicoEmissao(
             repo=Repositorio(config.banco),
@@ -79,6 +86,14 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
         )
     repo = servico.repo
     app = FastAPI(title="Emitta", version="0.1.0")
+
+    @app.get("/", tags=["status"])
+    def status():
+        return {
+            "app": "Emitta",
+            "ambiente": servico.config.ambiente,
+            "documentacao": "/docs",
+        }
 
     def nota_json(n: Nota) -> dict:
         return {
