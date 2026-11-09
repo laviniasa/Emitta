@@ -1,7 +1,7 @@
-# Emissor NFS-e
+# Emitta
 
-Servidor para emitir e cancelar NFS-e no **padrão nacional** (Emissor Nacional),
-pensado para escritórios de contabilidade:
+Emissor de NFS-e no **padrão nacional** (Emissor Nacional), pensado para
+escritórios de contabilidade:
 
 - o **contador** cadastra a empresa e **libera só os serviços** que ela pode emitir;
 - o **cliente** emite e cancela pelo app, vendo apenas os serviços liberados;

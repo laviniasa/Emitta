@@ -21,7 +21,7 @@ class Config:
     banco: Path
     pasta_certificados: Path
     pasta_xsd: Path | None
-    versao_aplicativo: str = "emissor-nfse-0.1"
+    versao_aplicativo: str = "Emitta-0.1"
 
     @property
     def url_sefin(self) -> str | None:

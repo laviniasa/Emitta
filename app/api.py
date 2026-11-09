@@ -78,7 +78,7 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
             ),
         )
     repo = servico.repo
-    app = FastAPI(title="Emissor NFS-e", version="0.1.0")
+    app = FastAPI(title="Emitta", version="0.1.0")
 
     def nota_json(n: Nota) -> dict:
         return {
