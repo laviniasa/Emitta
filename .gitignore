@@ -1,0 +1,17 @@
+# Segredos: NUNCA subir certificados ou senhas
+.env
+certificados/*
+!certificados/LEIA-ME.md
+*.pfx
+*.p12
+*.pem
+
+# Banco local
+/dados/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
