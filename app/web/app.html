@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F2A24">
+<title>Emitta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/estilo.css">
+<style>
+  body { background: #E5E7EB; }
+  .tela {
+    max-width: 480px; min-height: 100vh; min-height: 100dvh; margin: 0 auto; background: var(--fundo);
+    display: flex; flex-direction: column;
+  }
+  .barra {
+    display: flex; align-items: center; gap: 8px; padding: 14px 16px 12px 8px;
+    background: #fff; border-bottom: 1px solid var(--borda); position: sticky; top: 0; z-index: 5;
+  }
+  .barra h1 { font-size: 19px; font-weight: 700; flex: 1; }
+  .barra .sub { font-size: 13px; color: var(--texto-2); }
+  .voltar { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: transparent; cursor: pointer; border-radius: 10px; color: var(--texto); }
+  .voltar:hover { background: var(--fundo); }
+  .conteudo { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .rodape {
+    padding: 14px 16px calc(20px + env(safe-area-inset-bottom)); background: #fff;
+    border-top: 1px solid var(--borda); display: flex; flex-direction: column; gap: 10px;
+    position: sticky; bottom: 0;
+  }
+  .heroi { background: var(--noite); color: #fff; padding: 20px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .heroi h1 { font-size: 20px; }
+  .heroi .ola { font-size: 13px; color: var(--verde-borda); }
+  .resumo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .resumo div { background: var(--noite-2); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .resumo .rot { font-size: 12px; color: var(--verde-borda); }
+  .resumo .num { font-size: 18px; font-weight: 700; }
+  .nota-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+    padding: 14px 16px; background: #fff; border: 1px solid var(--borda); border-radius: 12px;
+    text-align: left; cursor: pointer;
+  }
+  .nota-item:hover { border-color: var(--borda-forte); }
+  .nota-item .esq { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .nota-item .dir { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .nota-item .nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nota-item .det { font-size: 12px; color: var(--texto-2); }
+  .menu {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #fff;
+    border-top: 1px solid var(--borda); padding: 6px 8px calc(14px + env(safe-area-inset-bottom));
+    position: sticky; bottom: 0;
+  }
+  .menu button {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; min-height: 52px;
+    border: 0; background: transparent; font-size: 12px; font-weight: 500; color: var(--texto-2); cursor: pointer;
+  }
+  .menu button[aria-current="page"] { color: var(--verde); font-weight: 600; }
+  .secao { display: flex; flex-direction: column; gap: 12px; }
+  .secao-titulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .secao-titulo h2 { font-size: 15px; font-weight: 600; }
+  .ajuda-pequena { font-size: 12px; color: var(--texto-2); line-height: 1.5; }
+  .totais { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .totais .linha { display: flex; justify-content: space-between; }
+  .totais .total { font-size: 17px; font-weight: 700; }
+  .centro { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 16px 0 4px; }
+  .circulo { width: 64px; height: 64px; border-radius: 999px; display: grid; place-items: center; }
+  .grande { font-size: 20px; font-weight: 700; }
+  .detalhes { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
+  .detalhes .linha { display: flex; justify-content: space-between; gap: 12px; }
+  .detalhes .linha span:first-child { color: var(--texto-2); }
+  .detalhes .linha span:last-child { text-align: right; }
+  .chave { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; background: var(--fundo); padding: 8px 10px; border-radius: 8px; }
+  .etapas { list-style: none; margin: 0; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .etapas li { display: flex; align-items: center; gap: 12px; }
+  .etapas .marca { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; }
+  .etapas .feita { background: var(--verde); }
+  .etapas .agora { border: 2px solid var(--verde); }
+  .etapas .agora::after { content: ""; width: 10px; height: 10px; border-radius: 999px; background: var(--verde); }
+  .etapas .depois { border: 2px solid #9CA3AF; }
+  .empresa-item { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; width: 100%; padding: 14px 16px; min-height: 60px; border: 1px solid var(--borda); background: #fff; border-radius: 12px; cursor: pointer; text-align: left; }
+  .empresa-item:hover { border-color: var(--verde); }
+  .empresa-item .det { font-size: 12px; color: var(--texto-2); }
+</style>
+</head>
+<body>
+<div class="tela" id="tela" aria-live="polite"></div>
+<script src="/static/comum.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

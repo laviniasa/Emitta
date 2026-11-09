@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emitta · Painel do contador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/estilo.css">
+<style>
+  .topo {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 24px; background: var(--noite); color: #fff;
+  }
+  .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; }
+  .marca:hover { color: #fff; }
+  .marca-logo { width: 36px; height: 36px; border-radius: 10px; background: var(--verde); display: grid; place-items: center; font-weight: 700; }
+  .marca-nome { font-size: 17px; font-weight: 700; }
+  .marca-sub { font-size: 13px; color: var(--verde-borda); }
+  .topo a.link-app { color: var(--verde-borda); font-size: 14px; }
+  .layout { display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; max-width: 1360px; margin: 0 auto; align-items: flex-start; }
+  .lateral { flex: 1 1 260px; display: flex; flex-direction: column; gap: 12px; }
+  .lista-clientes { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
+  .item-cliente {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+    min-height: 56px; padding: 10px 12px; border: 0; border-radius: 10px; background: #fff;
+    text-align: left; cursor: pointer;
+  }
+  .item-cliente:hover { background: var(--fundo); }
+  .item-cliente[aria-current="true"] { background: var(--verde-claro); }
+  .item-cliente .nome { font-weight: 600; }
+  .item-cliente .info { font-size: 12px; color: var(--texto-2); }
+  .principal { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  .cabecalho-cliente { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 24px; }
+  .cabecalho-cliente h1 { font-size: 24px; }
+  .cabecalho-cliente .sub { color: var(--texto-2); font-size: 14px; margin-top: 4px; }
+  .colunas { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .col-servicos { flex: 3 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 20px 24px; }
+  .col-lado { flex: 2 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  .servico {
+    display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--borda);
+    border-radius: var(--raio); background: #fff; cursor: pointer;
+  }
+  .servico.ligado { border-color: var(--verde); background: #F3FAF8; }
+  .servico input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--verde); margin: 0; flex-shrink: 0; }
+  .servico .textos { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .servico .apelido {
+    border: 1px solid transparent; border-radius: 8px; padding: 2px 6px; margin-left: -6px;
+    font-weight: 600; font-size: 15px; background: transparent; width: 100%;
+  }
+  .servico .apelido:hover { border-color: var(--borda); }
+  .servico .apelido:focus { border-color: var(--verde); outline: none; background: #fff; }
+  .servico .oficial { font-size: 12px; color: var(--texto-2); }
+  .previa { background: var(--verde-claro); border-color: var(--verde-borda); display: flex; flex-direction: column; gap: 10px; }
+  .previa h2 { font-size: 15px; color: var(--verde-escuro); }
+  .previa .linha { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--noite); }
+  h2.titulo { font-size: 17px; }
+  .sub2 { color: var(--texto-2); font-size: 14px; }
+  .regras { display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .regras .linha { display: flex; justify-content: space-between; gap: 12px; }
+  .regras .linha span:first-child { color: var(--texto-2); }
+  .tabela-caixa { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: var(--texto-2); padding: 8px 10px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+  td.valor { text-align: right; white-space: nowrap; }
+  .form-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+  .busca input { width: 100%; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <a class="marca" href="/">
+    <span class="marca-logo" aria-hidden="true">E</span>
+    <span><span class="marca-nome">Emitta</span><br><span class="marca-sub">Painel do contador</span></span>
+  </a>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <span class="selo selo-amarelo" id="selo-ambiente">Simulação</span>
+    <a class="link-app" href="/app">Abrir o app do cliente</a>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="lateral" aria-label="Empresas">
+    <button class="botao" id="btn-nova-empresa" type="button"></button>
+    <div class="card" style="padding:12px">
+      <label class="campo busca">Buscar empresa
+        <input type="search" id="busca-cliente" placeholder="Nome ou CNPJ" autocomplete="off">
+      </label>
+    </div>
+    <div class="card lista-clientes" id="lista-clientes" aria-live="polite"></div>
+  </nav>
+
+  <main class="principal" id="principal" aria-live="polite"></main>
+</div>
+
+<script src="/static/comum.js"></script>
+<script src="/static/painel.js"></script>
+</body>
+</html>

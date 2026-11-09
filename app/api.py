@@ -3,7 +3,13 @@
 Rode com:  uvicorn app.api:app --reload
 Documentação interativa:  http://localhost:8000/docs
 
-Rotas:
+Páginas:
+  /                              apresentação
+  /painel                        painel do contador
+  /app                           app do cliente
+
+Rotas da API:
+  /status                        situação do servidor
   /catalogo/servicos             lista nacional (para o contador escolher)
   /contador/...                  painel do contador
   /app/{cliente_id}/...          app do cliente (só vê o que foi liberado)
@@ -14,8 +20,11 @@ ATENÇÃO: ainda não há login. Antes de colocar no ar, adicione autenticação
 
 import os
 from decimal import Decimal
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import regras
@@ -30,6 +39,8 @@ from .emissao import (
 )
 from .repositorio import Nota, Repositorio
 from .sefin import SefinNacional, SefinSimulada
+
+PASTA_WEB = Path(__file__).parent / "web"
 
 
 # ---------------------------------------------------------------- modelos
@@ -87,7 +98,23 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
     repo = servico.repo
     app = FastAPI(title="Emitta", version="0.1.0")
 
-    @app.get("/", tags=["status"])
+    # ------------------------------------------------------------ páginas
+
+    app.mount("/static", StaticFiles(directory=PASTA_WEB), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def pagina_inicial():
+        return FileResponse(PASTA_WEB / "index.html")
+
+    @app.get("/painel", include_in_schema=False)
+    def pagina_painel():
+        return FileResponse(PASTA_WEB / "painel.html")
+
+    @app.get("/app", include_in_schema=False)
+    def pagina_app():
+        return FileResponse(PASTA_WEB / "app.html")
+
+    @app.get("/status", tags=["status"])
     def status():
         return {
             "app": "Emitta",
@@ -196,6 +223,18 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
         return [nota_json(n) for n in repo.listar_notas(cliente_id)]
 
     # ------------------------------------------------------------ app do cliente
+
+    @app.get("/app/{cliente_id}", tags=["app do cliente"])
+    def dados_da_empresa(cliente_id: int):
+        """Nome, alíquota e prazo de cancelamento (para as telas do app)."""
+        c = cliente_ou_404(cliente_id)
+        return {
+            "id": c.id,
+            "razao_social": c.razao_social,
+            "municipio_nome": c.municipio_nome,
+            "aliquota_iss": c.aliquota_iss,
+            "prazo_cancelamento_dias": c.prazo_cancelamento_dias,
+        }
 
     @app.get("/app/{cliente_id}/servicos", tags=["app do cliente"])
     def servicos_para_emitir(cliente_id: int):

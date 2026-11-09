@@ -1,0 +1,460 @@
+// App do cliente: início, nova nota, resultado e cancelamento.
+(() => {
+  const { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler } = Emitta;
+  const $tela = document.getElementById("tela");
+
+  const estado = {
+    empresa: null, // {id, razao_social, municipio_nome, aliquota_iss, prazo_cancelamento_dias}
+    servicos: [],
+    notas: [],
+    ambiente: "simulacao",
+    tela: "carregando",
+    form: { codigo: null, documento: "", nome: "", valor: "", descricao: "" },
+    nota: null, // nota em foco
+    erro: null,
+    motivo: "erro",
+    textoMotivo: "",
+  };
+
+  function ir(tela) {
+    estado.tela = tela;
+    desenhar();
+    window.scrollTo(0, 0);
+  }
+
+  // ------------------------------------------------------------ dados
+
+  async function entrar(id) {
+    ir("carregando");
+    try {
+      const [empresa, servicos, notas] = await Promise.all([
+        api("GET", `/app/${id}`),
+        api("GET", `/app/${id}/servicos`),
+        api("GET", `/app/${id}/notas`),
+      ]);
+      Object.assign(estado, { empresa, servicos, notas });
+      guardar("emitta.app.empresa", String(id));
+      const url = new URL(location.href);
+      url.searchParams.set("empresa", id);
+      history.replaceState(null, "", url);
+      ir("inicio");
+    } catch (erro) {
+      guardar("emitta.app.empresa", null);
+      avisar(erro.message);
+      await mostrarEscolha();
+    }
+  }
+
+  async function recarregarNotas() {
+    estado.notas = await api("GET", `/app/${estado.empresa.id}/notas`);
+  }
+
+  async function mostrarEscolha() {
+    try {
+      estado.listaEmpresas = await api("GET", "/contador/clientes");
+    } catch (erro) {
+      estado.listaEmpresas = [];
+      avisar(erro.message);
+    }
+    ir("escolher");
+  }
+
+  // ------------------------------------------------------------ componentes
+
+  function barra(titulo, voltarPara, sub) {
+    return el("header", { class: "barra" },
+      voltarPara
+        ? el("button", { class: "voltar", type: "button", "aria-label": "Voltar", onclick: () => ir(voltarPara) }, icone("voltar", 22))
+        : el("span", { style: "width:8px" }),
+      el("div", { style: "flex:1;min-width:0" },
+        sub && el("div", { class: "sub" }, sub),
+        el("h1", {}, titulo)),
+      seloAmbiente(),
+    );
+  }
+
+  function seloAmbiente() {
+    if (estado.ambiente === "producao") return null;
+    return el("span", { class: "selo selo-amarelo" }, estado.ambiente === "simulacao" ? "Teste" : "Homologação");
+  }
+
+  function menu(atual) {
+    const item = (id, rotulo, ic, acao) =>
+      el("button", { type: "button", "aria-current": atual === id ? "page" : null, onclick: acao }, icone(ic, 22), rotulo);
+    return el("nav", { class: "menu", "aria-label": "Menu" },
+      item("inicio", "Início", "casa", () => ir("inicio")),
+      item("nova", "Emitir", "mais", novaNota),
+      item("trocar", "Trocar empresa", "sair", () => { guardar("emitta.app.empresa", null); mostrarEscolha(); }),
+    );
+  }
+
+  function itemNota(n) {
+    return el("button", { class: "nota-item", type: "button", onclick: () => { estado.nota = n; ir("detalhe"); } },
+      el("span", { class: "esq" },
+        el("span", { class: "nome" }, n.tomador.nome),
+        el("span", { class: "det" }, `Nº ${String(n.numero_dps).padStart(6, "0")} · ${dataHora(n.emitida_em)}`)),
+      el("span", { class: "dir" },
+        el("strong", {}, dinheiro(n.valor)),
+        seloSituacao(n.situacao)),
+    );
+  }
+
+  function nomeServico(codigo) {
+    const s = estado.servicos.find((x) => x.codigo === codigo);
+    return s ? s.apelido : codigo;
+  }
+
+  // ------------------------------------------------------------ telas
+
+  const TELAS = {
+    carregando: () => [
+      el("div", { class: "conteudo", style: "display:grid;place-items:center" },
+        el("div", { class: "carregando", role: "img", "aria-label": "Carregando" })),
+    ],
+
+    escolher: () => [
+      el("div", { class: "heroi" },
+        el("span", { class: "ola" }, "Emitta"),
+        el("h1", {}, "Qual é a sua empresa?")),
+      el("main", { class: "conteudo" },
+        el("div", { class: "aviso aviso-alerta" },
+          "Versão de demonstração: ainda não há login. Na versão final, cada empresa entra com o próprio acesso."),
+        ...(estado.listaEmpresas.length
+          ? estado.listaEmpresas.map((c) =>
+            el("button", { class: "empresa-item", type: "button", onclick: () => entrar(c.id) },
+              el("strong", {}, c.razao_social),
+              el("span", { class: "det" }, `${formatarDocumento(c.cnpj)} · ${c.municipio_nome}`)))
+          : [el("div", { class: "card vazio" },
+            el("p", {}, "Nenhuma empresa cadastrada ainda."),
+            el("p", { style: "margin-top:8px" }, el("a", { href: "/painel" }, "Cadastre uma no painel do contador")))]),
+      ),
+    ],
+
+    inicio: () => {
+      const agora = new Date();
+      const doMes = estado.notas.filter((n) => {
+        const d = new Date(n.emitida_em);
+        return n.situacao === "autorizada" && d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+      });
+      const total = doMes.reduce((s, n) => s + parseFloat(n.valor), 0);
+      const mes = agora.toLocaleDateString("pt-BR", { month: "long" });
+      return [
+        el("header", { class: "heroi" },
+          el("div", { style: "display:flex;justify-content:space-between;align-items:center;gap:12px" },
+            el("div", {}, el("div", { class: "ola" }, "Olá,"), el("h1", {}, estado.empresa.razao_social)),
+            seloAmbiente()),
+          el("div", { class: "resumo" },
+            el("div", {}, el("span", { class: "rot" }, `Faturado em ${mes}`), el("span", { class: "num" }, dinheiro(total))),
+            el("div", {}, el("span", { class: "rot" }, "Notas no mês"), el("span", { class: "num" }, String(doMes.length))))),
+        el("main", { class: "conteudo" },
+          estado.servicos.length
+            ? el("button", { class: "botao botao-grande", type: "button", style: "min-height:60px;font-size:17px", onclick: novaNota },
+              icone("mais", 22), "Nova nota")
+            : el("div", { class: "aviso aviso-alerta" }, icone("cadeado"),
+              "Nenhum serviço liberado ainda. Peça ao seu contador para liberar os serviços da sua empresa."),
+          el("h2", { style: "font-size:15px;margin-top:8px" }, "Últimas notas"),
+          ...(estado.notas.length
+            ? estado.notas.slice(0, 20).map(itemNota)
+            : [el("div", { class: "card vazio" }, "Você ainda não emitiu nenhuma nota.")]),
+        ),
+        menu("inicio"),
+      ];
+    },
+
+    nova: () => {
+      const f = estado.form;
+      const $totais = el("div", { class: "totais" });
+      function atualizarTotais() {
+        const v = numeroDigitado(f.valor);
+        const i = v * parseFloat(estado.empresa.aliquota_iss) / 100;
+        $totais.replaceChildren(
+          el("div", { class: "linha", style: "color:var(--texto-2)" },
+            el("span", {}, `ISS ${estado.empresa.aliquota_iss.replace(".", ",")}% (definido pelo contador)`), el("span", {}, dinheiro(i))),
+          el("div", { class: "linha total" }, el("span", {}, "Total da nota"), el("span", {}, dinheiro(v))));
+      }
+      atualizarTotais();
+
+      const opcoes = estado.servicos.map((s) =>
+        el("button", {
+          class: "opcao", type: "button", role: "radio", "aria-checked": f.codigo === s.codigo ? "true" : "false",
+          onclick: () => { f.codigo = s.codigo; desenhar(); },
+        },
+          el("span", { class: "bolinha" }),
+          el("span", {}, el("span", { class: "opcao-titulo" }, s.apelido))));
+
+      const entrada = (rotulo, chave, attrs = {}) =>
+        el("label", { class: "campo" }, rotulo,
+          el("input", { value: f[chave], ...attrs, oninput: (e) => { f[chave] = e.target.value; if (chave === "valor") atualizarTotais(); } }));
+
+      const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+
+      return [
+        barra("Nova nota", "inicio", estado.empresa.razao_social),
+        el("main", { class: "conteudo" },
+          $erro,
+          el("section", { class: "card secao" },
+            el("div", { class: "secao-titulo" },
+              el("h2", {}, "Qual serviço você prestou?"),
+              el("span", { class: "selo selo-verde" }, icone("cadeado", 12), "Liberado pelo contador")),
+            el("div", { role: "radiogroup", "aria-label": "Serviço", class: "secao" }, ...opcoes),
+            el("p", { class: "ajuda-pequena" }, "Só aparecem os serviços que o seu contador liberou para a sua empresa.")),
+          el("section", { class: "card secao" },
+            el("h2", { style: "font-size:15px" }, "Para quem?"),
+            entrada("CNPJ ou CPF do cliente", "documento", { inputmode: "numeric", autocomplete: "off", placeholder: "Só números ou com pontos" }),
+            entrada("Nome ou razão social", "nome", { autocomplete: "off" })),
+          el("section", { class: "card secao" },
+            el("h2", { style: "font-size:15px" }, "Quanto?"),
+            entrada("Valor do serviço (R$)", "valor", { inputmode: "decimal", placeholder: "0,00", style: "font-size:18px;font-weight:600" }),
+            entrada("Descrição (opcional)", "descricao", { placeholder: "Ex.: Manutenção de outubro" })),
+        ),
+        el("footer", { class: "rodape" },
+          $totais,
+          el("button", {
+            class: "botao botao-grande", type: "button",
+            onclick: () => {
+              const falta = !f.codigo ? "Escolha o serviço que você prestou."
+                : !f.documento.replace(/\D/g, "") ? "Informe o CNPJ ou CPF do cliente."
+                : !f.nome.trim() ? "Informe o nome do cliente."
+                : numeroDigitado(f.valor) <= 0 ? "Informe o valor do serviço." : null;
+              if (falta) { $erro.textContent = falta; $erro.hidden = false; $erro.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+              emitir();
+            },
+          }, icone("enviar"), "Emitir nota")),
+      ];
+    },
+
+    enviando: () => {
+      const etapa = (rotulo, sub, tipo) => el("li", {},
+        el("span", { class: "marca " + tipo }, tipo === "feita" ? icone("certo", 16, "#fff") : null),
+        el("span", {}, el("strong", { style: "display:block;font-size:15px" }, rotulo), el("span", { class: "ajuda-pequena" }, sub)));
+      return [
+        barra("Transmitindo"),
+        el("main", { class: "conteudo" },
+          el("div", { class: "centro", style: "padding-top:32px" },
+            el("div", { class: "carregando", role: "img", "aria-label": "Enviando" }),
+            el("p", { class: "grande", style: "font-size:18px" }, "Enviando para a prefeitura"),
+            el("p", { class: "ajuda-pequena", style: "font-size:14px" }, "Isso costuma levar poucos segundos. Não feche o app.")),
+          el("ol", { class: "etapas card" },
+            etapa("Dados conferidos", "Serviço liberado e documento válido", "feita"),
+            etapa("Nota montada e assinada", "Com o certificado digital da empresa", "feita"),
+            etapa("Enviando ao Emissor Nacional", "Conexão segura", "agora"),
+            etapa("Aguardando autorização", "Resposta da prefeitura", "depois"))),
+      ];
+    },
+
+    sucesso: () => [
+      barra("Nota emitida"),
+      el("main", { class: "conteudo" },
+        el("div", { class: "centro" },
+          el("span", { class: "circulo", style: "background:var(--verde-claro)" }, icone("certo", 32, "#0E7C66")),
+          el("p", { class: "grande" }, "Nota autorizada"),
+          estado.ambiente !== "producao" && el("p", { class: "ajuda-pequena", style: "color:var(--amarelo)" }, "Ambiente de teste, sem valor fiscal")),
+        detalhesNota(estado.nota)),
+      el("footer", { class: "rodape" },
+        el("button", { class: "botao botao-grande", type: "button", onclick: () => ir("inicio") }, "Voltar ao início"),
+        el("button", { class: "botao botao-secundario", type: "button", onclick: novaNota }, "Emitir outra nota")),
+    ],
+
+    erro: () => [
+      barra("Nota não emitida"),
+      el("main", { class: "conteudo" },
+        el("div", { class: "centro" },
+          el("span", { class: "circulo", style: "background:var(--vermelho-claro)" }, icone("alerta", 32, "#B42318")),
+          el("p", { class: "grande" }, estado.erro.titulo),
+          el("p", { class: "ajuda-pequena", style: "font-size:14px" }, "Nada foi emitido. Corrija e envie de novo.")),
+        el("section", { class: "card secao", style: "border-color:#F4C7C3" },
+          el("p", { style: "font-size:15px;font-weight:600" }, estado.erro.mensagem),
+          ...(estado.erro.detalhes || []).map((d) => el("p", { class: "chave" }, d)))),
+      el("footer", { class: "rodape" },
+        el("button", { class: "botao botao-grande", type: "button", onclick: () => ir("nova") }, "Corrigir dados")),
+    ],
+
+    detalhe: () => {
+      const n = estado.nota;
+      const prazo = prazoRestante(n);
+      return [
+        barra(`Nota nº ${String(n.numero_dps).padStart(6, "0")}`, "inicio"),
+        el("main", { class: "conteudo" },
+          el("div", { style: "display:flex;justify-content:center" }, seloSituacao(n.situacao)),
+          detalhesNota(n),
+          n.situacao === "rejeitada" && n.mensagem && el("div", { class: "aviso aviso-erro" }, n.mensagem),
+          n.situacao === "cancelada" && el("div", { class: "aviso aviso-info" },
+            `Cancelada em ${dataHora(n.cancelada_em)}. Motivo: ${n.motivo_cancelamento}.`)),
+        n.situacao === "autorizada" && el("footer", { class: "rodape" },
+          prazo && el("p", { class: "ajuda-pequena", style: "text-align:center" }, prazo.texto),
+          el("button", { class: "botao botao-texto-perigo", type: "button", onclick: () => { estado.motivo = "erro"; estado.textoMotivo = ""; ir("cancelar"); } },
+            "Cancelar esta nota")),
+      ];
+    },
+
+    cancelar: () => {
+      const n = estado.nota;
+      const prazo = prazoRestante(n);
+      const motivos = [
+        ["erro", "Emiti por engano", "Nota duplicada ou para o cliente errado"],
+        ["nao_prestado", "O serviço não foi feito", "O cliente desistiu ou o serviço foi cancelado"],
+        ["outro", "Outro motivo", "Você explica em uma frase"],
+      ];
+      const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+      const foraDoPrazo = prazo && prazo.vencido;
+      return [
+        barra("Cancelar nota", "detalhe"),
+        el("main", { class: "conteudo" },
+          el("section", { class: "card", style: "display:flex;justify-content:space-between;align-items:center;gap:12px" },
+            el("span", {},
+              el("strong", { style: "display:block" }, `Nota nº ${String(n.numero_dps).padStart(6, "0")}`),
+              el("span", { class: "ajuda-pequena" }, `${n.tomador.nome} · ${dataHora(n.emitida_em)}`)),
+            el("strong", {}, dinheiro(n.valor))),
+          prazo && el("div", { class: foraDoPrazo ? "aviso aviso-alerta" : "aviso aviso-info" },
+            icone("relogio"), foraDoPrazo
+              ? "Já passou o prazo da sua prefeitura para cancelar direto. Será preciso pedir análise fiscal ao município; fale com o seu contador."
+              : prazo.texto),
+          $erro,
+          !foraDoPrazo && el("section", { class: "card secao" },
+            el("h2", { style: "font-size:15px" }, "Por que você quer cancelar?"),
+            el("div", { role: "radiogroup", "aria-label": "Motivo", class: "secao" },
+              ...motivos.map(([id, titulo, sub]) => el("button", {
+                class: "opcao perigo", type: "button", role: "radio", "aria-checked": estado.motivo === id ? "true" : "false",
+                onclick: () => { estado.motivo = id; desenhar(); },
+              }, el("span", { class: "bolinha" }), el("span", {}, el("span", { class: "opcao-titulo" }, titulo), el("span", { class: "opcao-sub" }, sub))))),
+            estado.motivo === "outro" && el("label", { class: "campo" }, "Explique em uma frase",
+              el("textarea", { oninput: (e) => { estado.textoMotivo = e.target.value; } }, estado.textoMotivo))),
+          !foraDoPrazo && el("button", { class: "card", type: "button", style: "display:flex;gap:10px;align-items:center;text-align:left;cursor:pointer", onclick: () => corrigir(n) },
+            icone("trocar", 20, "#0E7C66"),
+            el("span", {}, el("strong", { style: "display:block;font-size:14px" }, "Só errou um dado? Emita a nota corrigida"),
+              el("span", { class: "ajuda-pequena" }, "Abre uma nota nova com os dados desta para você ajustar")))),
+        !foraDoPrazo && el("footer", { class: "rodape" },
+          el("button", {
+            class: "botao botao-grande botao-perigo", type: "button",
+            onclick: (e) => {
+              if (estado.motivo === "outro" && estado.textoMotivo.trim().length < 15) {
+                $erro.textContent = "Explique o motivo em uma frase (pelo menos 15 letras).";
+                $erro.hidden = false;
+                return;
+              }
+              cancelar(e.currentTarget);
+            },
+          }, "Cancelar nota"),
+          el("p", { class: "ajuda-pequena", style: "text-align:center" }, "Não dá para desfazer. Seu contador será avisado.")),
+      ];
+    },
+
+    cancelada: () => [
+      barra("Nota cancelada"),
+      el("main", { class: "conteudo" },
+        el("div", { class: "centro" },
+          el("span", { class: "circulo", style: "background:var(--vermelho-claro)" }, icone("x", 30, "#B42318")),
+          el("p", { class: "grande" }, "Nota cancelada"),
+          el("p", { class: "ajuda-pequena", style: "font-size:14px" },
+            `A prefeitura registrou o cancelamento da nota nº ${String(estado.nota.numero_dps).padStart(6, "0")}.`),
+          el("p", { class: "ajuda-pequena", style: "font-size:14px" }, `Motivo: ${estado.nota.motivo_cancelamento}.`))),
+      el("footer", { class: "rodape" },
+        el("button", { class: "botao botao-grande", type: "button", onclick: () => ir("inicio") }, "Voltar ao início")),
+    ],
+  };
+
+  function detalhesNota(n) {
+    return el("section", { class: "card detalhes" },
+      el("div", { class: "linha" }, el("span", {}, "Número"), el("strong", { style: "font-size:17px" }, String(n.numero_dps).padStart(6, "0"))),
+      el("div", { class: "linha" }, el("span", {}, "Emitida em"), el("span", {}, dataHora(n.emitida_em))),
+      el("div", { class: "linha" }, el("span", {}, "Cliente"), el("span", {}, n.tomador.nome)),
+      el("div", { class: "linha" }, el("span", {}, n.tomador.tipo), el("span", {}, formatarDocumento(n.tomador.documento))),
+      el("div", { class: "linha" }, el("span", {}, "Serviço"), el("span", {}, nomeServico(n.servico))),
+      el("div", { class: "linha" }, el("span", {}, "ISS"), el("span", {}, dinheiro(n.iss))),
+      el("div", { style: "height:1px;background:var(--borda)" }),
+      el("div", { class: "linha", style: "font-size:17px;font-weight:700" }, el("span", { style: "color:var(--texto)" }, "Total"), el("span", {}, dinheiro(n.valor))),
+      n.chave_acesso && el("div", { style: "display:flex;flex-direction:column;gap:4px" },
+        el("span", { class: "ajuda-pequena" }, "Chave de acesso"), el("span", { class: "chave" }, n.chave_acesso)));
+  }
+
+  function prazoRestante(n) {
+    const dias = estado.empresa.prazo_cancelamento_dias;
+    if (!dias) return null;
+    const limite = new Date(new Date(n.emitida_em).getTime() + dias * 86400000);
+    const vencido = Date.now() > limite.getTime();
+    return { vencido, texto: `Dentro do prazo da sua prefeitura: dá para cancelar direto até ${limite.toLocaleDateString("pt-BR")}.` };
+  }
+
+  // ------------------------------------------------------------ ações
+
+  function novaNota() {
+    if (!estado.servicos.length) { avisar("Nenhum serviço liberado. Fale com o seu contador."); return; }
+    estado.form = { codigo: estado.servicos.length === 1 ? estado.servicos[0].codigo : null, documento: "", nome: "", valor: "", descricao: "" };
+    ir("nova");
+  }
+
+  function corrigir(n) {
+    estado.form = {
+      codigo: estado.servicos.some((s) => s.codigo === n.servico) ? n.servico : null,
+      documento: formatarDocumento(n.tomador.documento), nome: n.tomador.nome,
+      valor: String(n.valor).replace(".", ","), descricao: n.descricao,
+    };
+    avisar("Ajuste os dados e emita. Depois, cancele a nota antiga com o motivo \"Emiti por engano\".");
+    ir("nova");
+  }
+
+  async function emitir() {
+    const f = estado.form;
+    ir("enviando");
+    const inicio = Date.now();
+    try {
+      const nota = await api("POST", `/app/${estado.empresa.id}/notas`, {
+        codigo_servico: f.codigo, tomador_documento: f.documento, tomador_nome: f.nome,
+        valor: f.valor, descricao: f.descricao || null,
+      });
+      await esperarMinimo(inicio);
+      estado.nota = nota;
+      await recarregarNotas();
+      ir("sucesso");
+    } catch (erro) {
+      await esperarMinimo(inicio);
+      const recusada = erro.status === 502;
+      estado.erro = {
+        titulo: recusada ? "A prefeitura recusou a nota" : "Confira os dados",
+        mensagem: recusada ? "O Emissor Nacional não aceitou esta nota." : erro.message,
+        detalhes: recusada && erro.dados && erro.dados.detail ? erro.dados.detail.detalhes : [],
+      };
+      if (recusada) await recarregarNotas().catch(() => {});
+      ir("erro");
+    }
+  }
+
+  async function cancelar(botao) {
+    botao.disabled = true;
+    try {
+      const nota = await api("POST", `/app/${estado.empresa.id}/notas/${estado.nota.id}/cancelar`, {
+        motivo: estado.motivo, texto: estado.motivo === "outro" ? estado.textoMotivo : null,
+      });
+      estado.nota = nota;
+      await recarregarNotas();
+      ir("cancelada");
+    } catch (erro) {
+      botao.disabled = false;
+      avisar(erro.message);
+    }
+  }
+
+  // Deixa a tela "Transmitindo" visível por um instante, para não piscar.
+  function esperarMinimo(inicio, ms = 1200) {
+    const resta = ms - (Date.now() - inicio);
+    return resta > 0 ? new Promise((r) => setTimeout(r, resta)) : Promise.resolve();
+  }
+
+  function desenhar() {
+    $tela.replaceChildren(...TELAS[estado.tela]().filter(Boolean));
+  }
+
+  // ------------------------------------------------------------ início
+
+  (async () => {
+    desenhar();
+    try {
+      estado.ambiente = (await api("GET", "/status")).ambiente;
+    } catch {}
+    const daUrl = parseInt(new URLSearchParams(location.search).get("empresa"), 10);
+    const salvo = parseInt(ler("emitta.app.empresa"), 10);
+    const id = daUrl || salvo;
+    if (id) await entrar(id);
+    else await mostrarEscolha();
+  })();
+})();

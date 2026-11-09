@@ -81,7 +81,29 @@ def test_empresa_duplicada(api):
     assert resp.status_code == 409
 
 
-def test_status_na_raiz(api):
-    resp = api.get("/")
+def test_status(api):
+    resp = api.get("/status")
     assert resp.status_code == 200
     assert resp.json()["ambiente"] == "simulacao"
+
+
+@pytest.mark.parametrize("caminho, trecho", [
+    ("/", "Sou contador"),
+    ("/painel", "Painel do contador"),
+    ("/app", "/static/app.js"),
+    ("/static/estilo.css", "--verde"),
+    ("/static/comum.js", "Emitta"),
+])
+def test_paginas(api, caminho, trecho):
+    resp = api.get(caminho)
+    assert resp.status_code == 200
+    assert trecho in resp.text
+
+
+def test_dados_da_empresa_para_o_app(api):
+    cid = criar_empresa(api)
+    dados = api.get(f"/app/{cid}").json()
+    assert dados["razao_social"] == "Minha Empresa ME"
+    assert dados["aliquota_iss"] == "3"
+    assert dados["prazo_cancelamento_dias"] == 30
+    assert api.get("/app/9999").status_code == 404

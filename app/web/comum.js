@@ -1,0 +1,140 @@
+// Funções compartilhadas entre o painel do contador e o app do cliente.
+
+const Emitta = (() => {
+  async function api(metodo, caminho, corpo) {
+    let resp;
+    try {
+      resp = await fetch(caminho, {
+        method: metodo,
+        headers: corpo ? { "Content-Type": "application/json" } : {},
+        body: corpo ? JSON.stringify(corpo) : undefined,
+      });
+    } catch {
+      throw new Error("Sem conexão com o servidor. Verifique a internet e tente de novo.");
+    }
+    const dados = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      const erro = new Error(mensagemDeErro(dados, resp.status));
+      erro.status = resp.status;
+      erro.dados = dados;
+      throw erro;
+    }
+    return dados;
+  }
+
+  function mensagemDeErro(dados, status) {
+    const d = dados && dados.detail;
+    if (typeof d === "string") return d;
+    if (d && d.mensagem) return d.mensagem;
+    if (Array.isArray(d) && d.length) {
+      const campo = (d[0].loc || []).slice(-1)[0];
+      return `Confira o campo "${campo}": ${d[0].msg}`;
+    }
+    if (status >= 500) return "O servidor teve um problema. Tente de novo em instantes.";
+    return "Não foi possível concluir. Confira os dados e tente de novo.";
+  }
+
+  // Monta elementos com segurança (sem innerHTML com dados do usuário).
+  function el(tag, atributos = {}, ...filhos) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(atributos)) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") e.className = v;
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+      else if (v === true) e.setAttribute(k, "");
+      else e.setAttribute(k, v);
+    }
+    for (const f of filhos.flat()) {
+      if (f === null || f === undefined || f === false) continue;
+      e.append(f instanceof Node ? f : document.createTextNode(String(f)));
+    }
+    return e;
+  }
+
+  function dinheiro(texto) {
+    const n = typeof texto === "number" ? texto : parseFloat(texto);
+    return (isNaN(n) ? 0 : n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function numeroDigitado(texto) {
+    let t = String(texto || "").replace(/[R$\s]/g, "");
+    if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(t);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function dataHora(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR") + ", " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatarDocumento(doc) {
+    const d = String(doc || "").replace(/\D/g, "");
+    if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+    if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+    return doc;
+  }
+
+  const SITUACAO = {
+    autorizada: ["Autorizada", "selo selo-verde"],
+    cancelada: ["Cancelada", "selo selo-vermelho"],
+    rejeitada: ["Recusada", "selo selo-cinza"],
+  };
+  function seloSituacao(situacao) {
+    const [texto, classe] = SITUACAO[situacao] || [situacao, "selo selo-cinza"];
+    return el("span", { class: classe }, texto);
+  }
+
+  let timerToast;
+  function avisar(texto) {
+    let t = document.querySelector(".toast");
+    if (!t) {
+      t = el("div", { class: "toast", role: "status" });
+      document.body.append(t);
+    }
+    t.textContent = texto;
+    t.hidden = false;
+    clearTimeout(timerToast);
+    timerToast = setTimeout(() => { t.hidden = true; }, 3200);
+  }
+
+  const ICONES = {
+    voltar: "M15 18l-6-6 6-6",
+    mais: "M12 5v14M5 12h14",
+    enviar: "M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z",
+    certo: "M5 12l5 5L20 7",
+    x: "M6 6l12 12M18 6 6 18",
+    alerta: "M12 8v5M12 16.5v.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",
+    cadeado: "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4",
+    casa: "M3 11l9-7 9 7M5 10v10h14V10",
+    relogio: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
+    trocar: "M4 4v6h6M20 20v-6h-6M20 10A8 8 0 0 0 6 6L4 10M4 14a8 8 0 0 0 14 4l2-4",
+    sair: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  };
+  function icone(nome, tamanho = 20, cor = "currentColor") {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", tamanho);
+    svg.setAttribute("height", tamanho);
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", cor);
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", ICONES[nome]);
+    svg.append(p);
+    return svg;
+  }
+
+  function guardar(chave, valor) {
+    try { valor === null ? localStorage.removeItem(chave) : localStorage.setItem(chave, valor); } catch {}
+  }
+  function ler(chave) {
+    try { return localStorage.getItem(chave); } catch { return null; }
+  }
+
+  return { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler };
+})();

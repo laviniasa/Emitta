@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F2A24">
+<title>Emitta · Nota fiscal de serviço sem complicação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/estilo.css">
+<style>
+  body { background: var(--noite); color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
+  .topo { display: flex; align-items: center; gap: 12px; padding: 20px 24px; max-width: 1080px; width: 100%; margin: 0 auto; }
+  .logo { width: 40px; height: 40px; border-radius: 11px; background: var(--verde); display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+  .nome { font-size: 20px; font-weight: 700; }
+  main { flex: 1; max-width: 1080px; width: 100%; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 40px; }
+  .chamada { display: flex; flex-direction: column; gap: 16px; max-width: 680px; }
+  .chamada h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
+  .chamada p { font-size: 18px; color: var(--verde-borda); line-height: 1.6; }
+  .portas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .porta {
+    display: flex; flex-direction: column; gap: 12px; padding: 24px; border-radius: 16px; text-decoration: none;
+    background: var(--noite-2); color: #fff; border: 1px solid #24524A; transition: border-color .15s;
+  }
+  .porta:hover { border-color: var(--verde); color: #fff; }
+  .porta h2 { font-size: 20px; }
+  .porta p { color: var(--verde-borda); font-size: 15px; line-height: 1.55; }
+  .porta .ir { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #7FD3BE; }
+  .passos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+  .passo { display: flex; flex-direction: column; gap: 8px; }
+  .passo .num { width: 32px; height: 32px; border-radius: 999px; background: var(--verde); display: grid; place-items: center; font-weight: 700; }
+  .passo h3 { font-size: 16px; }
+  .passo p { color: var(--verde-borda); font-size: 14px; line-height: 1.55; }
+  footer { max-width: 1080px; width: 100%; margin: 0 auto; padding: 20px 24px 28px; color: #8FB8AD; font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+  footer a { color: #8FB8AD; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <span class="logo" aria-hidden="true">E</span>
+  <span class="nome">Emitta</span>
+</header>
+<main>
+  <section class="chamada">
+    <h1>Nota fiscal de serviço sem código confuso e sem nota recusada.</h1>
+    <p>O contador libera os serviços de cada empresa. O cliente escolhe o serviço, diz para quem e quanto, e emite pelo celular no novo Emissor Nacional.</p>
+  </section>
+
+  <section class="portas" aria-label="Entrar">
+    <a class="porta" href="/painel">
+      <h2>Sou contador</h2>
+      <p>Cadastre as empresas, libere os serviços de cada uma e acompanhe todas as notas num só lugar.</p>
+      <span class="ir">Abrir o painel →</span>
+    </a>
+    <a class="porta" href="/app">
+      <h2>Sou empresa</h2>
+      <p>Emita e cancele notas em poucos toques, vendo só os serviços que o seu contador liberou.</p>
+      <span class="ir">Abrir o app →</span>
+    </a>
+  </section>
+
+  <section class="passos" aria-label="Como funciona">
+    <div class="passo"><span class="num">1</span><h3>O contador configura</h3><p>Escolhe uma vez quais serviços a empresa pode emitir e com que nome eles aparecem.</p></div>
+    <div class="passo"><span class="num">2</span><h3>O cliente emite</h3><p>Serviço, cliente e valor. O Emitta confere tudo antes de enviar, para a prefeitura não recusar.</p></div>
+    <div class="passo"><span class="num">3</span><h3>Cancelar sem medo</h3><p>Motivos em linguagem simples e aviso do prazo da prefeitura. O contador fica sabendo.</p></div>
+  </section>
+</main>
+<footer>
+  <span id="ambiente">Versão de demonstração · notas sem valor fiscal</span>
+  <a href="/docs">Documentação da API</a>
+</footer>
+</body>
+</html>
