@@ -47,7 +47,7 @@ Os testes também rodam sozinhos no GitHub a cada envio (aba **Actions**).
 
 ## Publicar no Render
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/laviniasa/emitta)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/laviniasa/Emitta)
 
 O arquivo `render.yaml` já tem tudo configurado (plano gratuito, modo simulação).
 Cada envio para a branch `main` atualiza o site sozinho.
