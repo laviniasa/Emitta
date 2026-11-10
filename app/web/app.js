@@ -1,6 +1,6 @@
 // App do cliente: início, nova nota, resultado e cancelamento.
 (() => {
-  const { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler } = Emitta;
+  const { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, sair, exigirLogin } = Emitta;
   const $tela = document.getElementById("tela");
 
   const estado = {
@@ -33,15 +33,10 @@
         api("GET", `/app/${id}/notas`),
       ]);
       Object.assign(estado, { empresa, servicos, notas });
-      guardar("emitta.app.empresa", String(id));
-      const url = new URL(location.href);
-      url.searchParams.set("empresa", id);
-      history.replaceState(null, "", url);
       ir("inicio");
     } catch (erro) {
-      guardar("emitta.app.empresa", null);
-      avisar(erro.message);
-      await mostrarEscolha();
+      estado.erroCarga = erro.message;
+      ir("semAcesso");
     }
   }
 
@@ -49,15 +44,6 @@
     estado.notas = await api("GET", `/app/${estado.empresa.id}/notas`);
   }
 
-  async function mostrarEscolha() {
-    try {
-      estado.listaEmpresas = await api("GET", "/contador/clientes");
-    } catch (erro) {
-      estado.listaEmpresas = [];
-      avisar(erro.message);
-    }
-    ir("escolher");
-  }
 
   // ------------------------------------------------------------ componentes
 
@@ -84,7 +70,9 @@
     return el("nav", { class: "menu", "aria-label": "Menu" },
       item("inicio", "Início", "casa", () => ir("inicio")),
       item("nova", "Emitir", "mais", novaNota),
-      item("trocar", "Trocar empresa", "sair", () => { guardar("emitta.app.empresa", null); mostrarEscolha(); }),
+      estado.eu.papel === "contador"
+        ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/painel"; })
+        : item("sair", "Sair", "sair", () => { if (window.confirm("Sair do Emitta neste aparelho?")) sair(); }),
     );
   }
 
@@ -112,22 +100,11 @@
         el("div", { class: "carregando", role: "img", "aria-label": "Carregando" })),
     ],
 
-    escolher: () => [
-      el("div", { class: "heroi" },
-        el("span", { class: "ola" }, "Emitta"),
-        el("h1", {}, "Qual é a sua empresa?")),
+    semAcesso: () => [
+      el("div", { class: "heroi" }, el("span", { class: "ola" }, "Emitta"), el("h1", {}, "Não foi possível abrir")),
       el("main", { class: "conteudo" },
-        el("div", { class: "aviso aviso-alerta" },
-          "Versão de demonstração: ainda não há login. Na versão final, cada empresa entra com o próprio acesso."),
-        ...(estado.listaEmpresas.length
-          ? estado.listaEmpresas.map((c) =>
-            el("button", { class: "empresa-item", type: "button", onclick: () => entrar(c.id) },
-              el("strong", {}, c.razao_social),
-              el("span", { class: "det" }, `${formatarDocumento(c.cnpj)} · ${c.municipio_nome}`)))
-          : [el("div", { class: "card vazio" },
-            el("p", {}, "Nenhuma empresa cadastrada ainda."),
-            el("p", { style: "margin-top:8px" }, el("a", { href: "/painel" }, "Cadastre uma no painel do contador")))]),
-      ),
+        el("div", { class: "aviso aviso-erro" }, estado.erroCarga || "Empresa não encontrada."),
+        el("button", { class: "botao botao-secundario", type: "button", onclick: sair }, "Sair e entrar com outra conta")),
     ],
 
     inicio: () => {
@@ -147,6 +124,8 @@
             el("div", {}, el("span", { class: "rot" }, `Faturado em ${mes}`), el("span", { class: "num" }, dinheiro(total))),
             el("div", {}, el("span", { class: "rot" }, "Notas no mês"), el("span", { class: "num" }, String(doMes.length))))),
         el("main", { class: "conteudo" },
+          estado.eu.papel === "contador" && el("div", { class: "aviso aviso-alerta" },
+            icone("olho"), "Você está vendo o app como a empresa vê. As notas emitidas aqui ficam no nome dela."),
           estado.servicos.length
             ? el("button", { class: "botao botao-grande", type: "button", style: "min-height:60px;font-size:17px", onclick: novaNota },
               icone("mais", 22), "Nova nota")
@@ -451,10 +430,13 @@
     try {
       estado.ambiente = (await api("GET", "/status")).ambiente;
     } catch {}
-    const daUrl = parseInt(new URLSearchParams(location.search).get("empresa"), 10);
-    const salvo = parseInt(ler("emitta.app.empresa"), 10);
-    const id = daUrl || salvo;
-    if (id) await entrar(id);
-    else await mostrarEscolha();
+    estado.eu = await exigirLogin();
+    // A empresa só abre a própria conta. O contador pode abrir qualquer uma
+    // pelo botão "Ver como o cliente vê" do painel.
+    const id = estado.eu.papel === "empresa"
+      ? estado.eu.cliente_id
+      : parseInt(new URLSearchParams(location.search).get("empresa"), 10);
+    if (!id) { location.href = "/painel"; return; }
+    await entrar(id);
   })();
 })();

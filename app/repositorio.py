@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import functools
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +50,38 @@ CREATE TABLE IF NOT EXISTS notas (
     motivo_cancelamento TEXT,
     UNIQUE (cliente_id, numero_dps)
 );
+
+CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    nome TEXT NOT NULL,
+    senha_hash TEXT NOT NULL,
+    papel TEXT NOT NULL CHECK (papel IN ('contador', 'empresa')),
+    cliente_id INTEGER REFERENCES clientes(id) ON DELETE CASCADE,
+    trocar_senha INTEGER NOT NULL DEFAULT 0,
+    totp_segredo TEXT,
+    totp_ativo INTEGER NOT NULL DEFAULT 0,
+    totp_ultimo_passo INTEGER,
+    falhas_seguidas INTEGER NOT NULL DEFAULT 0,
+    bloqueado_ate TEXT,
+    criado_em TEXT NOT NULL,
+    CHECK ((papel = 'empresa') = (cliente_id IS NOT NULL))
+);
+
+CREATE TABLE IF NOT EXISTS sessoes (
+    token_hash TEXT PRIMARY KEY,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    criada_em TEXT NOT NULL,
+    expira_em TEXT NOT NULL,
+    ultimo_uso TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS desafios_2fa (
+    token_hash TEXT PRIMARY KEY,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    expira_em TEXT NOT NULL,
+    tentativas INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -86,10 +120,45 @@ class Nota:
     motivo_cancelamento: str | None
 
 
+@dataclass
+class Usuario:
+    id: int
+    email: str
+    nome: str
+    senha_hash: str
+    papel: str  # contador | empresa
+    cliente_id: int | None
+    trocar_senha: int
+    totp_segredo: str | None
+    totp_ativo: int
+    totp_ultimo_passo: int | None
+    falhas_seguidas: int
+    bloqueado_ate: str | None
+    criado_em: str
+
+
+def _com_trava(classe):
+    """O servidor atende várias requisições ao mesmo tempo (em threads) e todas
+    usam a mesma conexão SQLite. Esta trava garante que só uma operação use o
+    banco por vez, evitando resultados misturados entre requisições."""
+    for nome, metodo in list(vars(classe).items()):
+        if callable(metodo) and not nome.startswith("_"):
+            def envolver(m):
+                @functools.wraps(m)
+                def com_trava(self, *args, **kwargs):
+                    with self._trava:
+                        return m(self, *args, **kwargs)
+                return com_trava
+            setattr(classe, nome, envolver(metodo))
+    return classe
+
+
+@_com_trava
 class Repositorio:
     def __init__(self, caminho: Path | str):
         if str(caminho) != ":memory:":
             Path(caminho).parent.mkdir(parents=True, exist_ok=True)
+        self._trava = threading.RLock()
         self.con = sqlite3.connect(str(caminho), check_same_thread=False)
         self.con.row_factory = sqlite3.Row
         self.con.execute("PRAGMA foreign_keys = ON")
@@ -178,3 +247,95 @@ class Repositorio:
                 (quando, motivo, nota_id),
             )
         return self.buscar_nota(nota_id)
+
+    # ------------------------------------------------------------ usuários
+
+    def contar_usuarios(self) -> int:
+        return int(self.con.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0])
+
+    def criar_usuario(self, email: str, nome: str, senha_hash: str, papel: str,
+                      cliente_id: int | None = None, trocar_senha: bool = False, criado_em: str = "") -> Usuario:
+        with self.con:
+            cur = self.con.execute(
+                """INSERT INTO usuarios (email, nome, senha_hash, papel, cliente_id, trocar_senha, criado_em)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (email, nome, senha_hash, papel, cliente_id, int(trocar_senha), criado_em),
+            )
+        return self.buscar_usuario(cur.lastrowid)
+
+    def buscar_usuario(self, usuario_id: int) -> Usuario | None:
+        linha = self.con.execute("SELECT * FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+        return Usuario(**dict(linha)) if linha else None
+
+    def buscar_usuario_por_email(self, email: str) -> Usuario | None:
+        linha = self.con.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
+        return Usuario(**dict(linha)) if linha else None
+
+    def usuarios_da_empresa(self, cliente_id: int) -> list[Usuario]:
+        linhas = self.con.execute(
+            "SELECT * FROM usuarios WHERE cliente_id = ? ORDER BY nome", (cliente_id,)
+        ).fetchall()
+        return [Usuario(**dict(l)) for l in linhas]
+
+    _CAMPOS_USUARIO = {
+        "senha_hash", "trocar_senha", "totp_segredo", "totp_ativo", "totp_ultimo_passo",
+        "falhas_seguidas", "bloqueado_ate", "nome",
+    }
+
+    def atualizar_usuario(self, usuario_id: int, **campos) -> Usuario:
+        invalidos = set(campos) - self._CAMPOS_USUARIO
+        if invalidos:
+            raise ValueError(f"Campos não permitidos: {invalidos}")
+        atribuicoes = ", ".join(f"{c} = ?" for c in campos)
+        with self.con:
+            self.con.execute(f"UPDATE usuarios SET {atribuicoes} WHERE id = ?", (*campos.values(), usuario_id))
+        return self.buscar_usuario(usuario_id)
+
+    # ------------------------------------------------------------ sessões
+
+    def criar_sessao(self, token_hash: str, usuario_id: int, criada_em: str, expira_em: str) -> None:
+        with self.con:
+            self.con.execute(
+                "INSERT INTO sessoes (token_hash, usuario_id, criada_em, expira_em, ultimo_uso) VALUES (?, ?, ?, ?, ?)",
+                (token_hash, usuario_id, criada_em, expira_em, criada_em),
+            )
+
+    def buscar_sessao(self, token_hash: str) -> dict | None:
+        linha = self.con.execute("SELECT * FROM sessoes WHERE token_hash = ?", (token_hash,)).fetchone()
+        return dict(linha) if linha else None
+
+    def tocar_sessao(self, token_hash: str, quando: str) -> None:
+        with self.con:
+            self.con.execute("UPDATE sessoes SET ultimo_uso = ? WHERE token_hash = ?", (quando, token_hash))
+
+    def apagar_sessao(self, token_hash: str) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM sessoes WHERE token_hash = ?", (token_hash,))
+
+    def apagar_sessoes_do_usuario(self, usuario_id: int, exceto: str | None = None) -> None:
+        with self.con:
+            self.con.execute(
+                "DELETE FROM sessoes WHERE usuario_id = ? AND token_hash IS NOT ?", (usuario_id, exceto)
+            )
+
+    # ------------------------------------------------------------ desafios 2FA
+
+    def criar_desafio(self, token_hash: str, usuario_id: int, expira_em: str) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM desafios_2fa WHERE usuario_id = ?", (usuario_id,))
+            self.con.execute(
+                "INSERT INTO desafios_2fa (token_hash, usuario_id, expira_em) VALUES (?, ?, ?)",
+                (token_hash, usuario_id, expira_em),
+            )
+
+    def buscar_desafio(self, token_hash: str) -> dict | None:
+        linha = self.con.execute("SELECT * FROM desafios_2fa WHERE token_hash = ?", (token_hash,)).fetchone()
+        return dict(linha) if linha else None
+
+    def contar_tentativa_desafio(self, token_hash: str) -> None:
+        with self.con:
+            self.con.execute("UPDATE desafios_2fa SET tentativas = tentativas + 1 WHERE token_hash = ?", (token_hash,))
+
+    def apagar_desafio(self, token_hash: str) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM desafios_2fa WHERE token_hash = ?", (token_hash,))

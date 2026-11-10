@@ -5,29 +5,41 @@ Documentação interativa:  http://localhost:8000/docs
 
 Páginas:
   /                              apresentação
+  /entrar                        login, primeiro acesso, troca de senha
   /painel                        painel do contador
-  /app                           app do cliente
+  /app                           app da empresa
 
 Rotas da API:
-  /status                        situação do servidor
-  /catalogo/servicos             lista nacional (para o contador escolher)
-  /contador/...                  painel do contador
-  /app/{cliente_id}/...          app do cliente (só vê o que foi liberado)
+  /status                        situação do servidor (público)
+  /auth/...                      login, sessão, senha, verificação em duas etapas
+  /catalogo/servicos             lista nacional (contador)
+  /contador/...                  painel do contador (só contador)
+  /app/{cliente_id}/...          app da empresa (a empresa só acessa a própria)
 
-ATENÇÃO: ainda não há login. Antes de colocar no ar, adicione autenticação
-(contador e cliente) — está nos próximos passos do README.
+Segurança:
+  - sessão em cookie HttpOnly + Secure + SameSite=Strict (o JavaScript não lê);
+  - toda requisição que altera dados exige o cabeçalho X-Emitta (proteção CSRF);
+  - limite de tentativas de login por IP, além do bloqueio por conta;
+  - cabeçalhos de segurança (CSP, HSTS, anti-iframe).
 """
 
 import os
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import regras
+from .autenticacao import (
+    AcessoNegado,
+    ErroAutenticacao,
+    MSG_BLOQUEADO,
+    DURACAO_SESSAO,
+    ServicoAutenticacao,
+)
 from .catalogo import carregar_catalogo
 from .certificados import ProvedorCertificados
 from .config import carregar_config
@@ -37,10 +49,28 @@ from .emissao import (
     RejeitadaPelaPrefeitura,
     ServicoEmissao,
 )
-from .repositorio import Nota, Repositorio
+from .repositorio import Nota, Repositorio, Usuario
+from .seguranca import LimitadorTentativas
 from .sefin import SefinNacional, SefinSimulada
 
 PASTA_WEB = Path(__file__).parent / "web"
+COOKIE = "emitta_sessao"
+CABECALHO_CSRF = "x-emitta"
+METODOS_QUE_ALTERAM = {"POST", "PUT", "PATCH", "DELETE"}
+# Rotas liberadas mesmo quando a pessoa ainda precisa trocar a senha provisória.
+LIBERADAS_SEM_TROCA = {"/auth/eu", "/auth/senha", "/auth/sair"}
+
+CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+])
 
 
 # ---------------------------------------------------------------- modelos
@@ -77,15 +107,64 @@ class PedidoCancelamento(BaseModel):
     texto: str | None = None
 
 
-def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
+class Instalacao(BaseModel):
+    codigo: str
+    nome: str
+    email: str
+    senha: str
+
+
+class Login(BaseModel):
+    email: str
+    senha: str
+
+
+class Codigo2FA(BaseModel):
+    desafio: str
+    codigo: str
+
+
+class TrocaSenha(BaseModel):
+    atual: str
+    nova: str
+
+
+class AtivarCodigo(BaseModel):
+    codigo: str
+
+
+class ConfirmarSenha(BaseModel):
+    senha: str
+
+
+class NovoAcesso(BaseModel):
+    nome: str
+    email: str
+
+
+def usuario_json(u: Usuario) -> dict:
+    return {
+        "id": u.id, "nome": u.nome, "email": u.email, "papel": u.papel,
+        "cliente_id": u.cliente_id, "trocar_senha": bool(u.trocar_senha), "dois_fatores": bool(u.totp_ativo),
+    }
+
+
+def ip_do_pedido(request: Request) -> str:
+    # No Render, o proxy acrescenta o IP real no FIM do X-Forwarded-For.
+    # Pegamos o último para que um valor forjado pelo navegador não conte.
+    encaminhado = request.headers.get("x-forwarded-for")
+    if encaminhado:
+        return encaminhado.split(",")[-1].strip()
+    return request.client.host if request.client else "desconhecido"
+
+
+def criar_app(
+    servico: ServicoEmissao | None = None,
+    auth: ServicoAutenticacao | None = None,
+    cookie_seguro: bool | None = None,
+) -> FastAPI:
     if servico is None:
         config = carregar_config()
-        if config.ambiente != "simulacao" and os.getenv("EMITTA_LOGIN_ATIVO") != "1":
-            # Sem login, qualquer pessoa com o endereço poderia emitir notas reais.
-            raise RuntimeError(
-                "Ambiente real bloqueado: a API ainda não tem login. "
-                "Use NFSE_AMBIENTE=simulacao até a autenticação estar pronta."
-            )
         sefin = SefinSimulada() if config.ambiente == "simulacao" else SefinNacional(config.url_sefin)
         servico = ServicoEmissao(
             repo=Repositorio(config.banco),
@@ -96,31 +175,184 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
             ),
         )
     repo = servico.repo
-    app = FastAPI(title="Emitta", version="0.1.0")
+    auth = auth or ServicoAutenticacao(repo)
+    if cookie_seguro is None:
+        cookie_seguro = os.getenv("EMITTA_COOKIE_SEGURO", "1") != "0"
+    if not cookie_seguro and servico.config.ambiente != "simulacao":
+        raise RuntimeError("EMITTA_COOKIE_SEGURO=0 só é permitido no modo simulação.")
+    limitador = LimitadorTentativas(limite=10, janela=15 * 60)
+
+    app = FastAPI(title="Emitta", version="0.2.0")
+
+    # ------------------------------------------------------------ proteções gerais
+
+    @app.middleware("http")
+    async def protecoes(request: Request, call_next):
+        caminho = request.url.path
+        if request.method in METODOS_QUE_ALTERAM and request.headers.get(CABECALHO_CSRF) != "1":
+            return JSONResponse({"detail": "Requisição bloqueada por segurança (falta o cabeçalho X-Emitta)."}, 403)
+        resposta = await call_next(request)
+        resposta.headers["X-Content-Type-Options"] = "nosniff"
+        resposta.headers["Referrer-Policy"] = "same-origin"
+        resposta.headers["X-Frame-Options"] = "DENY"
+        resposta.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if not caminho.startswith(("/docs", "/redoc", "/openapi.json")):
+            resposta.headers["Content-Security-Policy"] = CSP
+        if cookie_seguro:
+            resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        if caminho.startswith(("/auth", "/contador", "/app/", "/catalogo")):
+            resposta.headers["Cache-Control"] = "no-store"
+        return resposta
+
+    def gravar_sessao(resposta: Response, token: str) -> None:
+        resposta.set_cookie(
+            COOKIE, token, max_age=int(DURACAO_SESSAO.total_seconds()), httponly=True,
+            secure=cookie_seguro, samesite="strict", path="/",
+        )
+
+    def limitar(request: Request) -> None:
+        if not limitador.permitir(ip_do_pedido(request)):
+            raise HTTPException(429, MSG_BLOQUEADO)
+
+    def usuario_atual(request: Request) -> Usuario:
+        usuario = auth.usuario_da_sessao(request.cookies.get(COOKIE))
+        if usuario is None:
+            raise HTTPException(401, "Sua sessão terminou. Entre de novo.")
+        if usuario.trocar_senha and request.url.path not in LIBERADAS_SEM_TROCA:
+            raise HTTPException(403, {"mensagem": "Troque a senha provisória para continuar.", "codigo": "trocar_senha"})
+        return usuario
+
+    def contador_atual(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+        if usuario.papel != "contador":
+            raise HTTPException(403, "Área exclusiva do contador.")
+        return usuario
+
+    def autorizar_empresa(cliente_id: int, usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+        # Uma empresa só enxerga a si mesma. Responde 404 (e não 403) para não
+        # confirmar que outras empresas existem.
+        if usuario.papel == "empresa" and usuario.cliente_id != cliente_id:
+            raise HTTPException(404, "Empresa não encontrada.")
+        return usuario
+
+    def erro_auth(e: Exception) -> HTTPException:
+        if isinstance(e, AcessoNegado):
+            return HTTPException(403, str(e))
+        return HTTPException(400, str(e))
 
     # ------------------------------------------------------------ páginas
 
     app.mount("/static", StaticFiles(directory=PASTA_WEB), name="static")
 
+    def pagina(nome: str):
+        return FileResponse(PASTA_WEB / nome, headers={"Cache-Control": "no-cache"})
+
     @app.get("/", include_in_schema=False)
     def pagina_inicial():
-        return FileResponse(PASTA_WEB / "index.html")
+        return pagina("index.html")
+
+    @app.get("/entrar", include_in_schema=False)
+    def pagina_entrar():
+        return pagina("entrar.html")
 
     @app.get("/painel", include_in_schema=False)
     def pagina_painel():
-        return FileResponse(PASTA_WEB / "painel.html")
+        return pagina("painel.html")
 
     @app.get("/app", include_in_schema=False)
     def pagina_app():
-        return FileResponse(PASTA_WEB / "app.html")
+        return pagina("app.html")
 
     @app.get("/status", tags=["status"])
     def status():
+        return {"app": "Emitta", "ambiente": servico.config.ambiente}
+
+    # ------------------------------------------------------------ autenticação
+
+    @app.get("/auth/situacao", tags=["autenticação"])
+    def situacao():
         return {
-            "app": "Emitta",
-            "ambiente": servico.config.ambiente,
-            "documentacao": "/docs",
+            "precisa_instalar": auth.precisa_instalar(),
+            "instalacao_disponivel": bool(auth.codigo_instalacao),
         }
+
+    @app.post("/auth/instalacao", tags=["autenticação"])
+    def instalar(dados: Instalacao, request: Request, response: Response):
+        limitar(request)
+        try:
+            usuario = auth.instalar(dados.codigo, dados.nome, dados.email, dados.senha)
+            resultado = auth.entrar(usuario.email, dados.senha)
+        except (ErroAutenticacao, AcessoNegado) as e:
+            raise erro_auth(e)
+        gravar_sessao(response, resultado.token_sessao)
+        return {"usuario": usuario_json(usuario)}
+
+    @app.post("/auth/entrar", tags=["autenticação"])
+    def entrar(dados: Login, request: Request, response: Response):
+        limitar(request)
+        try:
+            resultado = auth.entrar(dados.email, dados.senha)
+        except ErroAutenticacao as e:
+            raise HTTPException(401, str(e))
+        if resultado.desafio_2fa:
+            return {"precisa_2fa": True, "desafio": resultado.desafio_2fa}
+        gravar_sessao(response, resultado.token_sessao)
+        return {"usuario": usuario_json(resultado.usuario)}
+
+    @app.post("/auth/2fa", tags=["autenticação"])
+    def confirmar_2fa(dados: Codigo2FA, request: Request, response: Response):
+        limitar(request)
+        try:
+            resultado = auth.confirmar_2fa(dados.desafio, dados.codigo)
+        except ErroAutenticacao as e:
+            raise HTTPException(401, str(e))
+        gravar_sessao(response, resultado.token_sessao)
+        return {"usuario": usuario_json(resultado.usuario)}
+
+    @app.post("/auth/sair", tags=["autenticação"])
+    def sair(request: Request, response: Response):
+        auth.sair(request.cookies.get(COOKIE))
+        response.delete_cookie(COOKIE, path="/", secure=cookie_seguro, httponly=True, samesite="strict")
+        return {"ok": True}
+
+    @app.get("/auth/eu", tags=["autenticação"])
+    def eu(usuario: Usuario = Depends(usuario_atual)):
+        return usuario_json(usuario)
+
+    @app.post("/auth/senha", tags=["autenticação"])
+    def trocar_senha(dados: TrocaSenha, request: Request, usuario: Usuario = Depends(usuario_atual)):
+        limitar(request)
+        try:
+            atualizado = auth.trocar_senha(usuario, dados.atual, dados.nova, request.cookies.get(COOKIE))
+        except ErroAutenticacao as e:
+            raise erro_auth(e)
+        return usuario_json(atualizado)
+
+    @app.post("/auth/2fa/iniciar", tags=["autenticação"])
+    def iniciar_2fa(usuario: Usuario = Depends(usuario_atual)):
+        try:
+            segredo, uri = auth.iniciar_2fa(usuario)
+        except ErroAutenticacao as e:
+            raise erro_auth(e)
+        # Mostrado uma única vez, para a pessoa cadastrar no aplicativo autenticador.
+        return {"segredo": segredo, "uri": uri}
+
+    @app.post("/auth/2fa/ativar", tags=["autenticação"])
+    def ativar_2fa(dados: AtivarCodigo, request: Request, usuario: Usuario = Depends(usuario_atual)):
+        limitar(request)
+        try:
+            return usuario_json(auth.ativar_2fa(usuario, dados.codigo))
+        except ErroAutenticacao as e:
+            raise erro_auth(e)
+
+    @app.post("/auth/2fa/desativar", tags=["autenticação"])
+    def desativar_2fa(dados: ConfirmarSenha, request: Request, usuario: Usuario = Depends(usuario_atual)):
+        limitar(request)
+        try:
+            return usuario_json(auth.desativar_2fa(usuario, dados.senha))
+        except ErroAutenticacao as e:
+            raise erro_auth(e)
+
+    # ------------------------------------------------------------ utilidades
 
     def nota_json(n: Nota) -> dict:
         return {
@@ -157,13 +389,13 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
     # ------------------------------------------------------------ catálogo
 
     @app.get("/catalogo/servicos", tags=["catálogo"])
-    def listar_catalogo():
+    def listar_catalogo(_: Usuario = Depends(contador_atual)):
         return list(carregar_catalogo().values())
 
     # ------------------------------------------------------------ contador
 
     @app.post("/contador/clientes", status_code=201, tags=["contador"])
-    def criar_cliente(dados: NovoCliente):
+    def criar_cliente(dados: NovoCliente, _: Usuario = Depends(contador_atual)):
         cnpj = regras.somente_digitos(dados.cnpj)
         try:
             doc = regras.validar_documento(cnpj)
@@ -188,14 +420,14 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
         return cliente.__dict__
 
     @app.get("/contador/clientes", tags=["contador"])
-    def listar_clientes():
+    def listar_clientes(_: Usuario = Depends(contador_atual)):
         return [
             {**c.__dict__, "servicos_liberados": len(repo.servicos_liberados(c.id))}
             for c in repo.listar_clientes()
         ]
 
     @app.get("/contador/clientes/{cliente_id}/servicos", tags=["contador"])
-    def ver_servicos_do_cliente(cliente_id: int):
+    def ver_servicos_do_cliente(cliente_id: int, _: Usuario = Depends(contador_atual)):
         cliente_ou_404(cliente_id)
         liberados = {s["codigo"]: s["apelido"] for s in repo.servicos_liberados(cliente_id)}
         return [
@@ -204,7 +436,7 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
         ]
 
     @app.put("/contador/clientes/{cliente_id}/servicos", tags=["contador"])
-    def liberar_servicos(cliente_id: int, dados: ListaServicos):
+    def liberar_servicos(cliente_id: int, dados: ListaServicos, _: Usuario = Depends(contador_atual)):
         """Define a lista COMPLETA de serviços que o cliente pode emitir."""
         cliente_ou_404(cliente_id)
         catalogo = carregar_catalogo()
@@ -218,14 +450,33 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
         return repo.servicos_liberados(cliente_id)
 
     @app.get("/contador/clientes/{cliente_id}/notas", tags=["contador"])
-    def notas_do_cliente(cliente_id: int):
+    def notas_do_cliente(cliente_id: int, _: Usuario = Depends(contador_atual)):
         cliente_ou_404(cliente_id)
         return [nota_json(n) for n in repo.listar_notas(cliente_id)]
 
-    # ------------------------------------------------------------ app do cliente
+    @app.get("/contador/clientes/{cliente_id}/acessos", tags=["contador"])
+    def acessos_da_empresa(cliente_id: int, _: Usuario = Depends(contador_atual)):
+        cliente_ou_404(cliente_id)
+        return [
+            {"id": u.id, "nome": u.nome, "email": u.email, "aguardando_primeiro_acesso": bool(u.trocar_senha)}
+            for u in repo.usuarios_da_empresa(cliente_id)
+        ]
 
-    @app.get("/app/{cliente_id}", tags=["app do cliente"])
-    def dados_da_empresa(cliente_id: int):
+    @app.post("/contador/clientes/{cliente_id}/acessos", tags=["contador"])
+    def criar_acesso(cliente_id: int, dados: NovoAcesso, _: Usuario = Depends(contador_atual)):
+        """Cria ou redefine o acesso da empresa. A senha provisória aparece
+        uma única vez e precisa ser trocada no primeiro acesso."""
+        cliente_ou_404(cliente_id)
+        try:
+            usuario, provisoria = auth.criar_acesso_empresa(cliente_id, dados.nome, dados.email)
+        except ErroAutenticacao as e:
+            raise erro_auth(e)
+        return {"email": usuario.email, "nome": usuario.nome, "senha_provisoria": provisoria}
+
+    # ------------------------------------------------------------ app da empresa
+
+    @app.get("/app/{cliente_id}", tags=["app da empresa"])
+    def dados_da_empresa(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
         """Nome, alíquota e prazo de cancelamento (para as telas do app)."""
         c = cliente_ou_404(cliente_id)
         return {
@@ -236,14 +487,14 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
             "prazo_cancelamento_dias": c.prazo_cancelamento_dias,
         }
 
-    @app.get("/app/{cliente_id}/servicos", tags=["app do cliente"])
-    def servicos_para_emitir(cliente_id: int):
+    @app.get("/app/{cliente_id}/servicos", tags=["app da empresa"])
+    def servicos_para_emitir(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
         """Só os serviços liberados pelo contador."""
         cliente_ou_404(cliente_id)
         return repo.servicos_liberados(cliente_id)
 
-    @app.post("/app/{cliente_id}/notas", status_code=201, tags=["app do cliente"])
-    def emitir_nota(cliente_id: int, dados: NovaNota):
+    @app.post("/app/{cliente_id}/notas", status_code=201, tags=["app da empresa"])
+    def emitir_nota(cliente_id: int, dados: NovaNota, _: Usuario = Depends(autorizar_empresa)):
         try:
             nota = servico.emitir(
                 cliente_id,
@@ -257,13 +508,14 @@ def criar_app(servico: ServicoEmissao | None = None) -> FastAPI:
             raise traduzir_erro(erro)
         return nota_json(nota)
 
-    @app.get("/app/{cliente_id}/notas", tags=["app do cliente"])
-    def minhas_notas(cliente_id: int):
+    @app.get("/app/{cliente_id}/notas", tags=["app da empresa"])
+    def minhas_notas(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
         cliente_ou_404(cliente_id)
         return [nota_json(n) for n in repo.listar_notas(cliente_id)]
 
-    @app.post("/app/{cliente_id}/notas/{nota_id}/cancelar", tags=["app do cliente"])
-    def cancelar_nota(cliente_id: int, nota_id: int, dados: PedidoCancelamento):
+    @app.post("/app/{cliente_id}/notas/{nota_id}/cancelar", tags=["app da empresa"])
+    def cancelar_nota(cliente_id: int, nota_id: int, dados: PedidoCancelamento,
+                      _: Usuario = Depends(autorizar_empresa)):
         try:
             nota = servico.cancelar(cliente_id, nota_id, dados.motivo, dados.texto)
         except regras.ErroDeNegocio as erro:

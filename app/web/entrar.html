@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F2A24">
+<meta name="robots" content="noindex">
+<title>Entrar · Emitta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/estilo.css">
+<style>
+  body { background: var(--noite); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; }
+  .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; margin-bottom: 24px; }
+  .marca:hover { color: #fff; }
+  .logo { width: 40px; height: 40px; border-radius: 11px; background: var(--verde); display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+  .nome { font-size: 20px; font-weight: 700; }
+  .caixa { width: 100%; max-width: 420px; background: #fff; border-radius: 18px; padding: 28px 24px; display: flex; flex-direction: column; gap: 18px; }
+  .caixa h1 { font-size: 22px; }
+  .caixa .sub { color: var(--texto-2); font-size: 14px; margin-top: 6px; line-height: 1.5; }
+  form { display: flex; flex-direction: column; gap: 14px; }
+  .senha-caixa { position: relative; display: flex; }
+  .senha-caixa input { flex: 1; padding-right: 52px; }
+  .ver-senha { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 40px; border: 0; background: transparent; cursor: pointer; color: var(--texto-2); border-radius: 8px; display: grid; place-items: center; }
+  .ver-senha:hover { background: var(--fundo); }
+  .codigo { font-size: 26px !important; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }
+  .rodape-seguro { display: flex; align-items: center; gap: 8px; color: #8FB8AD; font-size: 13px; margin-top: 20px; }
+  .forca { height: 6px; border-radius: 999px; background: var(--borda); overflow: hidden; }
+  .forca span { display: block; height: 100%; width: 0; transition: width .2s; }
+</style>
+</head>
+<body>
+<a class="marca" href="/"><span class="logo" aria-hidden="true">E</span><span class="nome">Emitta</span></a>
+<main class="caixa" id="caixa" aria-live="polite"></main>
+<p class="rodape-seguro" id="rodape"></p>
+<script src="/static/comum.js"></script>
+<script src="/static/entrar.js"></script>
+</body>
+</html>

@@ -86,3 +86,22 @@ def test_nao_cancela_nota_de_outra_empresa(servico, cliente):
     )
     with pytest.raises(NotaNaoEncontrada):
         servico.cancelar(outro.id, nota.id, "erro")
+
+
+def test_banco_aguenta_requisicoes_simultaneas(servico, cliente):
+    """Várias threads lendo e gravando ao mesmo tempo não podem misturar resultados."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    repo = servico.repo
+    for i in range(5):
+        emitir(servico, cliente)
+
+    def trabalho(i):
+        if i % 3 == 0:
+            return repo.buscar_cliente(cliente.id).razao_social == "Minha Empresa ME"
+        if i % 3 == 1:
+            return len(repo.servicos_liberados(cliente.id)) == 2
+        return len(repo.listar_notas(cliente.id)) >= 5
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        assert all(pool.map(trabalho, range(600)))

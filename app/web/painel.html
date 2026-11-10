@@ -17,7 +17,14 @@
   .marca-logo { width: 36px; height: 36px; border-radius: 10px; background: var(--verde); display: grid; place-items: center; font-weight: 700; }
   .marca-nome { font-size: 17px; font-weight: 700; }
   .marca-sub { font-size: 13px; color: var(--verde-borda); }
-  .topo a.link-app { color: var(--verde-borda); font-size: 14px; }
+  .topo-botao { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #24524A; background: transparent; color: #fff; font-size: 14px; cursor: pointer; }
+  .topo-botao:hover { background: var(--noite-2); }
+  .quem { color: var(--verde-borda); font-size: 14px; }
+  .senha-gerada { font-family: ui-monospace, monospace; font-size: 20px; letter-spacing: .05em; background: #fff; border: 1px dashed var(--verde); border-radius: 10px; padding: 10px 14px; text-align: center; user-select: all; }
+  .segredo { font-family: ui-monospace, monospace; font-size: 17px; letter-spacing: .08em; background: var(--fundo); border-radius: 10px; padding: 12px; text-align: center; word-break: break-all; user-select: all; }
+  .passos-2fa { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--texto-2); }
+  .linha-acesso { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--borda); font-size: 14px; }
+  .linha-acesso:last-child { border-bottom: 0; }
   .layout { display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; max-width: 1360px; margin: 0 auto; align-items: flex-start; }
   .lateral { flex: 1 1 260px; display: flex; flex-direction: column; gap: 12px; }
   .lista-clientes { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
@@ -75,9 +82,8 @@
     <span class="marca-logo" aria-hidden="true">E</span>
     <span><span class="marca-nome">Emitta</span><br><span class="marca-sub">Painel do contador</span></span>
   </a>
-  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="topo-acoes">
     <span class="selo selo-amarelo" id="selo-ambiente">Simulação</span>
-    <a class="link-app" href="/app">Abrir o app do cliente</a>
   </div>
 </header>
 

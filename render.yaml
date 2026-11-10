@@ -12,8 +12,11 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
-      # Por enquanto só simulação: a API ainda não tem login.
+      # Simulação até o primeiro teste com certificado real.
       - key: NFSE_AMBIENTE
         value: simulacao
       - key: NFSE_BANCO
         value: dados/emissor.db
+      # Código para criar a primeira conta. O Render gera um valor aleatório.
+      - key: EMITTA_CODIGO_INSTALACAO
+        generateValue: true

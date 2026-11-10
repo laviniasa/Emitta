@@ -1,18 +1,27 @@
 // Funções compartilhadas entre o painel do contador e o app do cliente.
 
 const Emitta = (() => {
-  async function api(metodo, caminho, corpo) {
+  async function api(metodo, caminho, corpo, opcoes = {}) {
     let resp;
     try {
       resp = await fetch(caminho, {
         method: metodo,
-        headers: corpo ? { "Content-Type": "application/json" } : {},
+        credentials: "same-origin",
+        headers: {
+          "X-Emitta": "1", // proteção contra envio forjado por outros sites (CSRF)
+          ...(corpo ? { "Content-Type": "application/json" } : {}),
+        },
         body: corpo ? JSON.stringify(corpo) : undefined,
       });
     } catch {
       throw new Error("Sem conexão com o servidor. Verifique a internet e tente de novo.");
     }
     const dados = await resp.json().catch(() => null);
+    if (!opcoes.semRedirecionar) {
+      if (resp.status === 401 && !caminho.startsWith("/auth/")) return irParaEntrar();
+      const d = dados && dados.detail;
+      if (resp.status === 403 && d && d.codigo === "trocar_senha") return irParaEntrar();
+    }
     if (!resp.ok) {
       const erro = new Error(mensagemDeErro(dados, resp.status));
       erro.status = resp.status;
@@ -20,6 +29,34 @@ const Emitta = (() => {
       throw erro;
     }
     return dados;
+  }
+
+  function irParaEntrar() {
+    const volta = location.pathname + location.search;
+    location.href = "/entrar?volta=" + encodeURIComponent(volta);
+    return new Promise(() => {}); // a página vai mudar; nada mais roda
+  }
+
+  async function sair() {
+    try { await api("POST", "/auth/sair", null, { semRedirecionar: true }); } catch {}
+    location.href = "/entrar";
+  }
+
+  // Confere quem está logado; se ninguém, manda para a tela de entrar.
+  async function exigirLogin(papel) {
+    let eu;
+    try {
+      eu = await api("GET", "/auth/eu", null, { semRedirecionar: true });
+    } catch (erro) {
+      if (erro.status === 401) return irParaEntrar();
+      throw erro;
+    }
+    if (eu.trocar_senha) return irParaEntrar();
+    if (papel && eu.papel !== papel) {
+      location.href = eu.papel === "contador" ? "/painel" : "/app";
+      return new Promise(() => {});
+    }
+    return eu;
   }
 
   function mensagemDeErro(dados, status) {
@@ -111,6 +148,10 @@ const Emitta = (() => {
     relogio: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
     trocar: "M4 4v6h6M20 20v-6h-6M20 10A8 8 0 0 0 6 6L4 10M4 14a8 8 0 0 0 14 4l2-4",
     sair: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+    escudo: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z",
+    chave: "M15 7a4 4 0 1 1-3.9 5H3v3h3v3h3v-3h2.1A4 4 0 0 1 15 7z",
+    olho: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+    usuario: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0",
   };
   function icone(nome, tamanho = 20, cor = "currentColor") {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -136,5 +177,5 @@ const Emitta = (() => {
     try { return localStorage.getItem(chave); } catch { return null; }
   }
 
-  return { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler };
+  return { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin };
 })();

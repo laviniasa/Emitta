@@ -1,6 +1,6 @@
 // Painel do contador: empresas, serviços liberados e notas.
 (() => {
-  const { api, el, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler } = Emitta;
+  const { api, el, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin } = Emitta;
 
   const estado = {
     clientes: [],
@@ -8,8 +8,12 @@
     servicos: [], // catálogo com "liberado" e "apelido"
     notas: [],
     alterado: false,
-    modo: "carregando", // carregando | cliente | nova | vazio
+    acessos: [],
+    acessoCriado: null, // {email, senha_provisoria} mostrado uma única vez
+    modo: "carregando", // carregando | cliente | nova | vazio | seguranca
     busca: "",
+    eu: null,
+    segredo2fa: null,
   };
 
   const $lista = document.getElementById("lista-clientes");
@@ -24,7 +28,13 @@
     estado.selecionado = null;
     desenharLista();
     desenharPrincipal();
+    mostrarPrincipalNoCelular();
   });
+
+  // No celular a lista fica em cima: rola até o conteúdo para a pessoa ver o que abriu.
+  function mostrarPrincipalNoCelular() {
+    if (window.innerWidth < 860) $principal.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   $busca.addEventListener("input", () => {
     estado.busca = $busca.value.trim().toLowerCase();
     desenharLista();
@@ -52,12 +62,15 @@
     desenharLista();
     desenharPrincipal();
     try {
-      const [servicos, notas] = await Promise.all([
+      const [servicos, notas, acessos] = await Promise.all([
         api("GET", `/contador/clientes/${id}/servicos`),
         api("GET", `/contador/clientes/${id}/notas`),
+        api("GET", `/contador/clientes/${id}/acessos`),
       ]);
       estado.servicos = servicos.map((s) => ({ ...s, apelido: s.apelido || s.descricao }));
       estado.notas = notas;
+      estado.acessos = acessos;
+      estado.acessoCriado = null;
       estado.modo = "cliente";
     } catch (erro) {
       avisar(erro.message);
@@ -88,6 +101,8 @@
 
   function desenharLista() {
     $lista.replaceChildren();
+    // A busca só aparece quando já existem empresas (antes confundia com o cadastro).
+    $busca.closest(".card").hidden = estado.clientes.length === 0;
     const filtrados = estado.clientes.filter((c) => {
       if (!estado.busca) return true;
       const busca = estado.busca.replace(/\D/g, "");
@@ -107,7 +122,7 @@
         el("button", {
           class: "item-cliente", type: "button",
           "aria-current": c.id === estado.selecionado ? "true" : "false",
-          onclick: () => abrirCliente(c.id),
+          onclick: () => abrirCliente(c.id).then(mostrarPrincipalNoCelular),
         },
           el("span", { class: "nome" }, c.razao_social),
           el("span", { class: "info" },
@@ -128,6 +143,8 @@
       $principal.append(formularioNovaEmpresa());
     } else if (estado.modo === "cliente") {
       $principal.append(...telaCliente());
+    } else if (estado.modo === "seguranca") {
+      $principal.append(...telaSeguranca());
     } else {
       $principal.append(el("div", { class: "card", style: "padding:40px 24px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center" },
         el("h1", { style: "font-size:22px" }, "Bem-vindo ao Emitta"),
@@ -233,12 +250,17 @@
         : el("p", { class: "vazio" }, "Esta empresa ainda não emitiu notas."),
     );
 
-    return [cabecalho, el("div", { class: "colunas" }, colServicos, colLado), notas];
+    return [cabecalho, el("div", { class: "colunas" }, colServicos, colLado), secaoAcessos(c), notas];
   }
 
   function formularioNovaEmpresa() {
-    const campo = (rotulo, nome, attrs = {}, ajuda) =>
-      el("label", { class: "campo" }, rotulo, el("input", { name: nome, ...attrs }), ajuda && el("span", { class: "ajuda" }, ajuda));
+    const campo = (rotulo, nome, attrs = {}, ajuda) => {
+      const id = `ajuda-${nome}`;
+      const input = el("input", { name: nome, ...attrs, "aria-describedby": ajuda ? id : null });
+      return el("div", { class: "campo" },
+        el("label", { class: "campo" }, rotulo, input),
+        ajuda && el("span", { class: "ajuda", id }, ajuda));
+    };
     const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
 
     const form = el("form", { class: "card", style: "padding:24px;display:flex;flex-direction:column;gap:18px", novalidate: true },
@@ -296,10 +318,187 @@
     return form;
   }
 
+  // ------------------------------------------------------------ acesso da empresa
+
+  function secaoAcessos(c) {
+    const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+    const form = el("form", { class: "form-grade", novalidate: true },
+      el("label", { class: "campo" }, "Nome de quem vai usar", el("input", { name: "nome", autocomplete: "off", required: true })),
+      el("label", { class: "campo" }, "E-mail", el("input", { name: "email", type: "email", autocomplete: "off", required: true })),
+      el("div", { style: "display:flex;align-items:flex-end" }, el("button", { class: "botao", type: "submit", style: "width:100%" }, "Criar acesso")),
+    );
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(form));
+      if (!d.nome.trim() || !d.email.trim()) { $erro.textContent = "Preencha o nome e o e-mail."; $erro.hidden = false; return; }
+      await gerarAcesso(c.id, d.nome, d.email, form.querySelector("button"), $erro);
+    });
+
+    const lista = estado.acessos.map((a) => el("div", { class: "linha-acesso" },
+      el("span", {}, el("strong", { style: "display:block" }, a.nome), el("span", { class: "sub2", style: "font-size:13px" }, a.email)),
+      el("span", { style: "display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end" },
+        a.aguardando_primeiro_acesso ? el("span", { class: "selo selo-amarelo" }, "Aguardando 1º acesso") : el("span", { class: "selo selo-verde" }, "Ativo"),
+        el("button", {
+          class: "botao botao-texto", type: "button",
+          onclick: (ev) => {
+            if (window.confirm(`Gerar uma nova senha provisória para ${a.email}? A senha atual deixa de funcionar.`)) {
+              gerarAcesso(c.id, a.nome, a.email, ev.currentTarget, $erro);
+            }
+          },
+        }, "Redefinir senha"))));
+
+    return el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
+      el("div", {},
+        el("h2", { class: "titulo" }, "Acesso da empresa ao app"),
+        el("p", { class: "sub2", style: "margin-top:4px" },
+          "Crie o login de quem vai emitir as notas. A empresa só enxerga os próprios dados.")),
+      estado.acessoCriado && el("div", { class: "aviso aviso-info", style: "flex-direction:column;align-items:stretch;gap:10px" },
+        el("strong", {}, `Acesso pronto para ${estado.acessoCriado.email}`),
+        el("span", {}, "Senha provisória (aparece só agora; no primeiro acesso a pessoa cria a própria senha):"),
+        el("div", { class: "senha-gerada" }, estado.acessoCriado.senha_provisoria),
+        el("button", {
+          class: "botao botao-secundario", type: "button",
+          onclick: async () => {
+            const texto = `Seu acesso ao Emitta:\n${location.origin}/entrar\nE-mail: ${estado.acessoCriado.email}\nSenha provisória: ${estado.acessoCriado.senha_provisoria}`;
+            try { await navigator.clipboard.writeText(texto); avisar("Copiado. Envie para a empresa por um canal privado."); }
+            catch { avisar("Não foi possível copiar. Selecione a senha e copie manualmente."); }
+          },
+        }, "Copiar instruções para enviar")),
+      $erro,
+      lista.length ? el("div", {}, ...lista) : null,
+      form,
+    );
+  }
+
+  async function gerarAcesso(clienteId, nome, email, botao, $erro) {
+    botao.disabled = true;
+    $erro.hidden = true;
+    try {
+      const r = await api("POST", `/contador/clientes/${clienteId}/acessos`, { nome, email });
+      estado.acessos = await api("GET", `/contador/clientes/${clienteId}/acessos`);
+      estado.acessoCriado = r;
+      desenharPrincipal();
+    } catch (erro) {
+      $erro.textContent = erro.message;
+      $erro.hidden = false;
+      botao.disabled = false;
+    }
+  }
+
+  // ------------------------------------------------------------ segurança da conta
+
+  function abrirSeguranca() {
+    if (!confirmarSaida()) return;
+    estado.modo = "seguranca";
+    estado.selecionado = null;
+    estado.segredo2fa = null;
+    desenharLista();
+    desenharPrincipal();
+    mostrarPrincipalNoCelular();
+  }
+
+  function formSimples(campos, textoBotao, enviar, classeBotao = "botao") {
+    const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+    const botao = el("button", { class: classeBotao, type: "submit" }, textoBotao);
+    const form = el("form", { novalidate: true, style: "display:flex;flex-direction:column;gap:12px;max-width:420px" }, $erro, ...campos, botao);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $erro.hidden = true;
+      botao.disabled = true;
+      try {
+        await enviar(Object.fromEntries(new FormData(form)), form);
+      } catch (erro) {
+        $erro.textContent = erro.message;
+        $erro.hidden = false;
+        botao.disabled = false;
+      }
+    });
+    return form;
+  }
+
+  const entradaSenha = (rotulo, nome, ac) =>
+    el("label", { class: "campo" }, rotulo, el("input", { type: "password", name: nome, autocomplete: ac, required: true }));
+
+  function telaSeguranca() {
+    const eu = estado.eu;
+    const troca = formSimples(
+      [entradaSenha("Senha atual", "atual", "current-password"), entradaSenha("Nova senha", "nova", "new-password"),
+        el("span", { class: "ajuda-pequena sub2", style: "font-size:12px" }, "Mínimo de 10 caracteres. Ao trocar, as outras sessões abertas são encerradas."),
+        entradaSenha("Repita a nova senha", "repetir", "new-password")],
+      "Trocar senha",
+      async (d, form) => {
+        if (d.nova !== d.repetir) throw new Error("As duas senhas não são iguais.");
+        await api("POST", "/auth/senha", { atual: d.atual, nova: d.nova });
+        form.reset();
+        form.querySelector("button").disabled = false;
+        avisar("Senha trocada. As outras sessões foram encerradas.");
+      },
+    );
+
+    let blocoDoisFatores;
+    if (eu.dois_fatores) {
+      blocoDoisFatores = [
+        el("div", { class: "aviso aviso-info" }, icone("escudo"), "Ativa. Ao entrar, além da senha, é pedido o código do aplicativo autenticador."),
+        el("details", {}, el("summary", { style: "cursor:pointer;font-size:14px;color:var(--texto-2)" }, "Desativar a verificação em duas etapas"),
+          formSimples([entradaSenha("Confirme com a sua senha", "senha", "current-password")], "Desativar", async (d) => {
+            estado.eu = await api("POST", "/auth/2fa/desativar", { senha: d.senha });
+            avisar("Verificação em duas etapas desativada.");
+            desenharPrincipal();
+          }, "botao botao-perigo")),
+      ];
+    } else if (estado.segredo2fa) {
+      const grupos = estado.segredo2fa.segredo.match(/.{1,4}/g).join(" ");
+      blocoDoisFatores = [
+        el("ol", { class: "passos-2fa" },
+          el("li", {}, "Instale no celular um aplicativo autenticador: Google Authenticator, Microsoft Authenticator ou Authy."),
+          el("li", {}, "No aplicativo, toque em \"+\" e escolha \"Inserir chave de configuração\" (ou \"Digitar chave\")."),
+          el("li", {}, "Em nome da conta, escreva Emitta. Em chave, digite o código abaixo, do tipo \"baseado em tempo\"."),
+          el("li", {}, "Digite aqui o código de 6 dígitos que o aplicativo mostrar.")),
+        el("div", { class: "segredo", "aria-label": "Chave de configuração" }, grupos),
+        formSimples([el("label", { class: "campo" }, "Código de 6 dígitos",
+          el("input", { name: "codigo", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", required: true }))],
+        "Ativar", async (d) => {
+          estado.eu = await api("POST", "/auth/2fa/ativar", { codigo: d.codigo });
+          estado.segredo2fa = null;
+          avisar("Pronto! A verificação em duas etapas está ativa.");
+          desenharPrincipal();
+        }),
+      ];
+    } else {
+      blocoDoisFatores = [
+        el("div", { class: "aviso aviso-alerta" }, icone("alerta"),
+          "Recomendado para contadores: quem tiver só a sua senha não consegue entrar sem o código do seu celular."),
+        el("div", {}, el("button", {
+          class: "botao", type: "button",
+          onclick: async (e) => {
+            e.currentTarget.disabled = true;
+            try { estado.segredo2fa = await api("POST", "/auth/2fa/iniciar"); desenharPrincipal(); }
+            catch (erro) { avisar(erro.message); e.currentTarget.disabled = false; }
+          },
+        }, icone("escudo", 18), "Ativar verificação em duas etapas")),
+      ];
+    }
+
+    return [
+      el("section", { class: "card cabecalho-cliente" },
+        el("div", {}, el("h1", {}, "Segurança da conta"), el("p", { class: "sub" }, `${eu.nome} · ${eu.email}`))),
+      el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
+        el("h2", { class: "titulo" }, "Verificação em duas etapas"), ...blocoDoisFatores),
+      el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
+        el("h2", { class: "titulo" }, "Trocar senha"), troca),
+    ];
+  }
+
   // ------------------------------------------------------------ início
 
   (async () => {
     try {
+      estado.eu = await exigirLogin("contador");
+      document.getElementById("topo-acoes").append(
+        el("span", { class: "quem" }, estado.eu.nome),
+        el("button", { class: "topo-botao", type: "button", onclick: abrirSeguranca }, icone("escudo", 16), "Segurança"),
+        el("button", { class: "topo-botao", type: "button", onclick: () => { if (confirmarSaida()) { estado.alterado = false; sair(); } } }, icone("sair", 16), "Sair"),
+      );
       const status = await api("GET", "/status");
       const selo = document.getElementById("selo-ambiente");
       if (status.ambiente === "simulacao") selo.textContent = "Simulação · sem valor fiscal";
@@ -311,6 +510,10 @@
       desenharLista();
       if (estado.clientes.some((c) => c.id === ultimo)) await abrirCliente(ultimo);
       else { estado.modo = "vazio"; desenharPrincipal(); }
+      if (!estado.eu.dois_fatores && !ler("emitta.aviso2fa")) {
+        guardar("emitta.aviso2fa", "1");
+        avisar("Dica: ative a verificação em duas etapas em \"Segurança\".");
+      }
     } catch (erro) {
       estado.modo = "vazio";
       desenharLista();

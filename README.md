@@ -25,17 +25,16 @@ cp .env.example .env
 uvicorn app.api:app --reload --env-file .env
 ```
 
-Abra **http://localhost:8000/docs** para testar todas as rotas pelo navegador.
+Abra **http://localhost:8000** e entre por `/entrar`. A documentação técnica da API
+fica em `/docs` (as rotas exigem login).
 
-### Testar o fluxo completo pelo /docs
+### Testar o fluxo completo
 
-1. `POST /contador/clientes`: cadastre uma empresa (ex.: CNPJ `11.222.333/0001-81`,
-   município IBGE `3550308`, alíquota `3`, prazo de cancelamento `30`).
-2. `PUT /contador/clientes/{id}/servicos`: libere `{"servicos": [{"codigo": "010101"}]}`.
-3. `GET /app/{id}/servicos`: o app só recebe o serviço liberado.
-4. `POST /app/{id}/notas`: emita (tomador `11.444.777/0001-61`, valor `1.500,00`).
-   Tente um código não liberado e veja o bloqueio (erro 403).
-5. `POST /app/{id}/notas/{nota_id}/cancelar`: cancele com `{"motivo": "erro"}`.
+1. Abra `/entrar`, informe o código de instalação e crie a conta do contador.
+2. No painel, cadastre uma empresa (ex.: CNPJ `11.222.333/0001-81`, município IBGE `3550308`).
+3. Libere um serviço e crie o acesso da empresa (anote a senha provisória).
+4. Em outra janela anônima (ou no celular), entre com o acesso da empresa, crie a senha,
+   emita uma nota (tomador `11.444.777/0001-61`) e cancele.
 
 ### Rodar os testes
 
@@ -56,8 +55,27 @@ No plano gratuito, o servidor "dorme" depois de um tempo sem uso (o primeiro ace
 demora uns 30 segundos) e **os dados do banco somem quando ele reinicia**. Serve
 para demonstração; para uso real será preciso um banco PostgreSQL.
 
-O sistema **se recusa a iniciar** em homologação ou produção enquanto não houver
-login, para ninguém emitir notas reais por um endereço aberto.
+Defina no Render a variável `EMITTA_CODIGO_INSTALACAO` (um código longo e
+secreto). Ele é pedido uma única vez, para criar a primeira conta de contador.
+
+## Login e segurança
+
+- **Primeiro acesso:** abra `/entrar`, informe o código de instalação e crie a conta do contador.
+- **Acesso das empresas:** no painel, em "Acesso da empresa ao app", o contador cria o login.
+  O sistema gera uma senha provisória (mostrada uma única vez) e a empresa cria a própria
+  senha no primeiro acesso.
+- **Senhas:** mínimo de 10 caracteres, guardadas com scrypt (nunca em texto puro).
+- **Bloqueio:** 5 senhas erradas seguidas bloqueiam a conta por 15 minutos; há também
+  limite de tentativas por IP.
+- **Verificação em duas etapas:** opcional, no menu "Segurança" do painel, com
+  Google Authenticator, Microsoft Authenticator ou Authy.
+- **Sessão:** cookie protegido (HttpOnly, Secure, SameSite=Strict), expira em 12 h ou
+  após 2 h sem uso. Trocar a senha encerra as outras sessões.
+- **Isolamento:** a empresa só acessa os próprios dados; o painel é só do contador.
+- **Proteções extras:** cabeçalho anti-CSRF (`X-Emitta`), Content-Security-Policy, HSTS,
+  bloqueio de iframes.
+
+Para rodar no seu computador sem HTTPS, use `EMITTA_COOKIE_SEGURO=0` (só no modo simulação).
 
 ## Como o código está organizado
 
@@ -93,7 +111,7 @@ Nunca use `producao` antes de tudo funcionar em homologação.
 
 ## Próximos passos
 
-- [ ] Login do contador e do cliente (hoje as rotas estão abertas: **não colocar no ar assim**)
+- [x] Login do contador e da empresa, com verificação em duas etapas
 - [ ] Cadastro da empresa pelo CNPJ (buscar dados públicos automaticamente)
 - [ ] Sugerir serviços pelo CNAE e pelo histórico de notas
 - [ ] Gerar o PDF (DANFSe) e enviar por e-mail
