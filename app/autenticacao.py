@@ -25,6 +25,7 @@ MAX_FALHAS = 5
 BLOQUEIO = timedelta(minutes=15)
 DURACAO_SESSAO = timedelta(hours=12)
 SESSAO_OCIOSA = timedelta(hours=2)
+SESSAO_OCIOSA_ADMIN = timedelta(minutes=30)
 DURACAO_DESAFIO = timedelta(minutes=5)
 MAX_TENTATIVAS_DESAFIO = 5
 
@@ -37,6 +38,10 @@ class ErroAutenticacao(ErroDeNegocio):
 
 
 class AcessoNegado(ErroDeNegocio):
+    pass
+
+
+class ContaDesativada(ErroAutenticacao):
     pass
 
 
@@ -78,17 +83,22 @@ class ServicoAutenticacao:
     # ------------------------------------------------------------ instalação
 
     def precisa_instalar(self) -> bool:
-        return self.repo.contar_usuarios() == 0
+        """Ainda não existe a conta de administração da plataforma."""
+        return self.repo.contar_admins() == 0
 
     def instalar(self, codigo: str, nome: str, email: str, senha: str) -> Usuario:
-        """Cria a primeira conta de contador. Exige o código definido na
-        variável EMITTA_CODIGO_INSTALACAO, para ninguém tomar o sistema."""
+        """Cria a conta de ADMINISTRAÇÃO da plataforma (dona do Emitta). Exige o
+        código da variável EMITTA_CODIGO_INSTALACAO e só funciona uma vez."""
         if not self.precisa_instalar():
-            raise AcessoNegado("O sistema já foi configurado. Entre com a sua conta.")
+            raise AcessoNegado("A administração já foi configurada. Entre com a sua conta.")
         if not self.codigo_instalacao:
             raise AcessoNegado("Instalação desativada: defina EMITTA_CODIGO_INSTALACAO no servidor.")
         if not hmac.compare_digest((codigo or "").strip().encode(), self.codigo_instalacao.encode()):
             raise AcessoNegado("Código de instalação incorreto.")
+        return self.criar_usuario(nome, email, senha, papel="admin")
+
+    def cadastrar_contador(self, nome: str, email: str, senha: str) -> Usuario:
+        """Qualquer contador cria a própria conta. Ele só enxerga o que cadastrar."""
         return self.criar_usuario(nome, email, senha, papel="contador")
 
     # ------------------------------------------------------------ contas
@@ -157,6 +167,8 @@ class ServicoAutenticacao:
             raise ErroAutenticacao(MSG_BLOQUEADO if bloqueio else MSG_LOGIN_INVALIDO)
 
         self.repo.atualizar_usuario(usuario.id, falhas_seguidas=0, bloqueado_ate=None)
+        if not usuario.ativo:
+            raise ContaDesativada("Esta conta está desativada. Fale com quem administra o Emitta.")
 
         if usuario.totp_ativo:
             desafio = seg.gerar_token()
@@ -186,6 +198,7 @@ class ServicoAutenticacao:
     def _abrir_sessao(self, usuario_id: int) -> str:
         token = seg.gerar_token()
         agora = self.agora()
+        self.repo.atualizar_usuario(usuario_id, ultimo_acesso=_iso(agora))
         self.repo.criar_sessao(seg.hash_token(token), usuario_id, _iso(agora), _iso(agora + DURACAO_SESSAO))
         return token
 
@@ -200,8 +213,16 @@ class ServicoAutenticacao:
         if _de_iso(sessao["expira_em"]) < agora or agora - _de_iso(sessao["ultimo_uso"]) > SESSAO_OCIOSA:
             self.repo.apagar_sessao(h)
             return None
+        usuario = self.repo.buscar_usuario(sessao["usuario_id"])
+        if not usuario or not usuario.ativo:
+            self.repo.apagar_sessao(h)
+            return None
+        # A administração tem acesso a todas as contas: sessão bem mais curta.
+        if usuario.papel == "admin" and agora - _de_iso(sessao["ultimo_uso"]) > SESSAO_OCIOSA_ADMIN:
+            self.repo.apagar_sessao(h)
+            return None
         self.repo.tocar_sessao(h, _iso(agora))
-        return self.repo.buscar_usuario(sessao["usuario_id"])
+        return usuario
 
     def sair(self, token: str | None) -> None:
         if token:
@@ -243,3 +264,46 @@ class ServicoAutenticacao:
         if not seg.verificar_senha(senha or "", usuario.senha_hash):
             raise ErroAutenticacao("Senha incorreta.")
         return self.repo.atualizar_usuario(usuario.id, totp_ativo=0, totp_segredo=None, totp_ultimo_passo=None)
+
+    # ------------------------------------------------------------ administração
+
+    def _alvo(self, usuario_id: int) -> Usuario:
+        usuario = self.repo.buscar_usuario(usuario_id)
+        if not usuario:
+            raise ErroAutenticacao("Conta não encontrada.")
+        return usuario
+
+    def redefinir_senha(self, usuario_id: int) -> tuple[Usuario, str]:
+        """Gera senha provisória (troca obrigatória no próximo acesso) e
+        desconecta a pessoa de todos os aparelhos."""
+        alvo = self._alvo(usuario_id)
+        provisoria = seg.senha_temporaria()
+        atualizado = self.repo.atualizar_usuario(
+            alvo.id, senha_hash=seg.hash_senha(provisoria), trocar_senha=1, falhas_seguidas=0, bloqueado_ate=None,
+        )
+        self.repo.apagar_sessoes_do_usuario(alvo.id)
+        return atualizado, provisoria
+
+    def desbloquear(self, usuario_id: int) -> Usuario:
+        return self.repo.atualizar_usuario(self._alvo(usuario_id).id, falhas_seguidas=0, bloqueado_ate=None)
+
+    def definir_ativo(self, usuario_id: int, ativo: bool, quem: Usuario) -> Usuario:
+        alvo = self._alvo(usuario_id)
+        if alvo.id == quem.id and not ativo:
+            raise ErroAutenticacao("Você não pode desativar a própria conta.")
+        atualizado = self.repo.atualizar_usuario(alvo.id, ativo=int(ativo))
+        if not ativo:
+            self.repo.apagar_sessoes_do_usuario(alvo.id)
+        return atualizado
+
+    def remover_2fa(self, usuario_id: int) -> Usuario:
+        """Para quem perdeu o celular do autenticador. Não vale para administração."""
+        alvo = self._alvo(usuario_id)
+        if alvo.papel == "admin":
+            raise AcessoNegado("Na administração, a verificação em duas etapas não pode ser removida.")
+        atualizado = self.repo.atualizar_usuario(alvo.id, totp_ativo=0, totp_segredo=None, totp_ultimo_passo=None)
+        self.repo.apagar_sessoes_do_usuario(alvo.id)
+        return atualizado
+
+    def encerrar_sessoes(self, usuario_id: int) -> None:
+        self.repo.apagar_sessoes_do_usuario(self._alvo(usuario_id).id)

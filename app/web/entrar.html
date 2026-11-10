@@ -8,7 +8,7 @@
 <title>Entrar · Emitta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=5">
+<link rel="stylesheet" href="/static/estilo.css?v=6">
 <style>
   body { background: var(--noite); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; }
   .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; margin-bottom: 24px; }
@@ -26,6 +26,15 @@
   .codigo { font-size: 26px !important; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }
   .rodape-seguro { display: flex; align-items: center; gap: 8px; color: #8FB8AD; font-size: 13px; margin-top: 20px; }
   .forca { height: 6px; border-radius: 999px; background: var(--borda); overflow: hidden; }
+  .opcao-perfil { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; min-height: 76px; padding: 16px 18px; border: 1px solid var(--borda); border-radius: 14px; background: #fff; text-align: left; cursor: pointer; font: inherit; color: var(--texto); }
+  .opcao-perfil:hover, .opcao-perfil:focus-visible { border-color: var(--verde); background: var(--verde-claro); }
+  .opcao-perfil strong { font-size: 17px; }
+  .opcao-perfil span { font-size: 14px; color: var(--texto-2); }
+  .botao-link { border: 0; background: none; padding: 4px 0; color: var(--verde-escuro); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .botao-link:hover { text-decoration: underline; }
+  .separador { display: flex; align-items: center; gap: 10px; color: var(--texto-2); font-size: 13px; }
+  .separador::before, .separador::after { content: ""; flex: 1; height: 1px; background: var(--borda); }
+  .nota-pe { font-size: 13px; color: var(--texto-2); text-align: center; }
   .forca span { display: block; height: 100%; width: 0; transition: width .2s; }
 </style>
 </head>
@@ -33,7 +42,7 @@
 <a class="marca" href="/"><span class="logo" aria-hidden="true">E</span><span class="nome">Emitta</span></a>
 <main class="caixa" id="caixa" aria-live="polite"></main>
 <p class="rodape-seguro" id="rodape"></p>
-<script src="/static/comum.js?v=5"></script>
-<script src="/static/entrar.js?v=5"></script>
+<script src="/static/comum.js?v=6"></script>
+<script src="/static/entrar.js?v=6"></script>
 </body>
 </html>

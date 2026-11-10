@@ -26,6 +26,7 @@ Segurança:
 import base64
 import binascii
 import os
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
@@ -38,6 +39,7 @@ from pydantic import BaseModel, Field
 from . import regras
 from .autenticacao import (
     AcessoNegado,
+    ContaDesativada,
     ErroAutenticacao,
     MSG_BLOQUEADO,
     DURACAO_SESSAO,
@@ -127,6 +129,12 @@ class Instalacao(BaseModel):
     senha: str
 
 
+class Cadastro(BaseModel):
+    nome: str = Field(max_length=120)
+    email: str = Field(max_length=254)
+    senha: str = Field(max_length=200)
+
+
 class Login(BaseModel):
     email: str
     senha: str
@@ -199,6 +207,7 @@ def criar_app(
         raise RuntimeError("EMITTA_COOKIE_SEGURO=0 só é permitido no modo simulação.")
     limitador = LimitadorTentativas(limite=10, janela=15 * 60)
     limitador_consultas = LimitadorTentativas(limite=30, janela=60)
+    limitador_cadastros = LimitadorTentativas(limite=5, janela=60 * 60)
     consulta_cnpj = consulta_cnpj or ConsultaCnpj()
 
     app = FastAPI(title="Emitta", version="0.2.0")
@@ -225,7 +234,7 @@ def criar_app(
             resposta.headers["Content-Security-Policy"] = CSP
         if cookie_seguro:
             resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        if caminho.startswith(("/auth", "/contador", "/app/", "/catalogo")):
+        if caminho.startswith(("/auth", "/contador", "/app/", "/catalogo", "/admin", "/consulta")):
             resposta.headers["Cache-Control"] = "no-store"
         elif caminho.startswith("/static/"):
             # Sempre confere se há versão nova (evita o celular usar arquivo velho).
@@ -242,6 +251,18 @@ def criar_app(
         if not limitador.permitir(ip_do_pedido(request)):
             raise HTTPException(429, MSG_BLOQUEADO)
 
+    def evento(tipo: str, request: Request | None = None, usuario: Usuario | None = None,
+               email: str | None = None, detalhe: str | None = None) -> None:
+        """Registro de atividades (aparece na tela de administração)."""
+        repo.registrar_evento(
+            quando=datetime.now(timezone.utc).isoformat(timespec="seconds"), tipo=tipo,
+            usuario_id=usuario.id if usuario else None,
+            email=(usuario.email if usuario else email),
+            papel=usuario.papel if usuario else None,
+            detalhe=(detalhe or "")[:300] or None,
+            ip=ip_do_pedido(request) if request else None,
+        )
+
     def usuario_atual(request: Request) -> Usuario:
         usuario = auth.usuario_da_sessao(request.cookies.get(COOKIE))
         if usuario is None:
@@ -255,12 +276,32 @@ def criar_app(
             raise HTTPException(403, "Área exclusiva do contador.")
         return usuario
 
-    def autorizar_empresa(cliente_id: int, usuario: Usuario = Depends(usuario_atual)) -> Usuario:
-        # Uma empresa só enxerga a si mesma. Responde 404 (e não 403) para não
-        # confirmar que outras empresas existem.
-        if usuario.papel == "empresa" and usuario.cliente_id != cliente_id:
+    def admin_atual(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+        if usuario.papel != "admin":
+            raise HTTPException(404, "Não encontrado.")
+        if not usuario.totp_ativo:
+            raise HTTPException(403, {"mensagem": "Ative a verificação em duas etapas para usar a administração.",
+                                      "codigo": "admin_2fa"})
+        return usuario
+
+    def dono_do_cliente(cliente_id: int, usuario: Usuario = Depends(contador_atual)) -> Usuario:
+        # Separação por login: o contador só acessa as empresas que ele cadastrou.
+        # 404 (e não 403) para não confirmar que empresas de outros existem.
+        cliente = repo.buscar_cliente(cliente_id)
+        if not cliente or cliente.contador_id != usuario.id:
             raise HTTPException(404, "Empresa não encontrada.")
         return usuario
+
+    def autorizar_empresa(cliente_id: int, usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+        # A empresa só enxerga a si mesma; o contador, só as empresas dele;
+        # a administração não acessa dados fiscais.
+        if usuario.papel == "empresa" and usuario.cliente_id == cliente_id:
+            return usuario
+        if usuario.papel == "contador":
+            cliente = repo.buscar_cliente(cliente_id)
+            if cliente and cliente.contador_id == usuario.id:
+                return usuario
+        raise HTTPException(404, "Empresa não encontrada.")
 
     def erro_auth(e: Exception) -> HTTPException:
         if isinstance(e, AcessoNegado):
@@ -295,6 +336,12 @@ def criar_app(
     def pagina_app():
         return pagina("app.html")
 
+    @app.get("/admin", include_in_schema=False)
+    def pagina_admin():
+        resposta = pagina("admin.html")
+        resposta.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return resposta
+
     # Endereços antigos: redirecionam para os novos (celulares guardavam cópias velhas).
     @app.get("/painel", include_in_schema=False)
     def antigo_painel():
@@ -320,12 +367,30 @@ def criar_app(
 
     @app.post("/auth/instalacao", tags=["autenticação"])
     def instalar(dados: Instalacao, request: Request, response: Response):
+        """Cria a conta de administração (uma vez só, com o código de instalação)."""
         limitar(request)
         try:
             usuario = auth.instalar(dados.codigo, dados.nome, dados.email, dados.senha)
             resultado = auth.entrar(usuario.email, dados.senha)
         except (ErroAutenticacao, AcessoNegado) as e:
+            evento("instalacao_recusada", request, email=dados.email, detalhe=str(e))
             raise erro_auth(e)
+        evento("administracao_criada", request, usuario)
+        gravar_sessao(response, resultado.token_sessao)
+        return {"usuario": usuario_json(usuario)}
+
+    @app.post("/auth/cadastro", tags=["autenticação"])
+    def cadastrar_contador(dados: Cadastro, request: Request, response: Response):
+        """Contador cria a própria conta. Ele só enxerga as empresas que cadastrar."""
+        limitar(request)
+        if not limitador_cadastros.permitir(ip_do_pedido(request)):
+            raise HTTPException(429, "Muitas contas criadas deste aparelho. Tente mais tarde.")
+        try:
+            usuario = auth.cadastrar_contador(dados.nome, dados.email, dados.senha)
+            resultado = auth.entrar(usuario.email, dados.senha)
+        except ErroAutenticacao as e:
+            raise erro_auth(e)
+        evento("conta_contador_criada", request, usuario)
         gravar_sessao(response, resultado.token_sessao)
         return {"usuario": usuario_json(usuario)}
 
@@ -335,9 +400,13 @@ def criar_app(
         try:
             resultado = auth.entrar(dados.email, dados.senha)
         except ErroAutenticacao as e:
+            tipo = ("conta_desativada_tentou_entrar" if isinstance(e, ContaDesativada)
+                    else "bloqueio_por_tentativas" if str(e) == MSG_BLOQUEADO else "senha_errada")
+            evento(tipo, request, email=(dados.email or "")[:254])
             raise HTTPException(401, str(e))
         if resultado.desafio_2fa:
             return {"precisa_2fa": True, "desafio": resultado.desafio_2fa}
+        evento("entrou", request, resultado.usuario)
         gravar_sessao(response, resultado.token_sessao)
         return {"usuario": usuario_json(resultado.usuario)}
 
@@ -347,13 +416,19 @@ def criar_app(
         try:
             resultado = auth.confirmar_2fa(dados.desafio, dados.codigo)
         except ErroAutenticacao as e:
+            evento("codigo_2fa_errado", request, detalhe=str(e))
             raise HTTPException(401, str(e))
+        evento("entrou", request, resultado.usuario, detalhe="com verificação em duas etapas")
         gravar_sessao(response, resultado.token_sessao)
         return {"usuario": usuario_json(resultado.usuario)}
 
     @app.post("/auth/sair", tags=["autenticação"])
     def sair(request: Request, response: Response):
-        auth.sair(request.cookies.get(COOKIE))
+        token = request.cookies.get(COOKIE)
+        usuario = auth.usuario_da_sessao(token)
+        auth.sair(token)
+        if usuario:
+            evento("saiu", request, usuario)
         response.delete_cookie(COOKIE, path="/", secure=cookie_seguro, httponly=True, samesite="strict")
         return {"ok": True}
 
@@ -368,6 +443,7 @@ def criar_app(
             atualizado = auth.trocar_senha(usuario, dados.atual, dados.nova, request.cookies.get(COOKIE))
         except ErroAutenticacao as e:
             raise erro_auth(e)
+        evento("senha_trocada", request, usuario)
         return usuario_json(atualizado)
 
     @app.post("/auth/2fa/iniciar", tags=["autenticação"])
@@ -383,17 +459,98 @@ def criar_app(
     def ativar_2fa(dados: AtivarCodigo, request: Request, usuario: Usuario = Depends(usuario_atual)):
         limitar(request)
         try:
-            return usuario_json(auth.ativar_2fa(usuario, dados.codigo))
+            atualizado = auth.ativar_2fa(usuario, dados.codigo)
         except ErroAutenticacao as e:
             raise erro_auth(e)
+        evento("duas_etapas_ativada", request, usuario)
+        return usuario_json(atualizado)
 
     @app.post("/auth/2fa/desativar", tags=["autenticação"])
     def desativar_2fa(dados: ConfirmarSenha, request: Request, usuario: Usuario = Depends(usuario_atual)):
         limitar(request)
+        if usuario.papel == "admin":
+            raise HTTPException(403, "Na administração, a verificação em duas etapas é obrigatória.")
         try:
-            return usuario_json(auth.desativar_2fa(usuario, dados.senha))
+            atualizado = auth.desativar_2fa(usuario, dados.senha)
         except ErroAutenticacao as e:
             raise erro_auth(e)
+        evento("duas_etapas_desativada", request, usuario)
+        return usuario_json(atualizado)
+
+    # ------------------------------------------------------------ administração
+
+    PAPEIS = {"admin": "Administração", "contador": "Contador", "empresa": "Empresa"}
+
+    @app.get("/admin/contas", tags=["administração"])
+    def admin_contas(_: Usuario = Depends(admin_atual)):
+        """Contas e situação de acesso. Não inclui notas nem certificados."""
+        empresas = repo.contar_empresas_por_contador()
+        agora = datetime.now(timezone.utc)
+        contas = []
+        for u in repo.listar_usuarios():
+            bloqueada = bool(u["bloqueado_ate"] and datetime.fromisoformat(u["bloqueado_ate"]) > agora)
+            contas.append({
+                "id": u["id"], "nome": u["nome"], "email": u["email"], "papel": u["papel"],
+                "papel_nome": PAPEIS.get(u["papel"], u["papel"]),
+                "ativo": bool(u["ativo"]), "bloqueada": bloqueada, "dois_fatores": bool(u["totp_ativo"]),
+                "aguardando_primeiro_acesso": bool(u["trocar_senha"]),
+                "ultimo_acesso": u["ultimo_acesso"], "criado_em": u["criado_em"],
+                "empresa": u["empresa"], "contador": u["contador"],
+                "empresas_cadastradas": empresas.get(u["id"], 0) if u["papel"] == "contador" else None,
+            })
+        return contas
+
+    @app.get("/admin/atividades", tags=["administração"])
+    def admin_atividades(usuario_id: int | None = None, limite: int = 200, _: Usuario = Depends(admin_atual)):
+        return repo.listar_eventos(limite=max(1, min(limite, 1000)), usuario_id=usuario_id)
+
+    def acao_admin(request: Request, quem: Usuario, alvo_id: int, tipo: str, fazer):
+        alvo = repo.buscar_usuario(alvo_id)
+        if not alvo:
+            raise HTTPException(404, "Conta não encontrada.")
+        try:
+            resultado = fazer(alvo)
+        except ErroAutenticacao as e:
+            raise erro_auth(e)
+        evento(tipo, request, quem, detalhe=f"conta: {alvo.email}")
+        return resultado
+
+    @app.post("/admin/contas/{usuario_id}/senha-provisoria", tags=["administração"])
+    def admin_senha(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        """Gera uma senha provisória (mostrada uma vez). A pessoa troca no próximo acesso."""
+        if usuario_id == quem.id:
+            raise HTTPException(400, "Para a sua própria conta, use \"Trocar senha\".")
+        def fazer(alvo):
+            _, provisoria = auth.redefinir_senha(alvo.id)
+            return {"email": alvo.email, "senha_provisoria": provisoria}
+        return acao_admin(request, quem, usuario_id, "admin_gerou_senha_provisoria", fazer)
+
+    @app.post("/admin/contas/{usuario_id}/desbloquear", tags=["administração"])
+    def admin_desbloquear(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        return acao_admin(request, quem, usuario_id, "admin_desbloqueou",
+                          lambda alvo: {"ok": bool(auth.desbloquear(alvo.id))})
+
+    @app.post("/admin/contas/{usuario_id}/desativar", tags=["administração"])
+    def admin_desativar(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        return acao_admin(request, quem, usuario_id, "admin_desativou_conta",
+                          lambda alvo: {"ok": bool(auth.definir_ativo(alvo.id, False, quem))})
+
+    @app.post("/admin/contas/{usuario_id}/reativar", tags=["administração"])
+    def admin_reativar(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        return acao_admin(request, quem, usuario_id, "admin_reativou_conta",
+                          lambda alvo: {"ok": bool(auth.definir_ativo(alvo.id, True, quem))})
+
+    @app.post("/admin/contas/{usuario_id}/remover-2fa", tags=["administração"])
+    def admin_remover_2fa(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        return acao_admin(request, quem, usuario_id, "admin_removeu_duas_etapas",
+                          lambda alvo: {"ok": bool(auth.remover_2fa(alvo.id))})
+
+    @app.post("/admin/contas/{usuario_id}/desconectar", tags=["administração"])
+    def admin_desconectar(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        def fazer(alvo):
+            auth.encerrar_sessoes(alvo.id)
+            return {"ok": True}
+        return acao_admin(request, quem, usuario_id, "admin_desconectou_conta", fazer)
 
     # ------------------------------------------------------------ utilidades
 
@@ -442,7 +599,7 @@ def criar_app(
     # ------------------------------------------------------------ contador
 
     @app.post("/contador/clientes", status_code=201, tags=["contador"])
-    def criar_cliente(dados: NovoCliente, _: Usuario = Depends(contador_atual)):
+    def criar_cliente(dados: NovoCliente, request: Request, usuario: Usuario = Depends(contador_atual)):
         cnpj = regras.limpar_documento(dados.cnpj)
         if dados.opcao_simples == "3" and dados.p_tot_trib_sn is None and servico.config.ambiente != "simulacao":
             raise HTTPException(422, "Informe o percentual aproximado de tributos do Simples Nacional.")
@@ -463,23 +620,25 @@ def criar_app(
                 prazo_cancelamento_dias=dados.prazo_cancelamento_dias,
                 p_tot_trib_sn=str(dados.p_tot_trib_sn) if dados.p_tot_trib_sn is not None else None,
                 reg_ap_trib_sn=dados.reg_ap_trib_sn,
+                contador_id=usuario.id,
             )
         except Exception as erro:  # sqlite3.IntegrityError
             if "UNIQUE" in str(erro):
-                raise HTTPException(409, "Esta empresa já está cadastrada.")
+                raise HTTPException(409, "Você já cadastrou esta empresa.")
             raise
+        evento("empresa_cadastrada", request, usuario, detalhe=f"{cliente.razao_social} ({cnpj})")
         return cliente.publico()
 
     @app.get("/contador/clientes", tags=["contador"])
-    def listar_clientes(_: Usuario = Depends(contador_atual)):
+    def listar_clientes(usuario: Usuario = Depends(contador_atual)):
         return [
             {**c.publico(), "servicos_liberados": len(repo.servicos_liberados(c.id))}
-            for c in repo.listar_clientes()
+            for c in repo.listar_clientes(contador_id=usuario.id)
         ]
 
     @app.post("/contador/clientes/{cliente_id}/certificado", tags=["contador"])
     def enviar_certificado(cliente_id: int, dados: EnvioCertificado, request: Request,
-                           _: Usuario = Depends(contador_atual)):
+                           usuario: Usuario = Depends(dono_do_cliente)):
         """Recebe o .pfx (em base64) e a senha; confere e guarda criptografado."""
         limitar(request)
         cliente = cliente_ou_404(cliente_id)
@@ -493,11 +652,13 @@ def criar_app(
             raise HTTPException(422, str(e))
         atualizado = repo.guardar_certificado(
             cliente_id, cifrado["pfx_cifrado"], cifrado["senha_cifrada"], cifrado["validade"], cifrado["titular"])
+        evento("certificado_enviado", request, usuario, detalhe=cliente.razao_social)
         return atualizado.publico()
 
     @app.delete("/contador/clientes/{cliente_id}/certificado", tags=["contador"])
-    def remover_certificado(cliente_id: int, _: Usuario = Depends(contador_atual)):
-        cliente_ou_404(cliente_id)
+    def remover_certificado(cliente_id: int, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
+        cliente = cliente_ou_404(cliente_id)
+        evento("certificado_removido", request, usuario, detalhe=cliente.razao_social)
         return repo.remover_certificado(cliente_id).publico()
 
     # ------------------------------------------------------------ consulta CNPJ
@@ -521,7 +682,7 @@ def criar_app(
             raise HTTPException(503, str(e))
 
     @app.get("/contador/clientes/{cliente_id}/servicos", tags=["contador"])
-    def ver_servicos_do_cliente(cliente_id: int, _: Usuario = Depends(contador_atual)):
+    def ver_servicos_do_cliente(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):
         cliente_ou_404(cliente_id)
         liberados = {s["codigo"]: s["apelido"] for s in repo.servicos_liberados(cliente_id)}
         return [
@@ -530,7 +691,7 @@ def criar_app(
         ]
 
     @app.put("/contador/clientes/{cliente_id}/servicos", tags=["contador"])
-    def liberar_servicos(cliente_id: int, dados: ListaServicos, _: Usuario = Depends(contador_atual)):
+    def liberar_servicos(cliente_id: int, dados: ListaServicos, _: Usuario = Depends(dono_do_cliente)):
         """Define a lista COMPLETA de serviços que o cliente pode emitir."""
         cliente_ou_404(cliente_id)
         catalogo = carregar_catalogo()
@@ -544,12 +705,12 @@ def criar_app(
         return repo.servicos_liberados(cliente_id)
 
     @app.get("/contador/clientes/{cliente_id}/notas", tags=["contador"])
-    def notas_do_cliente(cliente_id: int, _: Usuario = Depends(contador_atual)):
+    def notas_do_cliente(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):
         cliente_ou_404(cliente_id)
         return [nota_json(n) for n in repo.listar_notas(cliente_id)]
 
     @app.get("/contador/clientes/{cliente_id}/acessos", tags=["contador"])
-    def acessos_da_empresa(cliente_id: int, _: Usuario = Depends(contador_atual)):
+    def acessos_da_empresa(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):
         cliente_ou_404(cliente_id)
         return [
             {"id": u.id, "nome": u.nome, "email": u.email, "aguardando_primeiro_acesso": bool(u.trocar_senha)}
@@ -557,7 +718,8 @@ def criar_app(
         ]
 
     @app.post("/contador/clientes/{cliente_id}/acessos", tags=["contador"])
-    def criar_acesso(cliente_id: int, dados: NovoAcesso, _: Usuario = Depends(contador_atual)):
+    def criar_acesso(cliente_id: int, dados: NovoAcesso, request: Request,
+                     quem: Usuario = Depends(dono_do_cliente)):
         """Cria ou redefine o acesso da empresa. A senha provisória aparece
         uma única vez e precisa ser trocada no primeiro acesso."""
         cliente_ou_404(cliente_id)
@@ -565,6 +727,7 @@ def criar_app(
             usuario, provisoria = auth.criar_acesso_empresa(cliente_id, dados.nome, dados.email)
         except ErroAutenticacao as e:
             raise erro_auth(e)
+        evento("acesso_empresa_criado", request, quem, detalhe=f"{usuario.email} → {cliente_ou_404(cliente_id).razao_social}")
         return {"email": usuario.email, "nome": usuario.nome, "senha_provisoria": provisoria}
 
     # ------------------------------------------------------------ app da empresa
@@ -589,7 +752,7 @@ def criar_app(
         return repo.servicos_liberados(cliente_id)
 
     @app.post("/app/{cliente_id}/notas", status_code=201, tags=["app da empresa"])
-    def emitir_nota(cliente_id: int, dados: NovaNota, _: Usuario = Depends(autorizar_empresa)):
+    def emitir_nota(cliente_id: int, dados: NovaNota, request: Request, usuario: Usuario = Depends(autorizar_empresa)):
         try:
             nota = servico.emitir(
                 cliente_id,
@@ -606,6 +769,7 @@ def criar_app(
             return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)
         except regras.ErroDeNegocio as erro:
             raise traduzir_erro(erro)
+        evento("nota_emitida", request, usuario, detalhe=f"nº {nota.numero_dps}, R$ {regras.centavos_para_texto(nota.valor_centavos)}")
         return nota_json(nota)
 
     @app.post("/app/{cliente_id}/notas/{nota_id}/verificar", tags=["app da empresa"])
@@ -655,11 +819,12 @@ def criar_app(
 
     @app.post("/app/{cliente_id}/notas/{nota_id}/cancelar", tags=["app da empresa"])
     def cancelar_nota(cliente_id: int, nota_id: int, dados: PedidoCancelamento,
-                      _: Usuario = Depends(autorizar_empresa)):
+                      request: Request, usuario: Usuario = Depends(autorizar_empresa)):
         try:
             nota = servico.cancelar(cliente_id, nota_id, dados.motivo, dados.texto)
         except regras.ErroDeNegocio as erro:
             raise traduzir_erro(erro)
+        evento("nota_cancelada", request, usuario, detalhe=f"nº {nota.numero_dps}")
         return nota_json(nota)
 
     return app

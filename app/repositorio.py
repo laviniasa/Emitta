@@ -12,7 +12,7 @@ from pathlib import Path
 ESQUEMA = """
 CREATE TABLE IF NOT EXISTS clientes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cnpj TEXT NOT NULL UNIQUE,
+    cnpj TEXT NOT NULL,
     razao_social TEXT NOT NULL,
     municipio_ibge TEXT NOT NULL,
     municipio_nome TEXT NOT NULL,
@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS clientes (
     cert_pfx_cifrado BLOB,
     cert_senha_cifrada BLOB,
     cert_validade TEXT,
-    cert_titular TEXT
+    cert_titular TEXT,
+    contador_id INTEGER REFERENCES usuarios(id),
+    UNIQUE (contador_id, cnpj)
 );
 
 CREATE TABLE IF NOT EXISTS servicos_liberados (
@@ -68,7 +70,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email TEXT NOT NULL UNIQUE COLLATE NOCASE,
     nome TEXT NOT NULL,
     senha_hash TEXT NOT NULL,
-    papel TEXT NOT NULL CHECK (papel IN ('contador', 'empresa')),
+    papel TEXT NOT NULL CHECK (papel IN ('admin', 'contador', 'empresa')),
     cliente_id INTEGER REFERENCES clientes(id) ON DELETE CASCADE,
     trocar_senha INTEGER NOT NULL DEFAULT 0,
     totp_segredo TEXT,
@@ -77,8 +79,22 @@ CREATE TABLE IF NOT EXISTS usuarios (
     falhas_seguidas INTEGER NOT NULL DEFAULT 0,
     bloqueado_ate TEXT,
     criado_em TEXT NOT NULL,
+    ativo INTEGER NOT NULL DEFAULT 1,
+    ultimo_acesso TEXT,
     CHECK ((papel = 'empresa') = (cliente_id IS NOT NULL))
 );
+
+CREATE TABLE IF NOT EXISTS eventos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quando TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    usuario_id INTEGER,
+    email TEXT,
+    papel TEXT,
+    detalhe TEXT,
+    ip TEXT
+);
+CREATE INDEX IF NOT EXISTS eventos_quando ON eventos (quando DESC);
 
 CREATE TABLE IF NOT EXISTS sessoes (
     token_hash TEXT PRIMARY KEY,
@@ -115,6 +131,7 @@ class Cliente:
     cert_senha_cifrada: bytes | None = None
     cert_validade: str | None = None
     cert_titular: str | None = None
+    contador_id: int | None = None
 
     def publico(self) -> dict:
         """Dados que podem sair na API (sem o certificado cifrado)."""
@@ -158,7 +175,7 @@ class Usuario:
     email: str
     nome: str
     senha_hash: str
-    papel: str  # contador | empresa
+    papel: str  # admin | contador | empresa
     cliente_id: int | None
     trocar_senha: int
     totp_segredo: str | None
@@ -167,6 +184,8 @@ class Usuario:
     falhas_seguidas: int
     bloqueado_ate: str | None
     criado_em: str
+    ativo: int = 1
+    ultimo_acesso: str | None = None
 
 
 def _com_trava(classe):
@@ -199,7 +218,9 @@ class Repositorio:
 
     # Colunas acrescentadas depois da primeira versão (bancos já existentes).
     _COLUNAS_NOVAS = {
+        "usuarios": {"ativo": "INTEGER NOT NULL DEFAULT 1", "ultimo_acesso": "TEXT"},
         "clientes": {
+            "contador_id": "INTEGER",
             "reg_ap_trib_sn": "TEXT NOT NULL DEFAULT '1'", "p_tot_trib_sn": "TEXT",
             "cert_pfx_cifrado": "BLOB", "cert_senha_cifrada": "BLOB",
             "cert_validade": "TEXT", "cert_titular": "TEXT",
@@ -234,16 +255,17 @@ class Repositorio:
         prazo_cancelamento_dias: int | None = None,
         p_tot_trib_sn: str | None = None,
         reg_ap_trib_sn: str = "1",
+        contador_id: int | None = None,
     ) -> Cliente:
         with self.con:
             cur = self.con.execute(
                 """INSERT INTO clientes (cnpj, razao_social, municipio_ibge, municipio_nome,
                    opcao_simples, aliquota_iss, prazo_cancelamento_dias, criado_em,
-                   p_tot_trib_sn, reg_ap_trib_sn)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   p_tot_trib_sn, reg_ap_trib_sn, contador_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (cnpj, razao_social, municipio_ibge, municipio_nome, opcao_simples,
                  aliquota_iss, prazo_cancelamento_dias, datetime.now().astimezone().isoformat(),
-                 p_tot_trib_sn, reg_ap_trib_sn),
+                 p_tot_trib_sn, reg_ap_trib_sn, contador_id),
             )
         return self.buscar_cliente(cur.lastrowid)
 
@@ -268,8 +290,11 @@ class Repositorio:
                    cert_validade = NULL, cert_titular = NULL WHERE id = ?""", (cliente_id,))
         return self.buscar_cliente(cliente_id)
 
-    def listar_clientes(self) -> list[Cliente]:
-        linhas = self.con.execute("SELECT * FROM clientes ORDER BY razao_social").fetchall()
+    def listar_clientes(self, contador_id: int | None = None) -> list[Cliente]:
+        """Empresas de um contador (separação por login)."""
+        linhas = self.con.execute(
+            "SELECT * FROM clientes WHERE contador_id IS ? ORDER BY razao_social", (contador_id,)
+        ).fetchall()
         return [Cliente(**dict(l)) for l in linhas]
 
     # ------------------------------------------------------------ serviços
@@ -374,8 +399,54 @@ class Repositorio:
 
     _CAMPOS_USUARIO = {
         "senha_hash", "trocar_senha", "totp_segredo", "totp_ativo", "totp_ultimo_passo",
-        "falhas_seguidas", "bloqueado_ate", "nome",
+        "falhas_seguidas", "bloqueado_ate", "nome", "ativo", "ultimo_acesso",
     }
+
+    def contar_admins(self) -> int:
+        return int(self.con.execute("SELECT COUNT(*) FROM usuarios WHERE papel = 'admin'").fetchone()[0])
+
+    def listar_usuarios(self) -> list[dict]:
+        """Todas as contas, com a empresa e o contador responsável (para a administração)."""
+        linhas = self.con.execute(
+            """SELECT u.id, u.email, u.nome, u.papel, u.ativo, u.ultimo_acesso, u.criado_em,
+                      u.bloqueado_ate, u.totp_ativo, u.trocar_senha,
+                      c.razao_social AS empresa, dono.nome AS contador
+               FROM usuarios u
+               LEFT JOIN clientes c ON c.id = u.cliente_id
+               LEFT JOIN usuarios dono ON dono.id = c.contador_id
+               ORDER BY u.papel, u.nome"""
+        ).fetchall()
+        return [dict(l) for l in linhas]
+
+    def contar_empresas_por_contador(self) -> dict[int, int]:
+        linhas = self.con.execute(
+            "SELECT contador_id, COUNT(*) FROM clientes WHERE contador_id IS NOT NULL GROUP BY contador_id"
+        ).fetchall()
+        return {l[0]: l[1] for l in linhas}
+
+    # ------------------------------------------------------------ eventos
+
+    def registrar_evento(self, quando: str, tipo: str, usuario_id: int | None = None, email: str | None = None,
+                         papel: str | None = None, detalhe: str | None = None, ip: str | None = None) -> None:
+        with self.con:
+            self.con.execute(
+                "INSERT INTO eventos (quando, tipo, usuario_id, email, papel, detalhe, ip) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (quando, tipo, usuario_id, email, papel, detalhe, ip),
+            )
+
+    def listar_eventos(self, limite: int = 200, usuario_id: int | None = None, tipo: str | None = None) -> list[dict]:
+        condicoes, valores = [], []
+        if usuario_id is not None:
+            condicoes.append("usuario_id = ?")
+            valores.append(usuario_id)
+        if tipo:
+            condicoes.append("tipo = ?")
+            valores.append(tipo)
+        onde = ("WHERE " + " AND ".join(condicoes)) if condicoes else ""
+        linhas = self.con.execute(
+            f"SELECT * FROM eventos {onde} ORDER BY id DESC LIMIT ?", (*valores, limite)
+        ).fetchall()
+        return [dict(l) for l in linhas]
 
     def atualizar_usuario(self, usuario_id: int, **campos) -> Usuario:
         invalidos = set(campos) - self._CAMPOS_USUARIO

@@ -30,10 +30,12 @@ fica em `/docs` (as rotas exigem login).
 
 ### Testar o fluxo completo
 
-1. Abra `/entrar`, informe o código de instalação e crie a conta do contador.
-2. No painel, cadastre uma empresa (ex.: CNPJ `11.222.333/0001-81`, município IBGE `3550308`).
-3. Libere um serviço e crie o acesso da empresa (anote a senha provisória).
-4. Em outra janela anônima (ou no celular), entre com o acesso da empresa, crie a senha,
+1. Abra `/admin`, informe o código de instalação e crie a conta de administração
+   (depois ative a verificação em duas etapas, obrigatória nessa área).
+2. Em outra janela, abra `/entrar` → **Sou contador** → **Criar conta de contador**.
+3. No painel, cadastre uma empresa (ex.: CNPJ `11.222.333/0001-81`, município IBGE `3550308`),
+   libere um serviço e crie o acesso da empresa (anote a senha provisória).
+4. Em outra janela anônima (ou no celular), **Sou empresa** → entre com o acesso, crie a senha,
    emita uma nota (tomador `11.444.777/0001-61`) e cancele.
 
 ### Rodar os testes
@@ -56,22 +58,34 @@ demora uns 30 segundos) e **os dados do banco somem quando ele reinicia**. Serve
 para demonstração; para uso real será preciso um banco PostgreSQL.
 
 Defina no Render a variável `EMITTA_CODIGO_INSTALACAO` (um código longo e
-secreto). Ele é pedido uma única vez, para criar a primeira conta de contador.
+secreto). Ele é pedido uma única vez, em `/admin`, para criar a conta de administração.
 
 ## Login e segurança
 
-- **Primeiro acesso:** abra `/entrar`, informe o código de instalação e crie a conta do contador.
-- **Acesso das empresas:** no painel, em "Acesso da empresa ao app", o contador cria o login.
-  O sistema gera uma senha provisória (mostrada uma única vez) e a empresa cria a própria
-  senha no primeiro acesso.
+- **Três tipos de conta:**
+  - **Administração** (dona da plataforma): criada uma única vez em `/admin` com o código de instalação.
+  - **Contador:** cria a própria conta em `/entrar` → "Sou contador" → "Criar conta".
+  - **Empresa:** o acesso é criado pelo contador no painel. O sistema gera uma senha provisória
+    (mostrada uma única vez) e a empresa cria a própria senha no primeiro acesso.
+- **Separação por login:** cada contador vê só as empresas que ele cadastrou; a empresa vê só
+  a si mesma. Pedidos para empresas de outra conta respondem "não encontrada" (404), sem
+  confirmar que existem.
+- **Administração (`/admin`):**
+  - Verificação em duas etapas **obrigatória** (não abre sem ela e não pode ser desligada).
+  - Sessão de no máximo 30 minutos sem uso.
+  - Mostra contas e o registro de atividades (entradas, saídas, senhas erradas, bloqueios,
+    cadastros, emissões e cancelamentos, com data, hora e IP).
+  - Ajuda com contas: senha provisória, desbloquear, desconectar de todos os aparelhos,
+    remover a verificação em duas etapas (celular perdido), desativar e reativar.
+  - Toda ação da administração fica registrada.
+  - **Não** mostra notas nem certificados das empresas.
 - **Senhas:** mínimo de 10 caracteres, guardadas com scrypt (nunca em texto puro).
 - **Bloqueio:** 5 senhas erradas seguidas bloqueiam a conta por 15 minutos; há também
-  limite de tentativas por IP.
-- **Verificação em duas etapas:** opcional, no menu "Segurança" do painel, com
-  Google Authenticator, Microsoft Authenticator ou Authy.
+  limite de tentativas por IP e de contas criadas por IP.
+- **Verificação em duas etapas:** opcional para contador e empresa (menu "Segurança" do painel),
+  com Google Authenticator, Microsoft Authenticator ou Authy.
 - **Sessão:** cookie protegido (HttpOnly, Secure, SameSite=Strict), expira em 12 h ou
   após 2 h sem uso. Trocar a senha encerra as outras sessões.
-- **Isolamento:** a empresa só acessa os próprios dados; o painel é só do contador.
 - **Proteções extras:** cabeçalho anti-CSRF (`X-Emitta`), Content-Security-Policy, HSTS,
   bloqueio de iframes.
 
@@ -114,7 +128,8 @@ plano gratuito somem quando o servidor reinicia).
 | `app/consulta_cnpj.py` | Dados públicos de CNPJ (Receita) |
 | `app/sefin.py` | Conversa com a API do governo (real e simulada) |
 | `app/emissao.py` | Junta tudo: fluxos de emitir e cancelar |
-| `app/api.py` | Rotas web (painel do contador e app do cliente) |
+| `app/autenticacao.py` + `app/seguranca.py` | Login, senhas, sessões, duas etapas, contas |
+| `app/api.py` | Rotas web (painel do contador, app da empresa, administração) |
 
 ## Antes do primeiro teste real (homologação)
 

@@ -7,6 +7,7 @@ from app.autenticacao import (
     MSG_BLOQUEADO,
     MSG_LOGIN_INVALIDO,
     AcessoNegado,
+    ContaDesativada,
     ErroAutenticacao,
     ServicoAutenticacao,
 )
@@ -38,7 +39,7 @@ def auth(relogio):
 
 @pytest.fixture
 def contador(auth):
-    return auth.instalar("codigo-secreto-123", "Ana Contadora", "Ana@Escritorio.com.br", SENHA)
+    return auth.cadastrar_contador("Ana Contadora", "Ana@Escritorio.com.br", SENHA)
 
 
 # ---------------------------------------------------------------- senhas
@@ -92,7 +93,9 @@ def test_instalacao_exige_codigo(auth):
 
 
 def test_instalacao_so_uma_vez(auth, contador):
-    assert not auth.precisa_instalar()
+    assert auth.precisa_instalar()  # contador não conta como administração
+    admin = auth.instalar("codigo-secreto-123", "Dona", "dona@x.com", SENHA)
+    assert admin.papel == "admin" and not auth.precisa_instalar()
     with pytest.raises(AcessoNegado):
         auth.instalar("codigo-secreto-123", "Intrusa", "intrusa@x.com", SENHA)
 
@@ -236,3 +239,23 @@ def test_email_invalido(ruim):
     from app.autenticacao import normalizar_email
     with pytest.raises(ErroAutenticacao):
         normalizar_email(ruim)
+
+
+def test_sessao_da_administracao_expira_em_30_minutos(auth, relogio):
+    auth.instalar("codigo-secreto-123", "Dona", "dona@x.com", SENHA)
+    token = auth.entrar("dona@x.com", SENHA).token_sessao
+    relogio.avancar(minutes=29)
+    assert auth.usuario_da_sessao(token)
+    relogio.avancar(minutes=31)
+    assert auth.usuario_da_sessao(token) is None
+
+
+def test_conta_desativada_nao_entra(auth, contador):
+    admin = auth.instalar("codigo-secreto-123", "Dona", "dona@x.com", SENHA)
+    token = auth.entrar("ana@escritorio.com.br", SENHA).token_sessao
+    auth.definir_ativo(contador.id, False, admin)
+    assert auth.usuario_da_sessao(token) is None
+    with pytest.raises(ContaDesativada):
+        auth.entrar("ana@escritorio.com.br", SENHA)
+    with pytest.raises(ErroAutenticacao):
+        auth.definir_ativo(admin.id, False, admin)

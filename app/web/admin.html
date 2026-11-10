@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0F2A24">
+<title>Emitta · Administração</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/estilo.css?v=6">
+<style>
+  .topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; background: var(--noite); color: #fff; }
+  .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; }
+  .marca:hover { color: #fff; }
+  .marca-logo { width: 36px; height: 36px; border-radius: 10px; background: var(--verde); display: grid; place-items: center; font-weight: 700; }
+  .marca-nome { font-size: 17px; font-weight: 700; }
+  .marca-sub { font-size: 13px; color: var(--verde-borda); }
+  .topo-botao { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #24524A; background: transparent; color: #fff; font-size: 14px; cursor: pointer; }
+  .topo-botao:hover { background: var(--noite-2); }
+  .quem { color: var(--verde-borda); font-size: 14px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 20px; }
+  .estreito { max-width: 460px; margin: 0 auto; width: 100%; }
+  .bloco { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .bloco h1 { font-size: 22px; }
+  .bloco h2 { font-size: 17px; }
+  .sub { color: var(--texto-2); font-size: 14px; line-height: 1.5; }
+  form { display: flex; flex-direction: column; gap: 14px; }
+  .abas { display: flex; gap: 6px; flex-wrap: wrap; }
+  .aba { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--borda); background: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--texto); }
+  .aba[aria-selected="true"] { background: var(--noite); border-color: var(--noite); color: #fff; }
+  .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .numero { padding: 16px 18px; }
+  .numero strong { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .numero span { font-size: 13px; color: var(--texto-2); }
+  .filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .filtros .campo { min-width: 200px; flex: 1 1 200px; }
+  .tabela-caixa { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: var(--texto-2); padding: 8px 10px; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid var(--borda); vertical-align: top; }
+  td.quando, td.ip { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--texto-2); }
+  .tipo-alerta { color: var(--vermelho, #B42318); font-weight: 600; }
+  .tipo-admin { color: var(--verde-escuro); font-weight: 600; }
+  .conta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--borda); }
+  .conta:last-child { border-bottom: 0; }
+  .conta .info { display: flex; flex-direction: column; gap: 4px; min-width: 220px; flex: 1 1 280px; }
+  .conta .nome { font-weight: 600; }
+  .conta .detalhes { font-size: 13px; color: var(--texto-2); }
+  .conta .selos { display: flex; gap: 6px; flex-wrap: wrap; }
+  .conta .acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+  .conta .acoes .botao { min-height: 36px; padding: 0 12px; font-size: 13px; }
+  .senha-gerada { font-family: ui-monospace, monospace; font-size: 20px; letter-spacing: .05em; background: #fff; border: 1px dashed var(--verde); border-radius: 10px; padding: 10px 14px; text-align: center; user-select: all; }
+  .segredo { font-family: ui-monospace, monospace; font-size: 17px; letter-spacing: .08em; background: var(--fundo); border-radius: 10px; padding: 12px; text-align: center; word-break: break-all; user-select: all; }
+  .passos { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--texto-2); }
+  .codigo { font-size: 24px !important; letter-spacing: .35em; text-align: center; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <a class="marca" href="/admin">
+    <span class="marca-logo" aria-hidden="true">E</span>
+    <span><span class="marca-nome">Emitta</span><br><span class="marca-sub">Administração</span></span>
+  </a>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="topo-acoes"></div>
+</header>
+<main id="principal" aria-live="polite"></main>
+<script src="/static/comum.js?v=6"></script>
+<script src="/static/admin.js?v=6"></script>
+</body>
+</html>

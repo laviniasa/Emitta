@@ -49,7 +49,16 @@ def anonimo(app):
 @pytest.fixture
 def contador(app):
     c = novo_cliente(app)
-    resp = c.post("/auth/instalacao", json={"codigo": CODIGO, "nome": "Ana", "email": "ana@escritorio.com", "senha": SENHA})
+    resp = c.post("/auth/cadastro", json={"nome": "Ana", "email": "ana@escritorio.com", "senha": SENHA})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["usuario"]["papel"] == "contador"
+    return c
+
+
+@pytest.fixture
+def admin(app):
+    c = novo_cliente(app)
+    resp = c.post("/auth/instalacao", json={"codigo": CODIGO, "nome": "Dona", "email": "dona@emitta.com", "senha": SENHA})
     assert resp.status_code == 200, resp.text
     return c
 
@@ -114,7 +123,7 @@ def test_csrf_sem_cabecalho_bloqueia(app, contador):
     assert resp.json()["detail"]["codigo"] == "pagina_desatualizada"
 
 
-def test_instalacao_exige_codigo_e_so_uma_vez(anonimo, contador):
+def test_instalacao_exige_codigo_e_so_uma_vez(anonimo, admin):
     resp = anonimo.post("/auth/instalacao", json={"codigo": CODIGO, "nome": "X", "email": "x@x.com", "senha": SENHA})
     assert resp.status_code == 403
     assert anonimo.get("/auth/situacao").json()["precisa_instalar"] is False
@@ -275,3 +284,107 @@ def test_consulta_cnpj(contador):
     assert r.json()["razao_social"] == "EMPRESA CONSULTADA LTDA"
     assert r.json()["codigo_municipio_ibge"] == "3550308"
     assert contador.get("/consulta/cnpj/52998224725").status_code == 422  # CPF não
+
+
+# ---------------------------------------------------------------- separação por login
+
+def outro_contador(app, email="carlos@outroescritorio.com"):
+    c = novo_cliente(app)
+    assert c.post("/auth/cadastro", json={"nome": "Carlos", "email": email, "senha": SENHA}).status_code == 200
+    return c
+
+
+def test_contador_so_ve_as_proprias_empresas(app, contador):
+    cid = criar_empresa(contador)
+    carlos = outro_contador(app)
+    assert carlos.get("/contador/clientes").json() == []
+    for metodo, caminho in [("get", f"/contador/clientes/{cid}/servicos"), ("get", f"/contador/clientes/{cid}/notas"),
+                            ("get", f"/contador/clientes/{cid}/acessos"), ("delete", f"/contador/clientes/{cid}/certificado"),
+                            ("get", f"/app/{cid}/servicos"), ("get", f"/app/{cid}/notas")]:
+        assert getattr(carlos, metodo)(caminho).status_code == 404, caminho
+    assert carlos.put(f"/contador/clientes/{cid}/servicos", json={"servicos": []}).status_code == 404
+    assert carlos.post(f"/contador/clientes/{cid}/acessos", json={"nome": "X", "email": "x@x.com"}).status_code == 404
+    # o mesmo CNPJ pode ser cadastrado por outro escritório, sem misturar
+    outro_id = criar_empresa(carlos)
+    assert outro_id != cid
+    assert [c["id"] for c in contador.get("/contador/clientes").json()] == [cid]
+
+
+def test_cadastro_de_contador_valida(anonimo, contador):
+    assert anonimo.post("/auth/cadastro", json={"nome": "Ana 2", "email": "ana@escritorio.com", "senha": SENHA}).status_code == 400
+    assert anonimo.post("/auth/cadastro", json={"nome": "Curta", "email": "c@c.com", "senha": "123"}).status_code == 400
+
+
+# ---------------------------------------------------------------- administração
+
+def ativar_2fa(c):
+    from app import seguranca
+    segredo = c.post("/auth/2fa/iniciar").json()["segredo"]
+    codigo = seguranca._codigo_totp(segredo, seguranca.passo_atual())
+    assert c.post("/auth/2fa/ativar", json={"codigo": codigo}).status_code == 200
+
+
+def test_admin_exige_duas_etapas(admin):
+    resp = admin.get("/admin/contas")
+    assert resp.status_code == 403 and resp.json()["detail"]["codigo"] == "admin_2fa"
+    ativar_2fa(admin)
+    assert admin.get("/admin/contas").status_code == 200
+    # e não pode desligar
+    assert admin.post("/auth/2fa/desativar", json={"senha": SENHA}).status_code == 403
+
+
+def test_admin_nao_ve_notas_nem_certificados(admin, contador):
+    ativar_2fa(admin)
+    cid = criar_empresa(contador)
+    for caminho in ["/contador/clientes", f"/contador/clientes/{cid}/notas", f"/app/{cid}/notas", f"/app/{cid}"]:
+        assert admin.get(caminho).status_code in (403, 404), caminho
+    for conta in admin.get("/admin/contas").json():
+        assert not {"senha_hash", "totp_segredo", "cert_pfx"} & set(conta)
+
+
+def test_outras_contas_nao_entram_na_administracao(app, contador, admin):
+    assert contador.get("/admin/contas").status_code == 404
+    assert contador.get("/admin/atividades").status_code == 404
+    assert novo_cliente(app).get("/admin/contas").status_code == 401
+
+
+def test_admin_acompanha_e_ajuda(app, admin, contador):
+    ativar_2fa(admin)
+    cid = criar_empresa(contador)
+    entrar_como_empresa(app, contador, cid)
+    novo_cliente(app).post("/auth/entrar", json={"email": "ana@escritorio.com", "senha": "errada-errada"})
+
+    tipos = [e["tipo"] for e in admin.get("/admin/atividades").json()]
+    for t in ["conta_contador_criada", "empresa_cadastrada", "acesso_empresa_criado", "entrou", "senha_trocada", "senha_errada"]:
+        assert t in tipos, t
+    errada = next(e for e in admin.get("/admin/atividades").json() if e["tipo"] == "senha_errada")
+    assert errada["email"] == "ana@escritorio.com" and errada["ip"]
+
+    contas = {c["email"]: c for c in admin.get("/admin/contas").json()}
+    ana = contas["ana@escritorio.com"]
+    assert ana["papel"] == "contador" and ana["empresas_cadastradas"] == 1
+    assert contas["bia@empresa.com"]["contador"] == "Ana"
+
+    # senha provisória: derruba a sessão e obriga a trocar
+    resp = admin.post(f"/admin/contas/{ana['id']}/senha-provisoria")
+    provisoria = resp.json()["senha_provisoria"]
+    assert contador.get("/contador/clientes").status_code == 401
+    c = novo_cliente(app)
+    assert c.post("/auth/entrar", json={"email": "ana@escritorio.com", "senha": provisoria}).status_code == 200
+    assert c.get("/contador/clientes").json()["detail"]["codigo"] == "trocar_senha"
+
+    # desativar e reativar
+    assert admin.post(f"/admin/contas/{ana['id']}/desativar").status_code == 200
+    assert c.get("/auth/eu").status_code == 401
+    resp = novo_cliente(app).post("/auth/entrar", json={"email": "ana@escritorio.com", "senha": provisoria})
+    assert resp.status_code == 401 and "desativada" in resp.json()["detail"].lower()
+    assert admin.post(f"/admin/contas/{ana['id']}/reativar").status_code == 200
+    assert novo_cliente(app).post("/auth/entrar", json={"email": "ana@escritorio.com", "senha": provisoria}).status_code == 200
+
+    # não pode se desativar nem gerar senha para si
+    eu = admin.get("/auth/eu").json()["id"]
+    assert admin.post(f"/admin/contas/{eu}/desativar").status_code == 400
+    assert admin.post(f"/admin/contas/{eu}/senha-provisoria").status_code == 400
+
+    acoes = [e["tipo"] for e in admin.get("/admin/atividades").json() if e["tipo"].startswith("admin_")]
+    assert {"admin_gerou_senha_provisoria", "admin_desativou_conta", "admin_reativou_conta"} <= set(acoes)

@@ -53,7 +53,7 @@ const Emitta = (() => {
     }
     if (eu.trocar_senha) return irParaEntrar();
     if (papel && eu.papel !== papel) {
-      location.href = eu.papel === "contador" ? "/escritorio" : "/empresa";
+      location.href = { admin: "/admin", contador: "/escritorio" }[eu.papel] || "/empresa";
       return new Promise(() => {});
     }
     return eu;

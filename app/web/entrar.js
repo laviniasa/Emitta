@@ -10,7 +10,7 @@
   function destino(papel) {
     const volta = new URLSearchParams(location.search).get("volta") || "";
     const valido = volta.startsWith("/") && !volta.startsWith("//") && !volta.startsWith("/entrar");
-    const area = papel === "contador" ? "/escritorio" : "/empresa";
+    const area = { admin: "/admin", contador: "/escritorio" }[papel] || "/empresa";
     return valido && volta.startsWith(area) ? volta : area;
   }
 
@@ -92,9 +92,26 @@
 
   // ------------------------------------------------------------ telas
 
-  function telaEntrar() {
+  function voltarPara(fn) {
+    return el("button", { type: "button", class: "botao-link", style: "align-self:flex-start", onclick: fn }, "← Voltar");
+  }
+
+  function telaEscolha() {
+    const opcao = (titulo, texto, perfil) => el("button", {
+      type: "button", class: "opcao-perfil", onclick: () => telaEntrar(perfil),
+    }, el("strong", {}, titulo), el("span", {}, texto));
+    $caixa.replaceChildren(
+      el("div", {}, el("h1", {}, "Bem-vindo ao Emitta"), el("p", { class: "sub" }, "Como você vai usar o Emitta?")),
+      opcao("Sou contador", "Cadastro as empresas e libero os serviços de cada uma.", "contador"),
+      opcao("Sou empresa", "Emito e cancelo as notas da minha empresa.", "empresa"),
+    );
+  }
+
+  function telaEntrar(perfil) {
+    const ehEmpresa = perfil === "empresa";
     formulario(
-      "Entrar", "Use o e-mail e a senha da sua conta.",
+      ehEmpresa ? "Entrar · Empresa" : perfil === "contador" ? "Entrar · Contador" : "Entrar",
+      "Use o e-mail e a senha da sua conta.",
       [
         el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", inputmode: "email", required: true })),
         campoSenha("Senha", "senha", "current-password"),
@@ -107,8 +124,40 @@
         depoisDeEntrar(r.usuario);
       },
     );
-    $caixa.append(el("p", { class: "ajuda-pequena", style: "font-size:13px;color:var(--texto-2);text-align:center" },
-      "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."));
+    const extras = [];
+    if (perfil === "contador") {
+      extras.push(el("div", { class: "separador" }, "Ainda não tem conta?"),
+        el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: telaCadastro }, "Criar conta de contador"),
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? Fale com o suporte do Emitta."));
+    } else if (ehEmpresa) {
+      extras.push(el("div", { class: "aviso aviso-info" }, icone("escudo"),
+        "Seu acesso é criado pelo seu contador. Ele te passa o e-mail e uma senha provisória, e no primeiro acesso você cria a sua."),
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."));
+    }
+    $caixa.prepend(voltarPara(telaEscolha));
+    $caixa.append(...extras);
+  }
+
+  function telaCadastro() {
+    const senha = el("input", { type: "password", name: "senha", autocomplete: "new-password", required: true });
+    formulario(
+      "Criar conta de contador", "Você vai ver só as empresas que cadastrar. Ninguém de outro escritório vê os seus clientes.",
+      [
+        el("label", { class: "campo" }, "Seu nome", el("input", { name: "nome", autocomplete: "name", maxlength: "120", required: true })),
+        el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", inputmode: "email", required: true })),
+        campoComAjuda("Senha", senha, ...medidorDeForca(senha)),
+        campoSenha("Repita a senha", "repetir", "new-password"),
+      ],
+      "Criar conta e entrar",
+      async (d) => {
+        if (d.senha !== d.repetir) throw new Error("As duas senhas não são iguais.");
+        const r = await api("POST", "/auth/cadastro", { nome: d.nome, email: d.email, senha: d.senha }, { semRedirecionar: true });
+        depoisDeEntrar(r.usuario);
+      },
+    );
+    $caixa.prepend(voltarPara(() => telaEntrar("contador")));
+    $caixa.append(el("p", { class: "nota-pe" }, "Já tem conta? ",
+      el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar("contador") }, "Entrar")));
   }
 
   function telaCodigo() {
@@ -142,33 +191,6 @@
     );
   }
 
-  function telaInstalar(disponivel) {
-    if (!disponivel) {
-      $caixa.replaceChildren(
-        el("h1", {}, "Configuração pendente"),
-        el("p", { class: "sub" }, "Ainda não existe nenhuma conta. Para criar a primeira, quem administra o servidor precisa definir a variável EMITTA_CODIGO_INSTALACAO."));
-      return;
-    }
-    const senha = el("input", { type: "password", name: "senha", autocomplete: "new-password", required: true });
-    formulario(
-      "Criar a conta do contador", "Primeiro acesso ao Emitta. Esta será a conta principal do escritório.",
-      [
-        campoComAjuda("Código de instalação", el("input", { name: "codigo", autocomplete: "off", required: true }),
-          el("span", { class: "ajuda" }, "Fornecido por quem configurou o servidor.")),
-        el("label", { class: "campo" }, "Seu nome", el("input", { name: "nome", autocomplete: "name", required: true })),
-        el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", required: true })),
-        campoComAjuda("Senha", senha, ...medidorDeForca(senha)),
-        campoSenha("Repita a senha", "repetir", "new-password"),
-      ],
-      "Criar conta e entrar",
-      async (d) => {
-        if (d.senha !== d.repetir) throw new Error("As duas senhas não são iguais.");
-        const r = await api("POST", "/auth/instalacao", { codigo: d.codigo, nome: d.nome, email: d.email, senha: d.senha }, { semRedirecionar: true });
-        depoisDeEntrar(r.usuario);
-      },
-    );
-  }
-
   function depoisDeEntrar(usuario) {
     if (usuario.trocar_senha) return telaTrocarSenha(usuario);
     location.href = destino(usuario.papel);
@@ -181,9 +203,14 @@
     try {
       const eu = await api("GET", "/auth/eu", null, { semRedirecionar: true }).catch((e) => { if (e.status === 401) return null; throw e; });
       if (eu) return depoisDeEntrar(eu);
-      const s = await api("GET", "/auth/situacao", null, { semRedirecionar: true });
-      if (s.precisa_instalar) telaInstalar(s.instalacao_disponivel);
-      else telaEntrar();
+      const params = new URLSearchParams(location.search);
+      const volta = params.get("volta") || "";
+      const perfil = params.get("perfil")
+        || (volta.startsWith("/escritorio") ? "contador" : volta.startsWith("/empresa") ? "empresa" : "");
+      if (volta.startsWith("/admin")) telaEntrar("");
+      else if (params.get("criar") === "1") telaCadastro();
+      else if (perfil === "contador" || perfil === "empresa") telaEntrar(perfil);
+      else telaEscolha();
     } catch (erro) {
       $caixa.replaceChildren(el("h1", {}, "Não foi possível carregar"), el("p", { class: "sub" }, erro.message));
     }
