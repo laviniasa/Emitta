@@ -202,6 +202,9 @@ def criar_app(
             resposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         if caminho.startswith(("/auth", "/contador", "/app/", "/catalogo")):
             resposta.headers["Cache-Control"] = "no-store"
+        elif caminho.startswith("/static/"):
+            # Sempre confere se há versão nova (evita o celular usar arquivo velho).
+            resposta.headers["Cache-Control"] = "no-cache"
         return resposta
 
     def gravar_sessao(resposta: Response, token: str) -> None:

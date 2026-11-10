@@ -220,3 +220,19 @@ def test_acesso_da_empresa_com_senha_provisoria(auth, contador):
     # não dá para "sequestrar" o e-mail do contador
     with pytest.raises(ErroAutenticacao):
         auth.criar_acesso_empresa(cliente.id, "X", "ana@escritorio.com.br")
+
+
+@pytest.mark.parametrize("entrada, esperado", [
+    ("mailto:Contato@MarvixBrasil.com.br", "contato@marvixbrasil.com.br"),
+    ("  ana@escritorio.com ", "ana@escritorio.com"),
+])
+def test_email_colado_como_link(entrada, esperado):
+    from app.autenticacao import normalizar_email
+    assert normalizar_email(entrada) == esperado
+
+
+@pytest.mark.parametrize("ruim", ["ana", "ana@", "ana@x", "a b@x.com", "ana@x.c", "mailto:"])
+def test_email_invalido(ruim):
+    from app.autenticacao import normalizar_email
+    with pytest.raises(ErroAutenticacao):
+        normalizar_email(ruim)

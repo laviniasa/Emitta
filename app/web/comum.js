@@ -72,6 +72,14 @@ const Emitta = (() => {
   }
 
   // Monta elementos com segurança (sem innerHTML com dados do usuário).
+  // Limpa e-mails colados como link ("mailto:...") assim que a pessoa sai do campo.
+  document.addEventListener("change", (e) => {
+    const campo = e.target;
+    if (campo instanceof HTMLInputElement && campo.type === "email") {
+      campo.value = campo.value.trim().replace(/^mailto:/i, "").split("?")[0];
+    }
+  });
+
   function el(tag, atributos = {}, ...filhos) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(atributos)) {

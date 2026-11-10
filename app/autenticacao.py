@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hmac
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -54,10 +55,16 @@ def _de_iso(t: str) -> datetime:
     return datetime.fromisoformat(t)
 
 
+_EMAIL_VALIDO = re.compile(r"^[a-z0-9._%+\-]+@[a-z0-9\-]+(\.[a-z0-9\-]+)*\.[a-z]{2,}$")
+
+
 def normalizar_email(email: str) -> str:
     email = (email or "").strip().lower()
-    if "@" not in email or "." not in email.split("@")[-1] or len(email) > 254 or " " in email:
-        raise ErroAutenticacao("Informe um e-mail válido.")
+    # Celulares às vezes colam o e-mail como link ("mailto:fulano@...").
+    if email.startswith("mailto:"):
+        email = email[len("mailto:"):].split("?")[0].strip()
+    if len(email) > 254 or not _EMAIL_VALIDO.match(email):
+        raise ErroAutenticacao("Informe um e-mail válido, por exemplo nome@empresa.com.br.")
     return email
 
 
