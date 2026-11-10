@@ -8,6 +8,7 @@ from app.autenticacao import (
     MSG_LOGIN_INVALIDO,
     AcessoNegado,
     ContaDesativada,
+    ContaPendente,
     ErroAutenticacao,
     ServicoAutenticacao,
 )
@@ -39,7 +40,7 @@ def auth(relogio):
 
 @pytest.fixture
 def contador(auth):
-    return auth.cadastrar_contador("Ana Contadora", "Ana@Escritorio.com.br", SENHA)
+    return auth.aprovar(auth.cadastrar_contador("Ana Contadora", "Ana@Escritorio.com.br", SENHA).id)
 
 
 # ---------------------------------------------------------------- senhas
@@ -259,3 +260,21 @@ def test_conta_desativada_nao_entra(auth, contador):
         auth.entrar("ana@escritorio.com.br", SENHA)
     with pytest.raises(ErroAutenticacao):
         auth.definir_ativo(admin.id, False, admin)
+
+
+def test_contador_novo_so_entra_depois_de_aprovado(auth):
+    pedido = auth.cadastrar_contador("Caio", "caio@x.com", SENHA)
+    with pytest.raises(ContaPendente):
+        auth.entrar("caio@x.com", SENHA)
+    with pytest.raises(ErroAutenticacao):  # senha errada continua sendo "inválido", sem revelar o pedido
+        auth.entrar("caio@x.com", "senha-errada-qualquer")
+    auth.aprovar(pedido.id)
+    assert auth.entrar("caio@x.com", SENHA).token_sessao
+    with pytest.raises(ErroAutenticacao):
+        auth.recusar(pedido.id)  # já aprovado
+
+
+def test_recusar_apaga_o_pedido(auth):
+    pedido = auth.cadastrar_contador("Caio", "caio@x.com", SENHA)
+    auth.recusar(pedido.id)
+    assert auth.repo.buscar_usuario(pedido.id) is None

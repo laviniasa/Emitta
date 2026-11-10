@@ -45,6 +45,14 @@ class ContaDesativada(ErroAutenticacao):
     pass
 
 
+class ContaPendente(ErroAutenticacao):
+    pass
+
+
+MSG_PENDENTE = ("Sua conta ainda está aguardando aprovação do Emitta. "
+                "Você vai conseguir entrar assim que ela for liberada.")
+
+
 @dataclass
 class ResultadoLogin:
     token_sessao: str | None = None
@@ -98,8 +106,10 @@ class ServicoAutenticacao:
         return self.criar_usuario(nome, email, senha, papel="admin")
 
     def cadastrar_contador(self, nome: str, email: str, senha: str) -> Usuario:
-        """Qualquer contador cria a própria conta. Ele só enxerga o que cadastrar."""
-        return self.criar_usuario(nome, email, senha, papel="contador")
+        """Contador pede a própria conta. Ela só funciona depois que a
+        administração aprovar. Ele só enxerga o que cadastrar."""
+        usuario = self.criar_usuario(nome, email, senha, papel="contador")
+        return self.repo.atualizar_usuario(usuario.id, aprovado=0)
 
     # ------------------------------------------------------------ contas
 
@@ -169,6 +179,8 @@ class ServicoAutenticacao:
         self.repo.atualizar_usuario(usuario.id, falhas_seguidas=0, bloqueado_ate=None)
         if not usuario.ativo:
             raise ContaDesativada("Esta conta está desativada. Fale com quem administra o Emitta.")
+        if not usuario.aprovado:
+            raise ContaPendente(MSG_PENDENTE)
 
         if usuario.totp_ativo:
             desafio = seg.gerar_token()
@@ -214,7 +226,7 @@ class ServicoAutenticacao:
             self.repo.apagar_sessao(h)
             return None
         usuario = self.repo.buscar_usuario(sessao["usuario_id"])
-        if not usuario or not usuario.ativo:
+        if not usuario or not usuario.ativo or not usuario.aprovado:
             self.repo.apagar_sessao(h)
             return None
         # A administração tem acesso a todas as contas: sessão bem mais curta.
@@ -295,6 +307,20 @@ class ServicoAutenticacao:
         if not ativo:
             self.repo.apagar_sessoes_do_usuario(alvo.id)
         return atualizado
+
+    def aprovar(self, usuario_id: int) -> Usuario:
+        alvo = self._alvo(usuario_id)
+        if alvo.aprovado:
+            raise ErroAutenticacao("Esta conta já está aprovada.")
+        return self.repo.atualizar_usuario(alvo.id, aprovado=1)
+
+    def recusar(self, usuario_id: int) -> Usuario:
+        """Apaga o pedido (o e-mail fica livre; o registro de atividades continua)."""
+        alvo = self._alvo(usuario_id)
+        if alvo.aprovado:
+            raise ErroAutenticacao("Só dá para recusar contas que estão aguardando aprovação.")
+        self.repo.apagar_usuario(alvo.id)
+        return alvo
 
     def remover_2fa(self, usuario_id: int) -> Usuario:
         """Para quem perdeu o celular do autenticador. Não vale para administração."""

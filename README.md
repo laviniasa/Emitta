@@ -32,7 +32,8 @@ fica em `/docs` (as rotas exigem login).
 
 1. Abra `/admin`, informe o código de instalação e crie a conta de administração
    (depois ative a verificação em duas etapas, obrigatória nessa área).
-2. Em outra janela, abra `/entrar` → **Sou contador** → **Criar conta de contador**.
+2. Em outra janela, abra `/entrar` → **Sou contador** → **Criar conta de contador**;
+   depois aprove o pedido em `/admin` → Contas.
 3. No painel, cadastre uma empresa (ex.: CNPJ `11.222.333/0001-81`, município IBGE `3550308`),
    libere um serviço e crie o acesso da empresa (anote a senha provisória).
 4. Em outra janela anônima (ou no celular), **Sou empresa** → entre com o acesso, crie a senha,
@@ -64,7 +65,8 @@ secreto). Ele é pedido uma única vez, em `/admin`, para criar a conta de admin
 
 - **Três tipos de conta:**
   - **Administração** (dona da plataforma): criada uma única vez em `/admin` com o código de instalação.
-  - **Contador:** cria a própria conta em `/entrar` → "Sou contador" → "Criar conta".
+  - **Contador:** pede a conta em `/entrar` → "Sou contador" → "Criar conta". A conta só
+    funciona depois que a administração **aprovar** o pedido (em `/admin` → Contas).
   - **Empresa:** o acesso é criado pelo contador no painel. O sistema gera uma senha provisória
     (mostrada uma única vez) e a empresa cria a própria senha no primeiro acesso.
 - **Separação por login:** cada contador vê só as empresas que ele cadastrou; a empresa vê só

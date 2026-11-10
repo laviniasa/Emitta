@@ -18,6 +18,10 @@
     instalacao_recusada: "Tentativa de instalação recusada",
     administracao_criada: "Administração criada",
     conta_contador_criada: "Contador criou a conta",
+    contador_pediu_acesso: "Contador pediu conta (aguardando aprovação)",
+    conta_pendente_tentou_entrar: "Conta aguardando aprovação tentou entrar",
+    admin_aprovou_conta: "Administração aprovou conta",
+    admin_recusou_conta: "Administração recusou pedido de conta",
     senha_trocada: "Trocou a senha",
     duas_etapas_ativada: "Ativou a verificação em duas etapas",
     duas_etapas_desativada: "Desativou a verificação em duas etapas",
@@ -149,15 +153,20 @@
       class: "aba", type: "button", role: "tab", "aria-selected": String(estado.aba === id),
       onclick: () => { estado.aba = id; desenhar(); },
     }, texto);
-    return el("div", { class: "abas", role: "tablist" }, aba("atividades", "Atividades"), aba("contas", "Contas"), aba("eu", "Minha conta"));
+    const pendentes = estado.contas.filter((c) => c.aguardando_aprovacao).length;
+    return el("div", { class: "abas", role: "tablist" }, aba("atividades", "Atividades"),
+      aba("contas", pendentes ? `Contas · ${pendentes} aguardando` : "Contas"), aba("eu", "Minha conta"));
   }
 
   function resumo() {
     const hoje = new Date().toISOString().slice(0, 10);
     const deHoje = estado.eventos.filter((e) => (e.quando || "").startsWith(hoje));
     const n = (texto, valor) => el("div", { class: "card numero" }, el("strong", {}, String(valor)), el("span", {}, texto));
+    const pendentes = estado.contas.filter((c) => c.aguardando_aprovacao).length;
     return el("div", { class: "resumo" },
-      n("Contadores", estado.contas.filter((c) => c.papel === "contador").length),
+      pendentes ? el("button", { class: "card numero pendente", type: "button", onclick: () => { estado.aba = "contas"; desenhar(); } },
+        el("strong", {}, String(pendentes)), el("span", {}, "Aguardando aprovação →")) : null,
+      n("Contadores", estado.contas.filter((c) => c.papel === "contador" && !c.aguardando_aprovacao).length),
       n("Acessos de empresas", estado.contas.filter((c) => c.papel === "empresa").length),
       n("Entradas hoje", deHoje.filter((e) => e.tipo === "entrou").length),
       n("Tentativas suspeitas hoje", deHoje.filter((e) => ALERTAS.has(e.tipo)).length));
@@ -231,12 +240,33 @@
   }
 
   function telaContas() {
+    const pedidos = estado.contas.filter((c) => c.aguardando_aprovacao);
+    const blocoPedidos = pedidos.length ? el("section", { class: "card bloco pedidos" },
+      el("h2", {}, `Pedidos de conta (${pedidos.length})`),
+      el("p", { class: "sub" }, "Contadores que criaram conta e esperam a sua liberação. Antes de aprovar, confirme que você conhece a pessoa."),
+      el("div", {}, ...pedidos.map(linhaPedido))) : null;
     const grupos = [["contador", "Contadores"], ["empresa", "Acessos de empresas"], ["admin", "Administração"]];
-    return grupos.map(([papel, titulo]) => {
-      const contas = estado.contas.filter((c) => c.papel === papel);
+    return [blocoPedidos, ...grupos.map(([papel, titulo]) => {
+      const contas = estado.contas.filter((c) => c.papel === papel && !c.aguardando_aprovacao);
       return el("section", { class: "card bloco" }, el("h2", {}, `${titulo} (${contas.length})`),
         contas.length ? el("div", {}, ...contas.map(linhaConta)) : el("p", { class: "vazio" }, "Nenhuma conta."));
-    });
+    })];
+  }
+
+  function linhaPedido(c) {
+    return el("div", { class: "conta" },
+      el("div", { class: "info" },
+        el("span", { class: "nome" }, c.nome),
+        el("span", { class: "detalhes" }, c.email),
+        el("span", { class: "detalhes" }, `Pedido em ${dataHora(c.criado_em)}`),
+        el("div", { class: "selos" }, el("span", { class: "selo selo-amarelo" }, "Aguardando aprovação"))),
+      el("div", { class: "acoes" },
+        el("button", { class: "botao", type: "button",
+          onclick: () => acao(c, "aprovar", `Aprovar a conta de ${c.nome} (${c.email})? A pessoa passa a poder entrar e cadastrar empresas.`, "Conta aprovada. A pessoa já pode entrar.") },
+          icone("certo", 16), "Aprovar"),
+        el("button", { class: "botao botao-secundario", type: "button",
+          onclick: () => acao(c, "recusar", `Recusar o pedido de ${c.nome} (${c.email})? O pedido é apagado. O histórico continua em Atividades.`, "Pedido recusado.") },
+          icone("x", 16), "Recusar")));
   }
 
   function linhaConta(c) {
@@ -311,7 +341,7 @@
   function desenhar() {
     topo();
     const conteudo = estado.aba === "contas" ? telaContas() : estado.aba === "eu" ? telaEu() : telaAtividades();
-    $principal.replaceChildren(abas(), ...conteudo);
+    $principal.replaceChildren(abas(), ...conteudo.filter(Boolean));
   }
 
   async function recarregar() {

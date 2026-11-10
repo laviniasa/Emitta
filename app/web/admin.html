@@ -8,7 +8,7 @@
 <title>Emitta · Administração</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=6">
+<link rel="stylesheet" href="/static/estilo.css?v=7">
 <style>
   .topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; background: var(--noite); color: #fff; }
   .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; }
@@ -33,6 +33,10 @@
   .numero { padding: 16px 18px; }
   .numero strong { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
   .numero span { font-size: 13px; color: var(--texto-2); }
+  button.numero { text-align: left; font: inherit; cursor: pointer; }
+  .pendente { border: 2px solid #E9B949; background: #FFF8E6; }
+  .pendente span { color: #8A5A00; font-weight: 600; }
+  .pedidos { border: 2px solid #E9B949; }
   .filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
   .filtros .campo { min-width: 200px; flex: 1 1 200px; }
   .tabela-caixa { overflow-x: auto; }
@@ -65,7 +69,7 @@
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="topo-acoes"></div>
 </header>
 <main id="principal" aria-live="polite"></main>
-<script src="/static/comum.js?v=6"></script>
-<script src="/static/admin.js?v=6"></script>
+<script src="/static/comum.js?v=7"></script>
+<script src="/static/admin.js?v=7"></script>
 </body>
 </html>

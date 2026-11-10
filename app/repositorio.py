@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     criado_em TEXT NOT NULL,
     ativo INTEGER NOT NULL DEFAULT 1,
     ultimo_acesso TEXT,
+    aprovado INTEGER NOT NULL DEFAULT 1,
     CHECK ((papel = 'empresa') = (cliente_id IS NOT NULL))
 );
 
@@ -186,6 +187,7 @@ class Usuario:
     criado_em: str
     ativo: int = 1
     ultimo_acesso: str | None = None
+    aprovado: int = 1  # contador novo fica 0 até a administração aprovar
 
 
 def _com_trava(classe):
@@ -218,7 +220,8 @@ class Repositorio:
 
     # Colunas acrescentadas depois da primeira versão (bancos já existentes).
     _COLUNAS_NOVAS = {
-        "usuarios": {"ativo": "INTEGER NOT NULL DEFAULT 1", "ultimo_acesso": "TEXT"},
+        "usuarios": {"ativo": "INTEGER NOT NULL DEFAULT 1", "ultimo_acesso": "TEXT",
+                     "aprovado": "INTEGER NOT NULL DEFAULT 1"},
         "clientes": {
             "contador_id": "INTEGER",
             "reg_ap_trib_sn": "TEXT NOT NULL DEFAULT '1'", "p_tot_trib_sn": "TEXT",
@@ -391,6 +394,10 @@ class Repositorio:
         linha = self.con.execute("SELECT * FROM usuarios WHERE email = ?", (email,)).fetchone()
         return Usuario(**dict(linha)) if linha else None
 
+    def apagar_usuario(self, usuario_id: int) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
+
     def usuarios_da_empresa(self, cliente_id: int) -> list[Usuario]:
         linhas = self.con.execute(
             "SELECT * FROM usuarios WHERE cliente_id = ? ORDER BY nome", (cliente_id,)
@@ -399,7 +406,7 @@ class Repositorio:
 
     _CAMPOS_USUARIO = {
         "senha_hash", "trocar_senha", "totp_segredo", "totp_ativo", "totp_ultimo_passo",
-        "falhas_seguidas", "bloqueado_ate", "nome", "ativo", "ultimo_acesso",
+        "falhas_seguidas", "bloqueado_ate", "nome", "ativo", "ultimo_acesso", "aprovado",
     }
 
     def contar_admins(self) -> int:
@@ -409,7 +416,7 @@ class Repositorio:
         """Todas as contas, com a empresa e o contador responsável (para a administração)."""
         linhas = self.con.execute(
             """SELECT u.id, u.email, u.nome, u.papel, u.ativo, u.ultimo_acesso, u.criado_em,
-                      u.bloqueado_ate, u.totp_ativo, u.trocar_senha,
+                      u.bloqueado_ate, u.totp_ativo, u.trocar_senha, u.aprovado,
                       c.razao_social AS empresa, dono.nome AS contador
                FROM usuarios u
                LEFT JOIN clientes c ON c.id = u.cliente_id

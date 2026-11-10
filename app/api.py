@@ -40,6 +40,7 @@ from . import regras
 from .autenticacao import (
     AcessoNegado,
     ContaDesativada,
+    ContaPendente,
     ErroAutenticacao,
     MSG_BLOQUEADO,
     DURACAO_SESSAO,
@@ -387,12 +388,11 @@ def criar_app(
             raise HTTPException(429, "Muitas contas criadas deste aparelho. Tente mais tarde.")
         try:
             usuario = auth.cadastrar_contador(dados.nome, dados.email, dados.senha)
-            resultado = auth.entrar(usuario.email, dados.senha)
         except ErroAutenticacao as e:
             raise erro_auth(e)
-        evento("conta_contador_criada", request, usuario)
-        gravar_sessao(response, resultado.token_sessao)
-        return {"usuario": usuario_json(usuario)}
+        # Não abre sessão: a conta só funciona depois da aprovação.
+        evento("contador_pediu_acesso", request, usuario)
+        return {"pendente": True, "email": usuario.email}
 
     @app.post("/auth/entrar", tags=["autenticação"])
     def entrar(dados: Login, request: Request, response: Response):
@@ -401,6 +401,7 @@ def criar_app(
             resultado = auth.entrar(dados.email, dados.senha)
         except ErroAutenticacao as e:
             tipo = ("conta_desativada_tentou_entrar" if isinstance(e, ContaDesativada)
+                    else "conta_pendente_tentou_entrar" if isinstance(e, ContaPendente)
                     else "bloqueio_por_tentativas" if str(e) == MSG_BLOQUEADO else "senha_errada")
             evento(tipo, request, email=(dados.email or "")[:254])
             raise HTTPException(401, str(e))
@@ -494,6 +495,7 @@ def criar_app(
                 "papel_nome": PAPEIS.get(u["papel"], u["papel"]),
                 "ativo": bool(u["ativo"]), "bloqueada": bloqueada, "dois_fatores": bool(u["totp_ativo"]),
                 "aguardando_primeiro_acesso": bool(u["trocar_senha"]),
+                "aguardando_aprovacao": not u["aprovado"],
                 "ultimo_acesso": u["ultimo_acesso"], "criado_em": u["criado_em"],
                 "empresa": u["empresa"], "contador": u["contador"],
                 "empresas_cadastradas": empresas.get(u["id"], 0) if u["papel"] == "contador" else None,
@@ -524,6 +526,16 @@ def criar_app(
             _, provisoria = auth.redefinir_senha(alvo.id)
             return {"email": alvo.email, "senha_provisoria": provisoria}
         return acao_admin(request, quem, usuario_id, "admin_gerou_senha_provisoria", fazer)
+
+    @app.post("/admin/contas/{usuario_id}/aprovar", tags=["administração"])
+    def admin_aprovar(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        return acao_admin(request, quem, usuario_id, "admin_aprovou_conta",
+                          lambda alvo: {"ok": bool(auth.aprovar(alvo.id))})
+
+    @app.post("/admin/contas/{usuario_id}/recusar", tags=["administração"])
+    def admin_recusar(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):
+        return acao_admin(request, quem, usuario_id, "admin_recusou_conta",
+                          lambda alvo: {"ok": bool(auth.recusar(alvo.id))})
 
     @app.post("/admin/contas/{usuario_id}/desbloquear", tags=["administração"])
     def admin_desbloquear(usuario_id: int, request: Request, quem: Usuario = Depends(admin_atual)):

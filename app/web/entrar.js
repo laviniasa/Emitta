@@ -141,23 +141,32 @@
   function telaCadastro() {
     const senha = el("input", { type: "password", name: "senha", autocomplete: "new-password", required: true });
     formulario(
-      "Criar conta de contador", "Você vai ver só as empresas que cadastrar. Ninguém de outro escritório vê os seus clientes.",
+      "Criar conta de contador", "Depois de enviar, a sua conta passa por uma aprovação do Emitta. Você vai ver só as empresas que cadastrar.",
       [
         el("label", { class: "campo" }, "Seu nome", el("input", { name: "nome", autocomplete: "name", maxlength: "120", required: true })),
         el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", inputmode: "email", required: true })),
         campoComAjuda("Senha", senha, ...medidorDeForca(senha)),
         campoSenha("Repita a senha", "repetir", "new-password"),
       ],
-      "Criar conta e entrar",
+      "Enviar pedido de conta",
       async (d) => {
         if (d.senha !== d.repetir) throw new Error("As duas senhas não são iguais.");
         const r = await api("POST", "/auth/cadastro", { nome: d.nome, email: d.email, senha: d.senha }, { semRedirecionar: true });
-        depoisDeEntrar(r.usuario);
+        telaPedidoEnviado(r.email);
       },
     );
     $caixa.prepend(voltarPara(() => telaEntrar("contador")));
     $caixa.append(el("p", { class: "nota-pe" }, "Já tem conta? ",
       el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar("contador") }, "Entrar")));
+  }
+
+  function telaPedidoEnviado(email) {
+    $caixa.replaceChildren(
+      el("div", { style: "width:56px;height:56px;border-radius:50%;background:var(--verde-claro);color:var(--verde);display:grid;place-items:center" }, icone("relogio", 28)),
+      el("div", {}, el("h1", {}, "Pedido enviado!"),
+        el("p", { class: "sub" }, `A sua conta (${email}) está aguardando aprovação do Emitta. Assim que for liberada, é só entrar com o e-mail e a senha que você criou.`)),
+      el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaEntrar("contador") }, "Voltar para entrar"),
+    );
   }
 
   function telaCodigo() {

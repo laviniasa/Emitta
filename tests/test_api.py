@@ -46,13 +46,20 @@ def anonimo(app):
     return novo_cliente(app)
 
 
-@pytest.fixture
-def contador(app):
+def contador_aprovado(app, auth, nome, email):
     c = novo_cliente(app)
-    resp = c.post("/auth/cadastro", json={"nome": "Ana", "email": "ana@escritorio.com", "senha": SENHA})
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["usuario"]["papel"] == "contador"
+    resp = c.post("/auth/cadastro", json={"nome": nome, "email": email, "senha": SENHA})
+    assert resp.status_code == 200 and resp.json()["pendente"] is True, resp.text
+    assert "set-cookie" not in resp.headers  # sem sessão antes da aprovação
+    auth.aprovar(auth.repo.buscar_usuario_por_email(email).id)
+    resp = c.post("/auth/entrar", json={"email": email, "senha": SENHA})
+    assert resp.status_code == 200 and resp.json()["usuario"]["papel"] == "contador", resp.text
     return c
+
+
+@pytest.fixture
+def contador(app, auth):
+    return contador_aprovado(app, auth, "Ana", "ana@escritorio.com")
 
 
 @pytest.fixture
@@ -288,15 +295,9 @@ def test_consulta_cnpj(contador):
 
 # ---------------------------------------------------------------- separação por login
 
-def outro_contador(app, email="carlos@outroescritorio.com"):
-    c = novo_cliente(app)
-    assert c.post("/auth/cadastro", json={"nome": "Carlos", "email": email, "senha": SENHA}).status_code == 200
-    return c
-
-
-def test_contador_so_ve_as_proprias_empresas(app, contador):
+def test_contador_so_ve_as_proprias_empresas(app, auth, contador):
     cid = criar_empresa(contador)
-    carlos = outro_contador(app)
+    carlos = contador_aprovado(app, auth, "Carlos", "carlos@outroescritorio.com")
     assert carlos.get("/contador/clientes").json() == []
     for metodo, caminho in [("get", f"/contador/clientes/{cid}/servicos"), ("get", f"/contador/clientes/{cid}/notas"),
                             ("get", f"/contador/clientes/{cid}/acessos"), ("delete", f"/contador/clientes/{cid}/certificado"),
@@ -355,7 +356,7 @@ def test_admin_acompanha_e_ajuda(app, admin, contador):
     novo_cliente(app).post("/auth/entrar", json={"email": "ana@escritorio.com", "senha": "errada-errada"})
 
     tipos = [e["tipo"] for e in admin.get("/admin/atividades").json()]
-    for t in ["conta_contador_criada", "empresa_cadastrada", "acesso_empresa_criado", "entrou", "senha_trocada", "senha_errada"]:
+    for t in ["contador_pediu_acesso", "empresa_cadastrada", "acesso_empresa_criado", "entrou", "senha_trocada", "senha_errada"]:
         assert t in tipos, t
     errada = next(e for e in admin.get("/admin/atividades").json() if e["tipo"] == "senha_errada")
     assert errada["email"] == "ana@escritorio.com" and errada["ip"]
@@ -388,3 +389,27 @@ def test_admin_acompanha_e_ajuda(app, admin, contador):
 
     acoes = [e["tipo"] for e in admin.get("/admin/atividades").json() if e["tipo"].startswith("admin_")]
     assert {"admin_gerou_senha_provisoria", "admin_desativou_conta", "admin_reativou_conta"} <= set(acoes)
+
+
+def test_pedido_de_conta_aprovado_pela_administracao(app, admin):
+    ativar_2fa(admin)
+    caio = novo_cliente(app)
+    assert caio.post("/auth/cadastro", json={"nome": "Caio", "email": "caio@x.com", "senha": SENHA}).json()["pendente"]
+    resp = caio.post("/auth/entrar", json={"email": "caio@x.com", "senha": SENHA})
+    assert resp.status_code == 401 and "aguardando aprovação" in resp.json()["detail"]
+    pedido = next(c for c in admin.get("/admin/contas").json() if c["email"] == "caio@x.com")
+    assert pedido["aguardando_aprovacao"] is True
+    assert admin.post(f"/admin/contas/{pedido['id']}/aprovar").status_code == 200
+    assert caio.post("/auth/entrar", json={"email": "caio@x.com", "senha": SENHA}).status_code == 200
+    assert caio.get("/contador/clientes").status_code == 200
+    tipos = [e["tipo"] for e in admin.get("/admin/atividades").json()]
+    assert {"contador_pediu_acesso", "conta_pendente_tentou_entrar", "admin_aprovou_conta"} <= set(tipos)
+
+
+def test_pedido_de_conta_recusado(app, admin):
+    ativar_2fa(admin)
+    novo_cliente(app).post("/auth/cadastro", json={"nome": "Intruso", "email": "intruso@x.com", "senha": SENHA})
+    pedido = next(c for c in admin.get("/admin/contas").json() if c["email"] == "intruso@x.com")
+    assert admin.post(f"/admin/contas/{pedido['id']}/recusar").status_code == 200
+    assert all(c["email"] != "intruso@x.com" for c in admin.get("/admin/contas").json())
+    assert novo_cliente(app).post("/auth/entrar", json={"email": "intruso@x.com", "senha": SENHA}).status_code == 401
