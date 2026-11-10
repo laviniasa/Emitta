@@ -75,6 +75,7 @@ def test_status_e_paginas_publicas(anonimo):
         assert resp.status_code == 200 and trecho in resp.text, caminho
         if not caminho.startswith("/static"):
             assert resp.headers["cache-control"] == "no-store", caminho
+    assert anonimo.get("/entrar").headers["clear-site-data"] == '"cache"'
     assert anonimo.get("/painel", follow_redirects=False).headers["location"] == "/escritorio"
     assert anonimo.get("/app?empresa=2", follow_redirects=False).headers["location"] == "/empresa?empresa=2"
 

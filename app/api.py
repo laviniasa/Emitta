@@ -256,7 +256,11 @@ def criar_app(
 
     @app.get("/entrar", include_in_schema=False)
     def pagina_entrar():
-        return pagina("entrar.html")
+        resposta = pagina("entrar.html")
+        # Manda o navegador apagar cópias antigas do site guardadas no aparelho
+        # (versões de antes do login ficavam presas no cache de alguns celulares).
+        resposta.headers["Clear-Site-Data"] = '"cache"'
+        return resposta
 
     @app.get("/escritorio", include_in_schema=False)
     def pagina_painel():
