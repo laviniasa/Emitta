@@ -101,7 +101,7 @@ def test_csrf_sem_cabecalho_bloqueia(app, contador):
     sem_cabecalho.cookies = contador.cookies
     resp = sem_cabecalho.post("/contador/clientes", json={})
     assert resp.status_code == 403
-    assert "X-Emitta" in resp.json()["detail"]
+    assert resp.json()["detail"]["codigo"] == "pagina_desatualizada"
 
 
 def test_instalacao_exige_codigo_e_so_uma_vez(anonimo, contador):

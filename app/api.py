@@ -190,7 +190,13 @@ def criar_app(
     async def protecoes(request: Request, call_next):
         caminho = request.url.path
         if request.method in METODOS_QUE_ALTERAM and request.headers.get(CABECALHO_CSRF) != "1":
-            return JSONResponse({"detail": "Requisição bloqueada por segurança (falta o cabeçalho X-Emitta)."}, 403)
+            # Sem o cabeçalho: ou é um envio forjado por outro site, ou uma aba
+            # antiga do Emitta (de antes do login) ainda aberta no aparelho.
+            return JSONResponse({"detail": {
+                "codigo": "pagina_desatualizada",
+                "mensagem": "Esta página do Emitta está desatualizada. Feche esta aba e abra "
+                            "emitta.onrender.com/entrar numa aba nova.",
+            }}, 403)
         resposta = await call_next(request)
         resposta.headers["X-Content-Type-Options"] = "nosniff"
         resposta.headers["Referrer-Policy"] = "same-origin"
