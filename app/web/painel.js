@@ -166,7 +166,7 @@
       el("div", {},
         el("h1", {}, c.razao_social),
         el("p", { class: "sub" }, `CNPJ ${formatarDocumento(c.cnpj)} · ${c.municipio_nome} · Simples Nacional`)),
-      el("a", { class: "botao botao-secundario", href: `/app?empresa=${c.id}` }, "Ver como o cliente vê"),
+      el("a", { class: "botao botao-secundario", href: `/empresa?empresa=${c.id}` }, "Ver como o cliente vê"),
     );
 
     // Serviços

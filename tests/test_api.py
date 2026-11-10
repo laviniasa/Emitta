@@ -69,10 +69,14 @@ def entrar_como_empresa(app, contador, cid, email="bia@empresa.com"):
 
 def test_status_e_paginas_publicas(anonimo):
     assert anonimo.get("/status").json()["ambiente"] == "simulacao"
-    for caminho, trecho in [("/", "Sou contador"), ("/entrar", "entrar.js"), ("/painel", "painel.js"),
-                            ("/app", "app.js"), ("/static/estilo.css", "--verde")]:
+    for caminho, trecho in [("/", "Sou contador"), ("/entrar", "entrar.js"), ("/escritorio", "painel.js"),
+                            ("/empresa", "app.js"), ("/static/estilo.css", "--verde")]:
         resp = anonimo.get(caminho)
         assert resp.status_code == 200 and trecho in resp.text, caminho
+        if not caminho.startswith("/static"):
+            assert resp.headers["cache-control"] == "no-store", caminho
+    assert anonimo.get("/painel", follow_redirects=False).headers["location"] == "/escritorio"
+    assert anonimo.get("/app?empresa=2", follow_redirects=False).headers["location"] == "/empresa?empresa=2"
 
 
 def test_cabecalhos_de_seguranca(anonimo):

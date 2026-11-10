@@ -71,7 +71,7 @@
       item("inicio", "Início", "casa", () => ir("inicio")),
       item("nova", "Emitir", "mais", novaNota),
       estado.eu.papel === "contador"
-        ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/painel"; })
+        ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/escritorio"; })
         : item("sair", "Sair", "sair", () => { if (window.confirm("Sair do Emitta neste aparelho?")) sair(); }),
     );
   }
@@ -436,7 +436,7 @@
     const id = estado.eu.papel === "empresa"
       ? estado.eu.cliente_id
       : parseInt(new URLSearchParams(location.search).get("empresa"), 10);
-    if (!id) { location.href = "/painel"; return; }
+    if (!id) { location.href = "/escritorio"; return; }
     await entrar(id);
   })();
 })();

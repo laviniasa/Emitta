@@ -6,8 +6,8 @@ Documentação interativa:  http://localhost:8000/docs
 Páginas:
   /                              apresentação
   /entrar                        login, primeiro acesso, troca de senha
-  /painel                        painel do contador
-  /app                           app da empresa
+  /escritorio                    painel do contador
+  /empresa                       app da empresa
 
 Rotas da API:
   /status                        situação do servidor (público)
@@ -28,7 +28,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -247,7 +247,8 @@ def criar_app(
     app.mount("/static", StaticFiles(directory=PASTA_WEB), name="static")
 
     def pagina(nome: str):
-        return FileResponse(PASTA_WEB / nome, headers={"Cache-Control": "no-cache"})
+        # no-store: o navegador nunca guarda a página, então sempre pega a versão atual.
+        return FileResponse(PASTA_WEB / nome, headers={"Cache-Control": "no-store"})
 
     @app.get("/", include_in_schema=False)
     def pagina_inicial():
@@ -257,13 +258,23 @@ def criar_app(
     def pagina_entrar():
         return pagina("entrar.html")
 
-    @app.get("/painel", include_in_schema=False)
+    @app.get("/escritorio", include_in_schema=False)
     def pagina_painel():
         return pagina("painel.html")
 
-    @app.get("/app", include_in_schema=False)
+    @app.get("/empresa", include_in_schema=False)
     def pagina_app():
         return pagina("app.html")
+
+    # Endereços antigos: redirecionam para os novos (celulares guardavam cópias velhas).
+    @app.get("/painel", include_in_schema=False)
+    def antigo_painel():
+        return RedirectResponse("/escritorio", 307, headers={"Cache-Control": "no-store"})
+
+    @app.get("/app", include_in_schema=False)
+    def antigo_app(request: Request):
+        destino = "/empresa" + (f"?{request.url.query}" if request.url.query else "")
+        return RedirectResponse(destino, 307, headers={"Cache-Control": "no-store"})
 
     @app.get("/status", tags=["status"])
     def status():

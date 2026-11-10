@@ -10,7 +10,7 @@
   function destino(papel) {
     const volta = new URLSearchParams(location.search).get("volta") || "";
     const valido = volta.startsWith("/") && !volta.startsWith("//") && !volta.startsWith("/entrar");
-    const area = papel === "contador" ? "/painel" : "/app";
+    const area = papel === "contador" ? "/escritorio" : "/empresa";
     return valido && volta.startsWith(area) ? volta : area;
   }
 
