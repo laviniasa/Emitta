@@ -371,7 +371,13 @@
       }
       if (estado.eu.trocar_senha) { location.href = "/entrar?volta=/admin"; return; }
       if (estado.eu.papel !== "admin") {
-        $principal.replaceChildren(el("section", { class: "card bloco estreito" }, el("h1", {}, "Página não encontrada")));
+        $principal.replaceChildren(el("section", { class: "card bloco estreito" },
+          el("h1", {}, "Esta área não está disponível para esta conta"),
+          el("p", { class: "sub" }, `Você está conectada como ${estado.eu.email}. Para usar esta área, saia e entre com a outra conta.`),
+          el("button", { class: "botao botao-grande", type: "button", onclick: async () => {
+            try { await api("POST", "/auth/sair", null, { semRedirecionar: true }); } catch {}
+            location.href = "/entrar?volta=/admin";
+          } }, icone("sair", 18), "Sair e entrar com outra conta")));
         return;
       }
       if (!estado.eu.dois_fatores) return telaDuasEtapas();
