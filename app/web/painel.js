@@ -235,7 +235,7 @@
           el("table", {},
             el("thead", {}, el("tr", {},
               el("th", {}, "Nº"), el("th", {}, "Data"), el("th", {}, "Cliente"),
-              el("th", {}, "Situação"), el("th", { style: "text-align:right" }, "Valor"))),
+              el("th", {}, "Situação"), el("th", { style: "text-align:right" }, "Valor"), el("th", {}, "Arquivos"))),
             el("tbody", {}, estado.notas.map((n) => el("tr", {},
               el("td", {}, String(n.numero_dps).padStart(6, "0")),
               el("td", {}, dataHora(n.emitida_em)),
@@ -246,11 +246,15 @@
                   ? el("div", { class: "sub2", style: "font-size:12px" }, n.mensagem) : null),
               el("td", {}, seloSituacao(n.situacao)),
               el("td", { class: "valor" }, dinheiro(n.valor)),
+              el("td", { style: "white-space:nowrap" },
+                n.situacao === "autorizada" || n.situacao === "cancelada"
+                  ? [el("a", { href: n.pdf, download: "" }, "PDF"), " · ", el("a", { href: n.xml, download: "" }, "XML")]
+                  : "—"),
             )))))
         : el("p", { class: "vazio" }, "Esta empresa ainda não emitiu notas."),
     );
 
-    return [cabecalho, el("div", { class: "colunas" }, colServicos, colLado), secaoAcessos(c), notas];
+    return [cabecalho, el("div", { class: "colunas" }, colServicos, colLado), secaoCertificado(c), secaoAcessos(c), notas];
   }
 
   function formularioNovaEmpresa() {
@@ -262,19 +266,29 @@
         ajuda && el("span", { class: "ajuda", id }, ajuda));
     };
     const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+    const $dicaCnpj = el("div", { class: "aviso aviso-info", "aria-live": "polite", hidden: true });
 
     const form = el("form", { class: "card", style: "padding:24px;display:flex;flex-direction:column;gap:18px", novalidate: true },
       el("div", {},
         el("h1", { style: "font-size:22px" }, "Nova empresa"),
         el("p", { class: "sub2", style: "margin-top:4px" }, "Depois de cadastrar, você escolhe os serviços que ela pode emitir.")),
       $erro,
+      $dicaCnpj,
       el("div", { class: "form-grade" },
-        campo("CNPJ", "cnpj", { required: true, inputmode: "numeric", placeholder: "00.000.000/0000-00", autocomplete: "off" }),
+        campo("CNPJ", "cnpj", { required: true, inputmode: "text", autocapitalize: "characters", placeholder: "00.000.000/0000-00", autocomplete: "off" },
+          "Digite o CNPJ e o Emitta busca os dados na Receita."),
         campo("Razão social", "razao_social", { required: true }),
         campo("Município", "municipio_nome", { required: true, placeholder: "Ex.: São Paulo" }),
         campo("Código IBGE do município", "municipio_ibge", { required: true, inputmode: "numeric", maxlength: "7", placeholder: "7 dígitos" },
           "Ex.: São Paulo é 3550308"),
-        campo("Alíquota de ISS (%)", "aliquota_iss", { required: true, inputmode: "decimal", placeholder: "Ex.: 3" }),
+        el("div", { class: "campo" }, el("label", { class: "campo" }, "Regime",
+          el("select", { name: "opcao_simples" },
+            el("option", { value: "3" }, "Simples Nacional (ME/EPP)"),
+            el("option", { value: "2" }, "MEI"),
+            el("option", { value: "1" }, "Fora do Simples")))),
+        campo("Alíquota de ISS (%)", "aliquota_iss", { required: true, inputmode: "decimal", placeholder: "Ex.: 3" }, "Entre 2% e 5%."),
+        campo("Tributos aproximados do Simples (%)", "p_tot_trib_sn", { inputmode: "decimal", placeholder: "Ex.: 6,00" },
+          "Obrigatório para ME/EPP ao emitir de verdade (alíquota efetiva do Simples)."),
         campo("Prazo para cancelar (dias)", "prazo_cancelamento_dias", { inputmode: "numeric", placeholder: "Opcional" },
           "Deixe em branco se não souber"),
       ),
@@ -300,6 +314,8 @@
         municipio_ibge: String(d.municipio_ibge).replace(/\D/g, ""),
         aliquota_iss: String(d.aliquota_iss).replace(",", "."),
         prazo_cancelamento_dias: d.prazo_cancelamento_dias ? parseInt(d.prazo_cancelamento_dias, 10) : null,
+        opcao_simples: d.opcao_simples || "3",
+        p_tot_trib_sn: d.p_tot_trib_sn ? String(d.p_tot_trib_sn).replace(",", ".") : null,
       };
       const botao = form.querySelector("[type=submit]");
       botao.disabled = true;
@@ -314,8 +330,99 @@
         botao.disabled = false;
       }
     });
-    setTimeout(() => form.querySelector("input").focus(), 0);
+    // Busca os dados públicos da empresa assim que o CNPJ está completo.
+    const $cnpj = form.querySelector("[name=cnpj]");
+    let ultimo = "";
+    $cnpj.addEventListener("input", async () => {
+      const doc = $cnpj.value.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+      if (doc.length !== 14 || doc === ultimo) return;
+      ultimo = doc;
+      $dicaCnpj.hidden = false;
+      $dicaCnpj.textContent = "Buscando os dados da empresa na Receita...";
+      try {
+        const r = await api("GET", `/consulta/cnpj/${doc}`);
+        const preencher = (nome, valor) => { const c = form.querySelector(`[name=${nome}]`); if (valor && !c.value.trim()) c.value = valor; };
+        preencher("razao_social", r.razao_social);
+        preencher("municipio_nome", r.municipio);
+        preencher("municipio_ibge", r.codigo_municipio_ibge);
+        if (r.regime) form.querySelector("[name=opcao_simples]").value = r.regime;
+        const regime = { "1": "fora do Simples", "2": "MEI", "3": "Simples Nacional" }[r.regime] || "regime não informado";
+        $dicaCnpj.textContent = `Dados da Receita: ${r.razao_social} · ${r.municipio}/${r.uf} · ${regime}` +
+          (r.cnae_principal && r.cnae_principal.descricao ? ` · Atividade: ${r.cnae_principal.descricao}` : "") +
+          (r.situacao && r.situacao !== "ATIVA" ? ` · ATENÇÃO: situação ${r.situacao}` : "") + ". Confira antes de salvar.";
+      } catch (erro) {
+        $dicaCnpj.textContent = erro.status === 404 ? "CNPJ não encontrado na Receita. Preencha os dados manualmente."
+          : "Não foi possível consultar a Receita agora. Preencha os dados manualmente.";
+      }
+    });
+    setTimeout(() => $cnpj.focus(), 0);
     return form;
+  }
+
+  // ------------------------------------------------------------ certificado digital
+
+  function secaoCertificado(c) {
+    const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+    const cert = c.certificado;
+    let corpo;
+    if (cert) {
+      const validade = new Date(cert.validade);
+      const dias = Math.ceil((validade - Date.now()) / 86400000);
+      corpo = [
+        el("div", { class: dias <= 30 ? "aviso aviso-alerta" : "aviso aviso-info" }, icone("escudo"),
+          el("span", {}, el("strong", { style: "display:block" }, cert.titular || "Certificado A1"),
+            `Válido até ${validade.toLocaleDateString("pt-BR")}` + (dias <= 30 ? ` — vence em ${dias} dia(s). Providencie a renovação.` : "."))),
+        el("div", {}, el("button", {
+          class: "botao botao-texto-perigo", type: "button",
+          onclick: async () => {
+            if (!window.confirm("Remover o certificado desta empresa? Ela não conseguirá emitir até enviar outro.")) return;
+            try { await api("DELETE", `/contador/clientes/${c.id}/certificado`); await carregarClientes(); desenharPrincipal(); }
+            catch (erro) { avisar(erro.message); }
+          },
+        }, "Remover certificado")),
+      ];
+    } else {
+      const form = el("form", { class: "form-grade", novalidate: true },
+        el("label", { class: "campo" }, "Arquivo do certificado (.pfx ou .p12)",
+          el("input", { type: "file", name: "arquivo", accept: ".pfx,.p12,application/x-pkcs12", required: true })),
+        el("label", { class: "campo" }, "Senha do certificado",
+          el("input", { type: "password", name: "senha", autocomplete: "off", required: true })),
+        el("div", { style: "display:flex;align-items:flex-end" }, el("button", { class: "botao", type: "submit", style: "width:100%" }, "Enviar certificado")));
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const arquivo = form.querySelector("[name=arquivo]").files[0];
+        const senha = form.querySelector("[name=senha]").value;
+        if (!arquivo || !senha) { $erro.textContent = "Escolha o arquivo e digite a senha."; $erro.hidden = false; return; }
+        if (arquivo.size > 50 * 1024) { $erro.textContent = "Arquivo grande demais para um certificado A1."; $erro.hidden = false; return; }
+        const botao = form.querySelector("button");
+        botao.disabled = true;
+        $erro.hidden = true;
+        try {
+          const bytes = new Uint8Array(await arquivo.arrayBuffer());
+          let binario = "";
+          bytes.forEach((b) => { binario += String.fromCharCode(b); });
+          await api("POST", `/contador/clientes/${c.id}/certificado`, { arquivo_base64: btoa(binario), senha });
+          await carregarClientes();
+          avisar("Certificado conferido e guardado com segurança.");
+          desenharPrincipal();
+        } catch (erro) {
+          $erro.textContent = erro.message;
+          $erro.hidden = false;
+          botao.disabled = false;
+        }
+      });
+      corpo = [
+        el("div", { class: "aviso aviso-alerta" }, icone("alerta"),
+          "Sem certificado, esta empresa só emite no modo de teste. Para emitir no governo, envie o certificado A1 (e-CNPJ) dela."),
+        form,
+      ];
+    }
+    return el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
+      el("div", {},
+        el("h2", { class: "titulo" }, "Certificado digital"),
+        el("p", { class: "sub2", style: "margin-top:4px" },
+          "Usado para assinar as notas. O arquivo e a senha ficam guardados criptografados e nunca aparecem de novo.")),
+      $erro, ...corpo);
   }
 
   // ------------------------------------------------------------ acesso da empresa

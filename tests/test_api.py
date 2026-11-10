@@ -22,9 +22,19 @@ def auth(servico):
     return ServicoAutenticacao(servico.repo, codigo_instalacao=CODIGO)
 
 
+class ConsultaFalsa:
+    def consultar(self, cnpj):
+        from app.consulta_cnpj import CnpjNaoEncontrado
+        if cnpj != "11444777000161":
+            raise CnpjNaoEncontrado("CNPJ não encontrado na Receita.")
+        return {"razao_social": "EMPRESA CONSULTADA LTDA", "nome_fantasia": "", "municipio": "São Paulo",
+                "uf": "SP", "codigo_municipio_ibge": "3550308", "situacao": "ATIVA",
+                "cnae_principal": {"codigo": "6201501", "descricao": "Desenvolvimento"}, "regime": "3"}
+
+
 @pytest.fixture
 def app(servico, auth):
-    return criar_app(servico, auth=auth, cookie_seguro=False)
+    return criar_app(servico, auth=auth, cookie_seguro=False, consulta_cnpj=ConsultaFalsa())
 
 
 def novo_cliente(app):
@@ -191,3 +201,77 @@ def test_empresa_duplicada(contador):
         "municipio_nome": "São Paulo", "aliquota_iss": "3",
     })
     assert resp.status_code == 409
+
+
+# ---------------------------------------------------------------- parte real
+
+def emitir_via_api(c, cid, **mudar):
+    corpo = {"codigo_servico": "010101", "tomador_documento": CNPJ_TOMADOR,
+             "tomador_nome": "Cliente Ltda", "valor": "100,00", "chave_envio": "abc-1"}
+    corpo.update(mudar)
+    return c.post(f"/app/{cid}/notas", json=corpo)
+
+
+def test_baixar_pdf_e_xml(app, contador):
+    cid = criar_empresa(contador)
+    contador.put(f"/contador/clientes/{cid}/servicos", json={"servicos": [{"codigo": "010101"}]})
+    nota = emitir_via_api(contador, cid, competencia="2026-10-01").json()
+    pdf = contador.get(nota["pdf"])
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    assert "attachment" in pdf.headers["content-disposition"]
+    xml = contador.get(nota["xml"])
+    assert xml.status_code == 200 and b"<dCompet>2026-10-01</dCompet>" in xml.content
+
+    # outra empresa não baixa
+    cid2 = criar_empresa(contador, "12.345.678/0001-95")
+    empresa2 = entrar_como_empresa(app, contador, cid2, "outra@empresa.com")
+    assert empresa2.get(nota["pdf"]).status_code == 404
+    assert empresa2.get(f"/app/{cid2}/notas/{nota['id']}/pdf").status_code == 404
+
+
+def test_envio_repetido_devolve_a_mesma_nota(contador):
+    cid = criar_empresa(contador)
+    contador.put(f"/contador/clientes/{cid}/servicos", json={"servicos": [{"codigo": "010101"}]})
+    a = emitir_via_api(contador, cid).json()
+    b = emitir_via_api(contador, cid).json()
+    assert a["id"] == b["id"]
+    assert len(contador.get(f"/app/{cid}/notas").json()) == 1
+
+
+def test_resposta_perdida_e_verificar(servico, contador):
+    cid = criar_empresa(contador)
+    contador.put(f"/contador/clientes/{cid}/servicos", json={"servicos": [{"codigo": "010101"}]})
+    servico.sefin.cair_depois_de_autorizar = True
+    r = emitir_via_api(contador, cid)
+    assert r.status_code == 202 and r.json()["processando"]
+    nid = r.json()["nota"]["id"]
+    assert contador.get(f"/app/{cid}/notas/{nid}/pdf").status_code == 409
+    v = contador.post(f"/app/{cid}/notas/{nid}/verificar")
+    assert v.status_code == 200 and v.json()["situacao"] == "autorizada"
+
+
+def test_enviar_certificado(contador, monkeypatch):
+    import base64
+    from cryptography.fernet import Fernet
+    from .test_parte_real import gerar_pfx
+    monkeypatch.setenv("EMITTA_CHAVE_CERTIFICADOS", Fernet.generate_key().decode())
+    cid = criar_empresa(contador)
+    pfx = base64.b64encode(gerar_pfx(CNPJ_PRESTADOR, "senha-a1-ok")).decode()
+    errado = contador.post(f"/contador/clientes/{cid}/certificado", json={"arquivo_base64": pfx, "senha": "nao"})
+    assert errado.status_code == 422
+    ok = contador.post(f"/contador/clientes/{cid}/certificado", json={"arquivo_base64": pfx, "senha": "senha-a1-ok"})
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["certificado"]["titular"].startswith("EMPRESA TESTE")
+    lista = contador.get("/contador/clientes").json()
+    assert "cert_pfx_cifrado" not in lista[0] and lista[0]["certificado"]  # nunca expõe o arquivo
+    assert contador.delete(f"/contador/clientes/{cid}/certificado").json()["certificado"] is None
+
+
+def test_consulta_cnpj(contador):
+    r = contador.get("/consulta/cnpj/11.444.777/0001-61")
+    assert r.status_code == 404  # barras na URL não são aceitas
+    r = contador.get("/consulta/cnpj/11444777000161")
+    assert r.status_code == 200, r.text
+    assert r.json()["razao_social"] == "EMPRESA CONSULTADA LTDA"
+    assert r.json()["codigo_municipio_ibge"] == "3550308"
+    assert contador.get("/consulta/cnpj/52998224725").status_code == 422  # CPF não

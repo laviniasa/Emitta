@@ -20,7 +20,13 @@ CREATE TABLE IF NOT EXISTS clientes (
     aliquota_iss TEXT NOT NULL,
     prazo_cancelamento_dias INTEGER,
     serie_dps TEXT NOT NULL DEFAULT '1',
-    criado_em TEXT NOT NULL
+    criado_em TEXT NOT NULL,
+    reg_ap_trib_sn TEXT NOT NULL DEFAULT '1',
+    p_tot_trib_sn TEXT,
+    cert_pfx_cifrado BLOB,
+    cert_senha_cifrada BLOB,
+    cert_validade TEXT,
+    cert_titular TEXT
 );
 
 CREATE TABLE IF NOT EXISTS servicos_liberados (
@@ -48,7 +54,13 @@ CREATE TABLE IF NOT EXISTS notas (
     emitida_em TEXT NOT NULL,
     cancelada_em TEXT,
     motivo_cancelamento TEXT,
-    UNIQUE (cliente_id, numero_dps)
+    competencia TEXT,
+    iss_retido INTEGER NOT NULL DEFAULT 0,
+    id_dps TEXT,
+    xml_dps TEXT,
+    chave_envio TEXT,
+    UNIQUE (cliente_id, numero_dps),
+    UNIQUE (cliente_id, chave_envio)
 );
 
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -97,6 +109,21 @@ class Cliente:
     prazo_cancelamento_dias: int | None
     serie_dps: str
     criado_em: str
+    reg_ap_trib_sn: str = "1"
+    p_tot_trib_sn: str | None = None
+    cert_pfx_cifrado: bytes | None = None
+    cert_senha_cifrada: bytes | None = None
+    cert_validade: str | None = None
+    cert_titular: str | None = None
+
+    def publico(self) -> dict:
+        """Dados que podem sair na API (sem o certificado cifrado)."""
+        d = {k: v for k, v in self.__dict__.items() if not k.startswith("cert_")}
+        d["certificado"] = (
+            {"titular": self.cert_titular, "validade": self.cert_validade}
+            if self.cert_pfx_cifrado else None
+        )
+        return d
 
 
 @dataclass
@@ -118,6 +145,11 @@ class Nota:
     emitida_em: str
     cancelada_em: str | None
     motivo_cancelamento: str | None
+    competencia: str | None = None
+    iss_retido: int = 0
+    id_dps: str | None = None
+    xml_dps: str | None = None
+    chave_envio: str | None = None
 
 
 @dataclass
@@ -163,6 +195,31 @@ class Repositorio:
         self.con.row_factory = sqlite3.Row
         self.con.execute("PRAGMA foreign_keys = ON")
         self.con.executescript(ESQUEMA)
+        self._migrar()
+
+    # Colunas acrescentadas depois da primeira versão (bancos já existentes).
+    _COLUNAS_NOVAS = {
+        "clientes": {
+            "reg_ap_trib_sn": "TEXT NOT NULL DEFAULT '1'", "p_tot_trib_sn": "TEXT",
+            "cert_pfx_cifrado": "BLOB", "cert_senha_cifrada": "BLOB",
+            "cert_validade": "TEXT", "cert_titular": "TEXT",
+        },
+        "notas": {
+            "competencia": "TEXT", "iss_retido": "INTEGER NOT NULL DEFAULT 0", "id_dps": "TEXT",
+            "xml_dps": "TEXT", "chave_envio": "TEXT",
+        },
+    }
+
+    def _migrar(self) -> None:
+        with self.con:
+            for tabela, colunas in self._COLUNAS_NOVAS.items():
+                existentes = {l[1] for l in self.con.execute(f"PRAGMA table_info({tabela})")}
+                for nome, tipo in colunas.items():
+                    if nome not in existentes:
+                        self.con.execute(f"ALTER TABLE {tabela} ADD COLUMN {nome} {tipo}")
+            self.con.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS notas_chave_envio ON notas (cliente_id, chave_envio)"
+            )
 
     # ------------------------------------------------------------ clientes
 
@@ -175,20 +232,41 @@ class Repositorio:
         aliquota_iss: str,
         opcao_simples: str = "3",
         prazo_cancelamento_dias: int | None = None,
+        p_tot_trib_sn: str | None = None,
+        reg_ap_trib_sn: str = "1",
     ) -> Cliente:
         with self.con:
             cur = self.con.execute(
                 """INSERT INTO clientes (cnpj, razao_social, municipio_ibge, municipio_nome,
-                   opcao_simples, aliquota_iss, prazo_cancelamento_dias, criado_em)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   opcao_simples, aliquota_iss, prazo_cancelamento_dias, criado_em,
+                   p_tot_trib_sn, reg_ap_trib_sn)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (cnpj, razao_social, municipio_ibge, municipio_nome, opcao_simples,
-                 aliquota_iss, prazo_cancelamento_dias, datetime.now().astimezone().isoformat()),
+                 aliquota_iss, prazo_cancelamento_dias, datetime.now().astimezone().isoformat(),
+                 p_tot_trib_sn, reg_ap_trib_sn),
             )
         return self.buscar_cliente(cur.lastrowid)
 
     def buscar_cliente(self, cliente_id: int) -> Cliente | None:
         linha = self.con.execute("SELECT * FROM clientes WHERE id = ?", (cliente_id,)).fetchone()
         return Cliente(**dict(linha)) if linha else None
+
+    def guardar_certificado(self, cliente_id: int, pfx_cifrado: bytes, senha_cifrada: bytes,
+                            validade: str, titular: str) -> Cliente:
+        with self.con:
+            self.con.execute(
+                """UPDATE clientes SET cert_pfx_cifrado = ?, cert_senha_cifrada = ?,
+                   cert_validade = ?, cert_titular = ? WHERE id = ?""",
+                (pfx_cifrado, senha_cifrada, validade, titular, cliente_id),
+            )
+        return self.buscar_cliente(cliente_id)
+
+    def remover_certificado(self, cliente_id: int) -> Cliente:
+        with self.con:
+            self.con.execute(
+                """UPDATE clientes SET cert_pfx_cifrado = NULL, cert_senha_cifrada = NULL,
+                   cert_validade = NULL, cert_titular = NULL WHERE id = ?""", (cliente_id,))
+        return self.buscar_cliente(cliente_id)
 
     def listar_clientes(self) -> list[Cliente]:
         linhas = self.con.execute("SELECT * FROM clientes ORDER BY razao_social").fetchall()
@@ -239,6 +317,23 @@ class Repositorio:
             "SELECT * FROM notas WHERE cliente_id = ? ORDER BY id DESC", (cliente_id,)
         ).fetchall()
         return [Nota(**dict(l)) for l in linhas]
+
+    def buscar_nota_por_chave_envio(self, cliente_id: int, chave_envio: str) -> Nota | None:
+        linha = self.con.execute(
+            "SELECT * FROM notas WHERE cliente_id = ? AND chave_envio = ?", (cliente_id, chave_envio)
+        ).fetchone()
+        return Nota(**dict(linha)) if linha else None
+
+    _CAMPOS_NOTA = {"situacao", "chave_acesso", "xml_nfse", "mensagem"}
+
+    def atualizar_nota(self, nota_id: int, **campos) -> Nota:
+        invalidos = set(campos) - self._CAMPOS_NOTA
+        if invalidos:
+            raise ValueError(f"Campos não permitidos: {invalidos}")
+        atribuicoes = ", ".join(f"{c} = ?" for c in campos)
+        with self.con:
+            self.con.execute(f"UPDATE notas SET {atribuicoes} WHERE id = ?", (*campos.values(), nota_id))
+        return self.buscar_nota(nota_id)
 
     def marcar_cancelada(self, nota_id: int, motivo: str, quando: str) -> Nota:
         with self.con:

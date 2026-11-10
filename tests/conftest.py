@@ -47,7 +47,7 @@ def servico(sefin, relogio, tmp_path):
         repo=Repositorio(":memory:"),
         sefin=sefin,
         config=config,
-        certificados=ProvedorCertificados(tmp_path, permitir_teste=True),
+        certificados=ProvedorCertificados(permitir_teste=True),
         relogio=relogio,
     )
 

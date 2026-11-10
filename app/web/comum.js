@@ -115,9 +115,9 @@ const Emitta = (() => {
   }
 
   function formatarDocumento(doc) {
-    const d = String(doc || "").replace(/\D/g, "");
-    if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-    if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+    const d = String(doc || "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+    if (d.length === 14) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+    if (d.length === 11 && /^\d+$/.test(d)) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
     return doc;
   }
 
@@ -125,6 +125,7 @@ const Emitta = (() => {
     autorizada: ["Autorizada", "selo selo-verde"],
     cancelada: ["Cancelada", "selo selo-vermelho"],
     rejeitada: ["Recusada", "selo selo-cinza"],
+    processando: ["Aguardando prefeitura", "selo selo-amarelo"],
   };
   function seloSituacao(situacao) {
     const [texto, classe] = SITUACAO[situacao] || [situacao, "selo selo-cinza"];
@@ -160,6 +161,8 @@ const Emitta = (() => {
     chave: "M15 7a4 4 0 1 1-3.9 5H3v3h3v3h3v-3h2.1A4 4 0 0 1 15 7z",
     olho: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
     usuario: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0",
+    download: "M12 4v12M7 11l5 5 5-5M5 20h14",
+    documento: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6",
   };
   function icone(nome, tamanho = 20, cor = "currentColor") {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");

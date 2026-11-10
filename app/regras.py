@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 
@@ -97,13 +97,23 @@ def _cpf_valido(cpf: str) -> bool:
     return True
 
 
+def _valor_caractere(c: str) -> int:
+    # CNPJ alfanumérico (IN RFB 2.229/2024): cada caractere vale o código ASCII
+    # menos 48. Para dígitos isso dá o próprio número; "A" vale 17, "Z" vale 42.
+    return ord(c) - 48
+
+
 def _cnpj_valido(cnpj: str) -> bool:
+    """Aceita o CNPJ numérico e o novo alfanumérico (12 primeiros caracteres
+    com letras e números; os 2 dígitos verificadores são sempre números)."""
     if len(cnpj) != 14 or cnpj == cnpj[0] * 14:
+        return False
+    if not re.fullmatch(r"[0-9A-Z]{12}[0-9]{2}", cnpj):
         return False
     pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
     pesos2 = [6] + pesos1
     for pesos, posicao in ((pesos1, 12), (pesos2, 13)):
-        soma = sum(int(cnpj[i]) * pesos[i] for i in range(posicao))
+        soma = sum(_valor_caractere(cnpj[i]) * pesos[i] for i in range(posicao))
         resto = soma % 11
         digito = 0 if resto < 2 else 11 - resto
         if digito != int(cnpj[posicao]):
@@ -114,7 +124,7 @@ def _cnpj_valido(cnpj: str) -> bool:
 @dataclass(frozen=True)
 class Documento:
     tipo: str  # "CPF" ou "CNPJ"
-    numero: str  # só dígitos
+    numero: str  # sem pontuação (CNPJ pode ter letras maiúsculas)
 
 
 def validar_documento(texto: str) -> Documento:
@@ -122,14 +132,46 @@ def validar_documento(texto: str) -> Documento:
 
     Evita a rejeição mais comum ("CNPJ do tomador inválido").
     """
-    numero = somente_digitos(texto)
-    if len(numero) == 11 and _cpf_valido(numero):
+    numero = limpar_documento(texto)
+    if len(numero) == 11 and numero.isdigit() and _cpf_valido(numero):
         return Documento("CPF", numero)
     if len(numero) == 14 and _cnpj_valido(numero):
         return Documento("CNPJ", numero)
     raise DocumentoInvalido(
-        "CNPJ ou CPF do cliente inválido. Confira os números digitados."
+        "CNPJ ou CPF do cliente inválido. Confira o que foi digitado."
     )
+
+
+def limpar_documento(texto: str) -> str:
+    """Tira pontos, barras e traços; mantém letras (CNPJ alfanumérico) em maiúsculas."""
+    return re.sub(r"[^0-9A-Za-z]", "", texto or "").upper()
+
+
+# ---------------------------------------------------------------- competência
+
+def validar_competencia(competencia: date | str | None, hoje: date) -> date:
+    """Data em que o serviço foi prestado. Padrão: hoje. Não pode ser futura
+    nem de mais de 5 anos atrás (prazo de decadência do ISS)."""
+    if competencia in (None, ""):
+        return hoje
+    if isinstance(competencia, str):
+        try:
+            competencia = date.fromisoformat(competencia)
+        except ValueError:
+            raise ErroDeNegocio("Data do serviço inválida.") from None
+    if competencia > hoje:
+        raise ErroDeNegocio("A data do serviço não pode ser no futuro.")
+    if competencia < hoje.replace(year=hoje.year - 5):
+        raise ErroDeNegocio("A data do serviço é antiga demais. Fale com o seu contador.")
+    return competencia
+
+
+def verificar_retencao(iss_retido: bool, tomador: "Documento", opcao_simples: str = "3") -> None:
+    """Só empresa (CNPJ) pode reter o ISS; pessoa física não retém; MEI não tem retenção."""
+    if iss_retido and opcao_simples == "2":
+        raise ErroDeNegocio("MEI não tem ISS retido. Desmarque a retenção.")
+    if iss_retido and tomador.tipo != "CNPJ":
+        raise ErroDeNegocio("Só empresas (CNPJ) retêm o ISS. Desmarque a retenção para cliente com CPF.")
 
 
 # ---------------------------------------------------------------- cancelamento

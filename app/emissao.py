@@ -1,6 +1,12 @@
 """Fluxos principais: emitir e cancelar uma nota.
 
-Junta regras de negócio, banco, XML, assinatura e API num só lugar.
+Proteção contra nota duplicada:
+1. Cada tela de "Nova nota" manda uma chave de envio única. Se o mesmo envio
+   chegar duas vezes (toque duplo, internet instável), devolvemos a nota que
+   já existe em vez de emitir outra.
+2. A nota é gravada como "processando" ANTES de ir ao governo. Se a resposta
+   se perder, ela continua "processando" e o Emitta pergunta ao governo
+   (GET /dps/{id}) se a nota foi gerada, antes de qualquer reenvio.
 """
 
 from __future__ import annotations
@@ -15,13 +21,14 @@ from .config import Config
 from .dps import (
     DadosCancelamento,
     DadosDPS,
+    id_dps,
     montar_dps,
     montar_pedido_cancelamento,
     para_bytes,
     validar_xsd,
 )
 from .repositorio import Nota, Repositorio
-from .sefin import ClienteSefin
+from .sefin import ClienteSefin, SemResposta
 
 
 class ClienteNaoEncontrado(regras.ErroDeNegocio):
@@ -37,6 +44,15 @@ class RejeitadaPelaPrefeitura(regras.ErroDeNegocio):
         self.mensagens = mensagens
         self.nota = nota
         super().__init__("A prefeitura recusou: " + "; ".join(mensagens))
+
+
+class NotaEmProcessamento(regras.ErroDeNegocio):
+    def __init__(self, nota: Nota):
+        self.nota = nota
+        super().__init__(
+            "A prefeitura ainda não confirmou esta nota. Não emita de novo: "
+            "toque em \"Verificar agora\" daqui a pouco."
+        )
 
 
 class ServicoEmissao:
@@ -69,6 +85,18 @@ class ServicoEmissao:
             if erros:
                 raise regras.ErroDeNegocio("XML fora do leiaute oficial: " + "; ".join(erros[:3]))
 
+    def _percentual_simples(self, cliente) -> str:
+        if cliente.opcao_simples != "3":
+            return "0.00"
+        if cliente.p_tot_trib_sn:
+            return cliente.p_tot_trib_sn
+        if self.config.ambiente == "simulacao":
+            return "0.00"
+        raise regras.ErroDeNegocio(
+            "Falta o percentual aproximado de tributos do Simples no cadastro da empresa. "
+            "Peça ao seu contador para completar."
+        )
+
     # ---------------------------------------------------------------- emitir
 
     def emitir(
@@ -79,22 +107,35 @@ class ServicoEmissao:
         tomador_nome: str,
         valor,
         descricao: str | None = None,
+        competencia=None,
+        iss_retido: bool = False,
+        chave_envio: str | None = None,
     ) -> Nota:
         cliente = self._cliente(cliente_id)
+
+        # 0. Mesmo envio repetido? Devolve o que já existe.
+        if chave_envio:
+            existente = self.repo.buscar_nota_por_chave_envio(cliente_id, chave_envio)
+            if existente:
+                return self._resolver_existente(cliente, existente)
 
         # 1. Regras antes de qualquer coisa sair do servidor
         liberados = {s["codigo"] for s in self.repo.servicos_liberados(cliente_id)}
         regras.verificar_servico_liberado(liberados, codigo_servico)
         tomador = regras.validar_documento(tomador_documento)
         tomador_nome = (tomador_nome or "").strip()
-        if not tomador_nome:
+        if len(tomador_nome) < 2:
             raise regras.ErroDeNegocio("Informe o nome do cliente.")
         valor_centavos = regras.valor_em_centavos(valor)
         iss = regras.calcular_iss(valor_centavos, cliente.aliquota_iss)
         descricao = (descricao or "").strip() or descricao_oficial(codigo_servico) or "Prestação de serviço"
+        agora = self.agora()
+        data_servico = regras.validar_competencia(competencia, agora.date())
+        regras.verificar_retencao(bool(iss_retido), tomador, cliente.opcao_simples)
+        percentual_sn = self._percentual_simples(cliente)
+        cert = self.certificados.para(cliente)
 
         # 2. Monta e assina o XML
-        agora = self.agora()
         numero = self.repo.proximo_numero_dps(cliente_id)
         xml = montar_dps(DadosDPS(
             tp_amb=self.config.tp_amb,
@@ -111,13 +152,17 @@ class ServicoEmissao:
             codigo_servico=codigo_servico,
             descricao=descricao,
             valor=regras.centavos_para_texto(valor_centavos),
+            competencia=data_servico,
+            iss_retido=bool(iss_retido),
+            aliquota_iss=cliente.aliquota_iss,
+            reg_ap_trib_sn=cliente.reg_ap_trib_sn or "1",
+            p_tot_trib_sn=percentual_sn,
         ))
-        cert = self.certificados.para(cliente.cnpj)
         assinar(xml, "infDPS", cert)
-        self._validar_xsd(xml, "DPS_v1.00.xsd")
+        self._validar_xsd(xml, "DPS_v1.01.xsd")
+        xml_bytes = para_bytes(xml)
 
-        # 3. Envia e guarda o resultado (inclusive rejeições, para histórico)
-        resposta = self.sefin.enviar_dps(para_bytes(xml), cert)
+        # 3. Grava ANTES de enviar (se a resposta se perder, sabemos o que conferir)
         nota = self.repo.salvar_nota(
             cliente_id=cliente_id,
             numero_dps=numero,
@@ -128,15 +173,59 @@ class ServicoEmissao:
             descricao=descricao,
             valor_centavos=valor_centavos,
             iss_centavos=iss,
-            situacao="autorizada" if resposta.sucesso else "rejeitada",
-            chave_acesso=resposta.chave_acesso,
-            xml_nfse=resposta.xml,
-            mensagem="; ".join(resposta.mensagens) or None,
+            situacao="processando",
             emitida_em=agora.isoformat(),
+            competencia=data_servico.isoformat(),
+            iss_retido=int(bool(iss_retido)),
+            id_dps=id_dps(cliente.municipio_ibge, cliente.cnpj, cliente.serie_dps, numero),
+            xml_dps=xml_bytes.decode("utf-8"),
+            chave_envio=chave_envio,
         )
-        if not resposta.sucesso:
-            raise RejeitadaPelaPrefeitura(resposta.mensagens, nota)
+
+        # 4. Envia
+        try:
+            resposta = self.sefin.enviar_dps(xml_bytes, cert)
+        except SemResposta:
+            raise NotaEmProcessamento(nota) from None
+        return self._registrar_resposta(nota, resposta)
+
+    def _registrar_resposta(self, nota: Nota, resposta) -> Nota:
+        if resposta.sucesso:
+            return self.repo.atualizar_nota(
+                nota.id, situacao="autorizada", chave_acesso=resposta.chave_acesso,
+                xml_nfse=resposta.xml, mensagem=None,
+            )
+        atualizada = self.repo.atualizar_nota(
+            nota.id, situacao="rejeitada", mensagem="; ".join(resposta.mensagens) or None,
+        )
+        raise RejeitadaPelaPrefeitura(resposta.mensagens, atualizada)
+
+    def _resolver_existente(self, cliente, nota: Nota) -> Nota:
+        if nota.situacao == "processando":
+            return self.verificar(cliente.id, nota.id)
+        if nota.situacao == "rejeitada":
+            raise RejeitadaPelaPrefeitura([nota.mensagem or "Recusada"], nota)
         return nota
+
+    def verificar(self, cliente_id: int, nota_id: int) -> Nota:
+        """Para nota "processando": pergunta ao governo se ela foi gerada.
+        Se foi, registra. Se não foi, reenvia o MESMO XML (mesmo número), o que
+        nunca gera nota duplicada: o governo recusa DPS repetida."""
+        cliente = self._cliente(cliente_id)
+        nota = self.repo.buscar_nota(nota_id)
+        if not nota or nota.cliente_id != cliente_id:
+            raise NotaNaoEncontrada("Nota não encontrada.")
+        if nota.situacao != "processando":
+            return nota
+        cert = self.certificados.para(cliente)
+        try:
+            consulta = self.sefin.consultar_dps(nota.id_dps, cert)
+            if consulta is not None:
+                return self._registrar_resposta(nota, consulta)
+            resposta = self.sefin.enviar_dps(nota.xml_dps.encode("utf-8"), cert)
+        except SemResposta:
+            raise NotaEmProcessamento(nota) from None
+        return self._registrar_resposta(nota, resposta)
 
     # ---------------------------------------------------------------- cancelar
 
@@ -162,11 +251,24 @@ class ServicoEmissao:
             codigo_motivo=codigo_motivo,
             texto_motivo=descricao_motivo,
         ))
-        cert = self.certificados.para(cliente.cnpj)
+        cert = self.certificados.para(cliente)
         assinar(xml, "infPedReg", cert)
-        self._validar_xsd(xml, "pedRegEvento_v1.00.xsd")
+        self._validar_xsd(xml, "pedRegEvento_v1.01.xsd")
 
-        resposta = self.sefin.enviar_evento(nota.chave_acesso, para_bytes(xml), cert)
+        try:
+            resposta = self.sefin.enviar_evento(nota.chave_acesso, para_bytes(xml), cert)
+        except SemResposta as erro:
+            raise regras.ErroDeNegocio(str(erro)) from None
         if not resposta.sucesso:
             raise RejeitadaPelaPrefeitura(resposta.mensagens)
         return self.repo.marcar_cancelada(nota_id, descricao_motivo, agora.isoformat())
+
+
+def xml_para_download(nota: Nota, ambiente: str) -> tuple[str, str]:
+    """(nome do arquivo, conteúdo). NFS-e oficial quando houver; senão a DPS assinada."""
+    if nota.xml_nfse and ambiente != "simulacao":
+        return f"nfse-{nota.chave_acesso}.xml", nota.xml_nfse
+    if nota.xml_dps:
+        return f"dps-{nota.numero_dps:06d}.xml", nota.xml_dps
+    raise NotaNaoEncontrada("Esta nota não tem XML disponível.")
+

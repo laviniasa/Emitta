@@ -1,7 +1,8 @@
 """Assinatura digital XML (XMLDSig enveloped) com o certificado A1 (.pfx).
 
-Feita com lxml + cryptography, sem dependências extras. O algoritmo padrão é
-RSA-SHA256; se o manual oficial exigir SHA-1, troque `ALGORITMO`.
+Feita com lxml + cryptography, sem dependências extras. O padrão do
+ecossistema NFS-e é RSA-SHA1 (C14N inclusivo, transforms enveloped + C14N);
+SHA-256 fica disponível em `ALGORITMO` se o governo passar a exigir.
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
 from lxml import etree
+
+from .regras import ErroDeNegocio
 
 NS_DS = "http://www.w3.org/2000/09/xmldsig#"
 C14N = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
@@ -32,10 +35,10 @@ ALGORITMOS = {
         hashes.SHA1,
     ),
 }
-ALGORITMO = "sha256"
+ALGORITMO = "sha1"
 
 
-class ErroCertificado(Exception):
+class ErroCertificado(ErroDeNegocio):
     pass
 
 
@@ -74,7 +77,15 @@ def carregar_pfx(arquivo: Path, senha: str) -> Certificado:
 
 
 def _c14n(el: etree._Element) -> bytes:
-    return etree.tostring(el, method="c14n", exclusive=False, with_comments=False)
+    """Canonicalização do elemento como se fosse um documento próprio.
+
+    Canonicalizar o subelemento direto dentro da árvore pode gerar declarações
+    xmlns="" a mais nos netos (namespace padrão redeclarado em <Signature>),
+    e aí o hash calculado pelo governo não bate com o nosso. Reserializar o
+    elemento antes leva junto só os namespaces em escopo.
+    """
+    isolado = etree.fromstring(etree.tostring(el))
+    return etree.tostring(isolado, method="c14n", exclusive=False, with_comments=False)
 
 
 def _ds(pai, tag, **attrs):

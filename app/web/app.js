@@ -165,6 +165,43 @@
         el("label", { class: "campo" }, rotulo,
           el("input", { value: f[chave], ...attrs, oninput: (e) => { f[chave] = e.target.value; if (chave === "valor") atualizarTotais(); } }));
 
+      // CNPJ do cliente: busca o nome na Receita e mostra a opção de retenção.
+      const $dicaDoc = el("span", { class: "ajuda", "aria-live": "polite" });
+      const $nome = el("input", { value: f.nome, autocomplete: "off", oninput: (e) => { f.nome = e.target.value; f.nomeAuto = false; } });
+      const podeReter = () => limparDoc(f.documento).length === 14 && estado.empresa.opcao_simples !== "2";
+      const $retencao = el("label", { class: "campo-check", hidden: !podeReter() },
+        el("input", { type: "checkbox", checked: f.iss_retido, onchange: (e) => { f.iss_retido = e.target.checked; } }),
+        el("span", {}, el("strong", { style: "display:block;font-size:14px;color:var(--texto)" }, "O cliente vai reter o ISS"),
+          el("span", { class: "ajuda" }, "Marque só se o cliente (empresa) informou que retém o imposto. Na dúvida, pergunte ao seu contador.")));
+      const $doc = el("input", {
+        value: f.documento, inputmode: "text", autocapitalize: "characters", autocomplete: "off", placeholder: "Só números ou com pontos",
+        oninput: (e) => {
+          f.documento = e.target.value;
+          $retencao.hidden = !podeReter();
+          if (!podeReter()) f.iss_retido = false;
+          const doc = limparDoc(f.documento);
+          if (doc.length === 14) buscarNome(doc);
+          else $dicaDoc.textContent = "";
+        },
+      });
+      async function buscarNome(doc) {
+        if (estado.ultimaConsulta === doc) return;
+        estado.ultimaConsulta = doc;
+        $dicaDoc.textContent = "Buscando o nome na Receita...";
+        try {
+          const r = await api("GET", `/consulta/cnpj/${doc}`, null, { semRedirecionar: true });
+          if (limparDoc(f.documento) !== doc) return;
+          if (!f.nome.trim() || f.nomeAuto) { f.nome = r.razao_social; f.nomeAuto = true; $nome.value = r.razao_social; }
+          $dicaDoc.textContent = r.situacao && r.situacao !== "ATIVA"
+            ? `Atenção: este CNPJ está ${r.situacao.toLowerCase()} na Receita.`
+            : "Nome preenchido com os dados da Receita.";
+        } catch (erro) {
+          $dicaDoc.textContent = erro.status === 404 ? "CNPJ não encontrado na Receita. Confira os números." : "";
+        }
+      }
+      const hoje = new Date();
+      const hojeIso = new Date(hoje.getTime() - hoje.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
       const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
 
       return [
@@ -179,12 +216,18 @@
             el("p", { class: "ajuda-pequena" }, "Só aparecem os serviços que o seu contador liberou para a sua empresa.")),
           el("section", { class: "card secao" },
             el("h2", { style: "font-size:15px" }, "Para quem?"),
-            entrada("CNPJ ou CPF do cliente", "documento", { inputmode: "numeric", autocomplete: "off", placeholder: "Só números ou com pontos" }),
-            entrada("Nome ou razão social", "nome", { autocomplete: "off" })),
+            el("div", { class: "campo" }, el("label", { class: "campo" }, "CNPJ ou CPF do cliente", $doc), $dicaDoc),
+            el("label", { class: "campo" }, "Nome ou razão social", $nome),
+            $retencao),
           el("section", { class: "card secao" },
-            el("h2", { style: "font-size:15px" }, "Quanto?"),
+            el("h2", { style: "font-size:15px" }, "Quanto e quando?"),
             entrada("Valor do serviço (R$)", "valor", { inputmode: "decimal", placeholder: "0,00", style: "font-size:18px;font-weight:600" }),
-            entrada("Descrição (opcional)", "descricao", { placeholder: "Ex.: Manutenção de outubro" })),
+            el("div", { class: "campo" },
+              el("label", { class: "campo" }, "Data do serviço",
+                el("input", { type: "date", value: f.competencia, max: hojeIso, "aria-describedby": "ajuda-competencia",
+                  onchange: (e) => { f.competencia = e.target.value; } })),
+              el("span", { class: "ajuda", id: "ajuda-competencia" }, "Quando o serviço foi feito. Se foi no mês passado, mude aqui.")),
+            entrada("Descrição do serviço", "descricao", { placeholder: "Ex.: Manutenção do computador de outubro" })),
         ),
         el("footer", { class: "rodape" },
           $totais,
@@ -192,7 +235,7 @@
             class: "botao botao-grande", type: "button",
             onclick: () => {
               const falta = !f.codigo ? "Escolha o serviço que você prestou."
-                : !f.documento.replace(/\D/g, "") ? "Informe o CNPJ ou CPF do cliente."
+                : !limparDoc(f.documento) ? "Informe o CNPJ ou CPF do cliente."
                 : !f.nome.trim() ? "Informe o nome do cliente."
                 : numeroDigitado(f.valor) <= 0 ? "Informe o valor do serviço." : null;
               if (falta) { $erro.textContent = falta; $erro.hidden = false; $erro.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
@@ -228,7 +271,8 @@
           el("span", { class: "circulo", style: "background:var(--verde-claro)" }, icone("certo", 32, "#0E7C66")),
           el("p", { class: "grande" }, "Nota autorizada"),
           estado.ambiente !== "producao" && el("p", { class: "ajuda-pequena", style: "color:var(--amarelo)" }, "Ambiente de teste, sem valor fiscal")),
-        detalhesNota(estado.nota)),
+        detalhesNota(estado.nota),
+        botoesDownload(estado.nota)),
       el("footer", { class: "rodape" },
         el("button", { class: "botao botao-grande", type: "button", onclick: () => ir("inicio") }, "Voltar ao início"),
         el("button", { class: "botao botao-secundario", type: "button", onclick: novaNota }, "Emitir outra nota")),
@@ -248,6 +292,20 @@
         el("button", { class: "botao botao-grande", type: "button", onclick: () => ir("nova") }, "Corrigir dados")),
     ],
 
+    processando: () => [
+      barra("Aguardando a prefeitura"),
+      el("main", { class: "conteudo" },
+        el("div", { class: "centro" },
+          el("span", { class: "circulo", style: "background:var(--amarelo-claro)" }, icone("relogio", 32, "#92400E")),
+          el("p", { class: "grande" }, "A prefeitura ainda não respondeu"),
+          el("p", { class: "ajuda-pequena", style: "font-size:14px" },
+            "Pode ser instabilidade na internet ou no sistema do governo. Não emita a nota de novo: o Emitta confere sozinho se ela foi gerada, sem duplicar.")),
+        detalhesNota(estado.nota)),
+      el("footer", { class: "rodape" },
+        el("button", { class: "botao botao-grande", type: "button", onclick: (e) => verificar(e.currentTarget) }, icone("trocar"), "Verificar agora"),
+        el("button", { class: "botao botao-secundario", type: "button", onclick: () => ir("inicio") }, "Voltar ao início")),
+    ],
+
     detalhe: () => {
       const n = estado.nota;
       const prazo = prazoRestante(n);
@@ -256,6 +314,9 @@
         el("main", { class: "conteudo" },
           el("div", { style: "display:flex;justify-content:center" }, seloSituacao(n.situacao)),
           detalhesNota(n),
+          (n.situacao === "autorizada" || n.situacao === "cancelada") && botoesDownload(n),
+          n.situacao === "processando" && el("button", { class: "botao", type: "button", onclick: (e) => verificar(e.currentTarget) },
+            icone("trocar"), "Verificar com a prefeitura"),
           n.situacao === "rejeitada" && n.mensagem && el("div", { class: "aviso aviso-erro" }, n.mensagem),
           n.situacao === "cancelada" && el("div", { class: "aviso aviso-info" },
             `Cancelada em ${dataHora(n.cancelada_em)}. Motivo: ${n.motivo_cancelamento}.`)),
@@ -339,11 +400,33 @@
       el("div", { class: "linha" }, el("span", {}, "Cliente"), el("span", {}, n.tomador.nome)),
       el("div", { class: "linha" }, el("span", {}, n.tomador.tipo), el("span", {}, formatarDocumento(n.tomador.documento))),
       el("div", { class: "linha" }, el("span", {}, "Serviço"), el("span", {}, nomeServico(n.servico))),
-      el("div", { class: "linha" }, el("span", {}, "ISS"), el("span", {}, dinheiro(n.iss))),
+      n.competencia && el("div", { class: "linha" }, el("span", {}, "Data do serviço"),
+        el("span", {}, new Date(n.competencia + "T12:00:00").toLocaleDateString("pt-BR"))),
+      el("div", { class: "linha" }, el("span", {}, n.iss_retido ? "ISS (retido pelo cliente)" : "ISS"), el("span", {}, dinheiro(n.iss))),
       el("div", { style: "height:1px;background:var(--borda)" }),
       el("div", { class: "linha", style: "font-size:17px;font-weight:700" }, el("span", { style: "color:var(--texto)" }, "Total"), el("span", {}, dinheiro(n.valor))),
       n.chave_acesso && el("div", { style: "display:flex;flex-direction:column;gap:4px" },
         el("span", { class: "ajuda-pequena" }, "Chave de acesso"), el("span", { class: "chave" }, n.chave_acesso)));
+  }
+
+  function botoesDownload(n) {
+    return el("div", { style: "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px" },
+      el("a", { class: "botao botao-secundario", href: n.pdf, download: "" }, icone("download", 18), "Baixar PDF"),
+      el("a", { class: "botao botao-secundario", href: n.xml, download: "" }, icone("download", 18), "Baixar XML"));
+  }
+
+  function limparDoc(texto) {
+    return String(texto || "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+  }
+
+  function novaChaveEnvio() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  function hojeIsoLocal() {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
   function prazoRestante(n) {
@@ -358,7 +441,10 @@
 
   function novaNota() {
     if (!estado.servicos.length) { avisar("Nenhum serviço liberado. Fale com o seu contador."); return; }
-    estado.form = { codigo: estado.servicos.length === 1 ? estado.servicos[0].codigo : null, documento: "", nome: "", valor: "", descricao: "" };
+    estado.form = {
+      codigo: estado.servicos.length === 1 ? estado.servicos[0].codigo : null, documento: "", nome: "", valor: "", descricao: "",
+      competencia: hojeIsoLocal(), iss_retido: false, chave_envio: novaChaveEnvio(),
+    };
     ir("nova");
   }
 
@@ -367,6 +453,7 @@
       codigo: estado.servicos.some((s) => s.codigo === n.servico) ? n.servico : null,
       documento: formatarDocumento(n.tomador.documento), nome: n.tomador.nome,
       valor: String(n.valor).replace(".", ","), descricao: n.descricao,
+      competencia: n.competencia || hojeIsoLocal(), iss_retido: !!n.iss_retido, chave_envio: novaChaveEnvio(),
     };
     avisar("Ajuste os dados e emita. Depois, cancele a nota antiga com o motivo \"Emiti por engano\".");
     ir("nova");
@@ -377,17 +464,21 @@
     ir("enviando");
     const inicio = Date.now();
     try {
-      const nota = await api("POST", `/app/${estado.empresa.id}/notas`, {
+      const resposta = await api("POST", `/app/${estado.empresa.id}/notas`, {
         codigo_servico: f.codigo, tomador_documento: f.documento, tomador_nome: f.nome,
-        valor: f.valor, descricao: f.descricao || null,
+        valor: f.valor, descricao: f.descricao || null, competencia: f.competencia || null,
+        iss_retido: !!f.iss_retido, chave_envio: f.chave_envio,
       });
       await esperarMinimo(inicio);
-      estado.nota = nota;
       await recarregarNotas();
+      if (resposta.processando) { estado.nota = resposta.nota; ir("processando"); return; }
+      estado.nota = resposta;
       ir("sucesso");
     } catch (erro) {
       await esperarMinimo(inicio);
       const recusada = erro.status === 502;
+      // Recusada: a tentativa ficou registrada; um novo envio precisa de chave nova.
+      if (recusada) f.chave_envio = novaChaveEnvio();
       estado.erro = {
         titulo: recusada ? "A prefeitura recusou a nota" : "Confira os dados",
         mensagem: recusada ? "O Emissor Nacional não aceitou esta nota." : erro.message,
@@ -395,6 +486,25 @@
       };
       if (recusada) await recarregarNotas().catch(() => {});
       ir("erro");
+    }
+  }
+
+  async function verificar(botao) {
+    botao.disabled = true;
+    try {
+      const r = await api("POST", `/app/${estado.empresa.id}/notas/${estado.nota.id}/verificar`);
+      await recarregarNotas();
+      if (r.processando) { avisar("A prefeitura ainda não confirmou. Tente de novo em alguns minutos."); botao.disabled = false; return; }
+      estado.nota = r;
+      ir("sucesso");
+    } catch (erro) {
+      botao.disabled = false;
+      if (erro.status === 502) {
+        await recarregarNotas().catch(() => {});
+        estado.erro = { titulo: "A prefeitura recusou a nota", mensagem: "O Emissor Nacional não aceitou esta nota.",
+          detalhes: erro.dados && erro.dados.detail ? erro.dados.detail.detalhes : [] };
+        ir("erro");
+      } else avisar(erro.message);
     }
   }
 

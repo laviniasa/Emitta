@@ -77,6 +77,29 @@ secreto). Ele é pedido uma única vez, para criar a primeira conta de contador.
 
 Para rodar no seu computador sem HTTPS, use `EMITTA_COOKIE_SEGURO=0` (só no modo simulação).
 
+## Emissão real (governo)
+
+O que já está pronto para o Emissor Nacional:
+
+- **Conexão conferida com o manual oficial** (APIs do Sistema Nacional NFS-e v1.2):
+  `POST /nfse`, `GET /dps/{id}`, `GET /nfse/{chave}`, `POST /nfse/{chave}/eventos`.
+- **Leiaute 1.01** com as regras por regime (MEI, ME/EPP do Simples, fora do Simples):
+  tributos aproximados, alíquota do ISS só quando exigida, MEI sem retenção.
+- **Assinatura XMLDSig RSA-SHA1** (padrão das notas brasileiras), com canonicalização
+  isolada do elemento para o hash bater com o calculado pelo governo.
+- **Sem nota duplicada:** cada envio tem uma chave única; a nota é gravada como
+  "processando" antes de ir ao governo e, se a resposta se perder, o Emitta consulta
+  `GET /dps/{id}` antes de qualquer reenvio.
+- **Certificado A1 por empresa**, enviado pelo painel e guardado **criptografado**
+  (chave em `EMITTA_CHAVE_CERTIFICADOS`).
+- **Competência** (data do serviço), **retenção de ISS** pelo tomador e **CNPJ alfanumérico**.
+- **Download** da nota em PDF e XML.
+- **Consulta de CNPJ** (dados públicos da Receita via BrasilAPI) para preencher nomes e cadastro.
+
+Para ligar a homologação: enviar o certificado da empresa piloto pelo painel e mudar
+`NFSE_AMBIENTE=homologacao`. Antes, ter banco permanente (os dados e certificados do
+plano gratuito somem quando o servidor reinicia).
+
 ## Como o código está organizado
 
 | Arquivo | O que faz |
@@ -86,7 +109,9 @@ Para rodar no seu computador sem HTTPS, use `EMITTA_COOKIE_SEGURO=0` (só no mod
 | `app/catalogo.py` + `app/dados/` | Lista de serviços (códigos de tributação nacional) |
 | `app/dps.py` | Monta o XML da DPS e do pedido de cancelamento |
 | `app/assinatura.py` | Assinatura digital XML com o certificado A1 |
-| `app/certificados.py` | Encontra o certificado de cada empresa |
+| `app/certificados.py` | Certificado A1 de cada empresa, guardado criptografado |
+| `app/pdf_nota.py` | PDF da nota |
+| `app/consulta_cnpj.py` | Dados públicos de CNPJ (Receita) |
 | `app/sefin.py` | Conversa com a API do governo (real e simulada) |
 | `app/emissao.py` | Junta tudo: fluxos de emitir e cancelar |
 | `app/api.py` | Rotas web (painel do contador e app do cliente) |

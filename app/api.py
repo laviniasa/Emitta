@@ -23,12 +23,15 @@ Segurança:
   - cabeçalhos de segurança (CSP, HSTS, anti-iframe).
 """
 
+import base64
+import binascii
 import os
 from decimal import Decimal
 from pathlib import Path
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response as RespostaBruta
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -40,15 +43,20 @@ from .autenticacao import (
     DURACAO_SESSAO,
     ServicoAutenticacao,
 )
+from .assinatura import ErroCertificado
 from .catalogo import carregar_catalogo
-from .certificados import ProvedorCertificados
+from .certificados import ProvedorCertificados, preparar_certificado
 from .config import carregar_config
+from .consulta_cnpj import CnpjNaoEncontrado, ConsultaCnpj, ConsultaIndisponivel
 from .emissao import (
     ClienteNaoEncontrado,
+    NotaEmProcessamento,
     NotaNaoEncontrada,
     RejeitadaPelaPrefeitura,
     ServicoEmissao,
+    xml_para_download,
 )
+from .pdf_nota import gerar_pdf
 from .repositorio import Nota, Repositorio, Usuario
 from .seguranca import LimitadorTentativas
 from .sefin import SefinNacional, SefinSimulada
@@ -80,9 +88,11 @@ class NovoCliente(BaseModel):
     razao_social: str
     municipio_ibge: str = Field(min_length=7, max_length=7, description="Código IBGE do município")
     municipio_nome: str
-    aliquota_iss: Decimal = Field(gt=0, le=5)
-    opcao_simples: str = Field("3", description="1 não optante, 2 MEI, 3 ME/EPP")
-    prazo_cancelamento_dias: int | None = None
+    aliquota_iss: Decimal = Field(ge=2, le=5, description="ISS: entre 2% e 5% (lei)")
+    opcao_simples: Literal["1", "2", "3"] = Field("3", description="1 não optante, 2 MEI, 3 ME/EPP")
+    prazo_cancelamento_dias: int | None = Field(None, ge=0, le=3650)
+    p_tot_trib_sn: Decimal | None = Field(None, ge=0, le=100, description="% aproximado de tributos do Simples (ME/EPP)")
+    reg_ap_trib_sn: Literal["1", "2", "3"] = "1"
 
 
 class ServicoLiberado(BaseModel):
@@ -99,7 +109,10 @@ class NovaNota(BaseModel):
     tomador_documento: str
     tomador_nome: str
     valor: str = Field(examples=["1500,00"])
-    descricao: str | None = None
+    descricao: str | None = Field(None, max_length=2000)
+    competencia: str | None = Field(None, description="Data do serviço (AAAA-MM-DD). Padrão: hoje.")
+    iss_retido: bool = False
+    chave_envio: str | None = Field(None, max_length=64, description="Identificador único deste envio (evita nota duplicada)")
 
 
 class PedidoCancelamento(BaseModel):
@@ -142,6 +155,11 @@ class NovoAcesso(BaseModel):
     email: str
 
 
+class EnvioCertificado(BaseModel):
+    arquivo_base64: str = Field(max_length=100_000)
+    senha: str = Field(max_length=200)
+
+
 def usuario_json(u: Usuario) -> dict:
     return {
         "id": u.id, "nome": u.nome, "email": u.email, "papel": u.papel,
@@ -162,6 +180,7 @@ def criar_app(
     servico: ServicoEmissao | None = None,
     auth: ServicoAutenticacao | None = None,
     cookie_seguro: bool | None = None,
+    consulta_cnpj: ConsultaCnpj | None = None,
 ) -> FastAPI:
     if servico is None:
         config = carregar_config()
@@ -170,9 +189,7 @@ def criar_app(
             repo=Repositorio(config.banco),
             sefin=sefin,
             config=config,
-            certificados=ProvedorCertificados(
-                config.pasta_certificados, permitir_teste=config.ambiente == "simulacao"
-            ),
+            certificados=ProvedorCertificados(permitir_teste=config.ambiente == "simulacao"),
         )
     repo = servico.repo
     auth = auth or ServicoAutenticacao(repo)
@@ -181,6 +198,8 @@ def criar_app(
     if not cookie_seguro and servico.config.ambiente != "simulacao":
         raise RuntimeError("EMITTA_COOKIE_SEGURO=0 só é permitido no modo simulação.")
     limitador = LimitadorTentativas(limite=10, janela=15 * 60)
+    limitador_consultas = LimitadorTentativas(limite=30, janela=60)
+    consulta_cnpj = consulta_cnpj or ConsultaCnpj()
 
     app = FastAPI(title="Emitta", version="0.2.0")
 
@@ -393,6 +412,10 @@ def criar_app(
             "emitida_em": n.emitida_em,
             "cancelada_em": n.cancelada_em,
             "motivo_cancelamento": n.motivo_cancelamento,
+            "competencia": n.competencia,
+            "iss_retido": bool(n.iss_retido),
+            "pdf": f"/app/{n.cliente_id}/notas/{n.id}/pdf",
+            "xml": f"/app/{n.cliente_id}/notas/{n.id}/xml",
         }
 
     def cliente_ou_404(cliente_id: int):
@@ -420,7 +443,9 @@ def criar_app(
 
     @app.post("/contador/clientes", status_code=201, tags=["contador"])
     def criar_cliente(dados: NovoCliente, _: Usuario = Depends(contador_atual)):
-        cnpj = regras.somente_digitos(dados.cnpj)
+        cnpj = regras.limpar_documento(dados.cnpj)
+        if dados.opcao_simples == "3" and dados.p_tot_trib_sn is None and servico.config.ambiente != "simulacao":
+            raise HTTPException(422, "Informe o percentual aproximado de tributos do Simples Nacional.")
         try:
             doc = regras.validar_documento(cnpj)
         except regras.DocumentoInvalido:
@@ -436,19 +461,64 @@ def criar_app(
                 aliquota_iss=str(dados.aliquota_iss),
                 opcao_simples=dados.opcao_simples,
                 prazo_cancelamento_dias=dados.prazo_cancelamento_dias,
+                p_tot_trib_sn=str(dados.p_tot_trib_sn) if dados.p_tot_trib_sn is not None else None,
+                reg_ap_trib_sn=dados.reg_ap_trib_sn,
             )
         except Exception as erro:  # sqlite3.IntegrityError
             if "UNIQUE" in str(erro):
                 raise HTTPException(409, "Esta empresa já está cadastrada.")
             raise
-        return cliente.__dict__
+        return cliente.publico()
 
     @app.get("/contador/clientes", tags=["contador"])
     def listar_clientes(_: Usuario = Depends(contador_atual)):
         return [
-            {**c.__dict__, "servicos_liberados": len(repo.servicos_liberados(c.id))}
+            {**c.publico(), "servicos_liberados": len(repo.servicos_liberados(c.id))}
             for c in repo.listar_clientes()
         ]
+
+    @app.post("/contador/clientes/{cliente_id}/certificado", tags=["contador"])
+    def enviar_certificado(cliente_id: int, dados: EnvioCertificado, request: Request,
+                           _: Usuario = Depends(contador_atual)):
+        """Recebe o .pfx (em base64) e a senha; confere e guarda criptografado."""
+        limitar(request)
+        cliente = cliente_ou_404(cliente_id)
+        try:
+            pfx = base64.b64decode(dados.arquivo_base64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, "Arquivo inválido. Envie o .pfx do certificado A1.")
+        try:
+            cifrado = preparar_certificado(pfx, dados.senha, cliente.cnpj)
+        except ErroCertificado as e:
+            raise HTTPException(422, str(e))
+        atualizado = repo.guardar_certificado(
+            cliente_id, cifrado["pfx_cifrado"], cifrado["senha_cifrada"], cifrado["validade"], cifrado["titular"])
+        return atualizado.publico()
+
+    @app.delete("/contador/clientes/{cliente_id}/certificado", tags=["contador"])
+    def remover_certificado(cliente_id: int, _: Usuario = Depends(contador_atual)):
+        cliente_ou_404(cliente_id)
+        return repo.remover_certificado(cliente_id).publico()
+
+    # ------------------------------------------------------------ consulta CNPJ
+
+    @app.get("/consulta/cnpj/{cnpj}", tags=["consulta"])
+    def consultar_cnpj(cnpj: str, request: Request, usuario: Usuario = Depends(usuario_atual)):
+        """Dados públicos da Receita (nome, município, atividade, regime)."""
+        if not limitador_consultas.permitir(f"cnpj:{usuario.id}"):
+            raise HTTPException(429, "Muitas consultas seguidas. Aguarde um minuto.")
+        try:
+            doc = regras.validar_documento(cnpj)
+        except regras.DocumentoInvalido:
+            raise HTTPException(422, "CNPJ inválido.")
+        if doc.tipo != "CNPJ":
+            raise HTTPException(422, "Consulta disponível só para CNPJ.")
+        try:
+            return {"cnpj": doc.numero, **consulta_cnpj.consultar(doc.numero)}
+        except CnpjNaoEncontrado as e:
+            raise HTTPException(404, str(e))
+        except ConsultaIndisponivel as e:
+            raise HTTPException(503, str(e))
 
     @app.get("/contador/clientes/{cliente_id}/servicos", tags=["contador"])
     def ver_servicos_do_cliente(cliente_id: int, _: Usuario = Depends(contador_atual)):
@@ -509,6 +579,7 @@ def criar_app(
             "municipio_nome": c.municipio_nome,
             "aliquota_iss": c.aliquota_iss,
             "prazo_cancelamento_dias": c.prazo_cancelamento_dias,
+            "opcao_simples": c.opcao_simples,
         }
 
     @app.get("/app/{cliente_id}/servicos", tags=["app da empresa"])
@@ -527,10 +598,55 @@ def criar_app(
                 tomador_nome=dados.tomador_nome,
                 valor=dados.valor,
                 descricao=dados.descricao,
+                competencia=dados.competencia,
+                iss_retido=dados.iss_retido,
+                chave_envio=dados.chave_envio,
             )
+        except NotaEmProcessamento as erro:
+            return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)
         except regras.ErroDeNegocio as erro:
             raise traduzir_erro(erro)
         return nota_json(nota)
+
+    @app.post("/app/{cliente_id}/notas/{nota_id}/verificar", tags=["app da empresa"])
+    def verificar_nota(cliente_id: int, nota_id: int, _: Usuario = Depends(autorizar_empresa)):
+        """Para nota que ficou "processando": confere com a prefeitura."""
+        try:
+            nota = servico.verificar(cliente_id, nota_id)
+        except NotaEmProcessamento as erro:
+            return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)
+        except regras.ErroDeNegocio as erro:
+            raise traduzir_erro(erro)
+        return nota_json(nota)
+
+    def nota_da_empresa(cliente_id: int, nota_id: int):
+        nota = repo.buscar_nota(nota_id)
+        if not nota or nota.cliente_id != cliente_id:
+            raise HTTPException(404, "Nota não encontrada.")
+        return nota
+
+    @app.get("/app/{cliente_id}/notas/{nota_id}/pdf", tags=["app da empresa"])
+    def baixar_pdf(cliente_id: int, nota_id: int, _: Usuario = Depends(autorizar_empresa)):
+        nota = nota_da_empresa(cliente_id, nota_id)
+        if nota.situacao not in ("autorizada", "cancelada"):
+            raise HTTPException(409, "Só há PDF de nota autorizada ou cancelada.")
+        pdf = gerar_pdf(nota, cliente_ou_404(cliente_id), servico.config.ambiente)
+        return RespostaBruta(pdf, media_type="application/pdf", headers={
+            "Content-Disposition": f'attachment; filename="nota-{nota.numero_dps:06d}.pdf"',
+            "Cache-Control": "no-store",
+        })
+
+    @app.get("/app/{cliente_id}/notas/{nota_id}/xml", tags=["app da empresa"])
+    def baixar_xml(cliente_id: int, nota_id: int, _: Usuario = Depends(autorizar_empresa)):
+        nota = nota_da_empresa(cliente_id, nota_id)
+        try:
+            nome, conteudo = xml_para_download(nota, servico.config.ambiente)
+        except regras.ErroDeNegocio as erro:
+            raise traduzir_erro(erro)
+        return RespostaBruta(conteudo.encode("utf-8"), media_type="application/xml", headers={
+            "Content-Disposition": f'attachment; filename="{nome}"',
+            "Cache-Control": "no-store",
+        })
 
     @app.get("/app/{cliente_id}/notas", tags=["app da empresa"])
     def minhas_notas(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):

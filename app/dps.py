@@ -9,13 +9,13 @@ usando `validar_xsd`. Campos de tributação variam conforme o regime da empresa
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from lxml import etree
 
 NS_NFSE = "http://www.sped.fazenda.gov.br/nfse"
-VERSAO_LEIAUTE = "1.00"
+VERSAO_LEIAUTE = "1.01"
 CODIGO_EVENTO_CANCELAMENTO = "101101"
 
 
@@ -35,6 +35,11 @@ class DadosDPS:
     codigo_servico: str  # código de tributação nacional, 6 dígitos
     descricao: str
     valor: str  # "1500.00"
+    competencia: date | None = None  # data em que o serviço foi prestado
+    iss_retido: bool = False  # retido pelo tomador (cliente PJ)
+    aliquota_iss: str = "0"  # % do ISS (só vai no XML quando a regra exige)
+    reg_ap_trib_sn: str = "1"  # regime de apuração do Simples (só ME/EPP)
+    p_tot_trib_sn: str = "0.00"  # % aproximado de tributos do Simples (ME/EPP)
 
 
 def _sub(pai: etree._Element, tag: str, texto: str | None = None) -> etree._Element:
@@ -57,10 +62,10 @@ def montar_dps(d: DadosDPS) -> etree._Element:
 
     _sub(inf, "tpAmb", d.tp_amb)
     _sub(inf, "dhEmi", d.emitida_em.isoformat(timespec="seconds"))
-    _sub(inf, "verAplic", d.versao_aplicativo)
-    _sub(inf, "serie", d.serie)
+    _sub(inf, "verAplic", d.versao_aplicativo[:20])
+    _sub(inf, "serie", str(int(d.serie)))  # aplicativo próprio: série de 1 a 49999
     _sub(inf, "nDPS", str(d.numero))
-    _sub(inf, "dCompet", d.emitida_em.date().isoformat())
+    _sub(inf, "dCompet", (d.competencia or d.emitida_em.date()).isoformat())
     _sub(inf, "tpEmit", "1")  # 1 = emitido pelo prestador
     _sub(inf, "cLocEmi", d.municipio_ibge)
 
@@ -68,6 +73,8 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     _sub(prest, "CNPJ", d.prestador_cnpj)
     reg = _sub(prest, "regTrib")
     _sub(reg, "opSimpNac", d.opcao_simples)
+    if d.opcao_simples == "3":
+        _sub(reg, "regApTribSN", d.reg_ap_trib_sn)
     _sub(reg, "regEspTrib", "0")
 
     toma = _sub(inf, "toma")
@@ -78,7 +85,7 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     loc = _sub(serv, "locPrest")
     _sub(loc, "cLocPrestacao", d.municipio_ibge)
     cserv = _sub(serv, "cServ")
-    _sub(cserv, "cTribNac", d.codigo_servico)
+    _sub(cserv, "cTribNac", d.codigo_servico.zfill(6))
     _sub(cserv, "xDescServ", d.descricao)
 
     valores = _sub(inf, "valores")
@@ -87,9 +94,20 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     trib = _sub(valores, "trib")
     trib_mun = _sub(trib, "tribMun")
     _sub(trib_mun, "tribISSQN", "1")  # 1 = operação tributável
-    _sub(trib_mun, "tpRetISSQN", "1")  # 1 = não retido
+    # 1 = não retido; 2 = retido pelo tomador; 3 = retido pelo intermediário.
+    _sub(trib_mun, "tpRetISSQN", "2" if d.iss_retido else "1")
+    if aliquota_vai_no_xml(d.opcao_simples, d.reg_ap_trib_sn, d.iss_retido):
+        _sub(trib_mun, "pAliq", f"{float(d.aliquota_iss):.2f}")
+    # Valor aproximado dos tributos: o formato muda conforme o regime.
     tot = _sub(trib, "totTrib")
-    _sub(tot, "indTotTrib", "0")  # conferir: empresas do Simples podem exigir pTotTribSN
+    if d.opcao_simples == "3":  # ME/EPP do Simples: percentual do Simples
+        _sub(tot, "pTotTribSN", f"{float(d.p_tot_trib_sn):.2f}")
+    elif d.opcao_simples == "2":  # MEI
+        _sub(tot, "indTotTrib", "0")
+    else:  # fora do Simples
+        p = _sub(tot, "pTotTrib")
+        for campo in ("pTotTribFed", "pTotTribEst", "pTotTribMun"):
+            _sub(p, campo, "0.00")
 
     return raiz
 
@@ -133,5 +151,18 @@ def validar_xsd(xml: etree._Element, arquivo_xsd: Path) -> list[str]:
     return [str(erro) for erro in esquema.error_log]
 
 
+def aliquota_vai_no_xml(opcao_simples: str, reg_ap_trib_sn: str, iss_retido: bool) -> bool:
+    """Regras do leiaute para o campo pAliq (alíquota do ISS):
+    MEI nunca informa; ME/EPP que recolhe tudo pelo Simples só informa quando
+    o ISS é retido; os demais informam (quando o município não tem convênio,
+    a regra exata depende dele: conferir na homologação)."""
+    if opcao_simples == "2":
+        return False
+    if opcao_simples == "3" and reg_ap_trib_sn in ("", "1"):
+        return iss_retido
+    return True
+
+
 def para_bytes(xml: etree._Element) -> bytes:
-    return etree.tostring(xml, xml_declaration=False, encoding="utf-8")
+    # Sem quebras nem indentação: o hash da assinatura depende disso.
+    return etree.tostring(xml, xml_declaration=True, encoding="UTF-8")

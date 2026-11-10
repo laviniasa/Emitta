@@ -3,6 +3,7 @@ uvicorn[standard]>=0.30
 lxml>=5.0
 cryptography>=42.0
 requests>=2.31
+reportlab>=4.0
 
 # testes
 pytest>=8.0
