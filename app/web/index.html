@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0F2A24">
+<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
 <title>Emitta · Nota fiscal de serviço sem complicação</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=8">
+<link rel="stylesheet" href="/static/estilo.css?v=9">
 <style>
   body { background: var(--noite); color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
   .topo { display: flex; align-items: center; gap: 12px; padding: 20px 24px; max-width: 1080px; width: 100%; margin: 0 auto; }
-  .logo { width: 40px; height: 40px; border-radius: 11px; background: var(--verde); display: grid; place-items: center; font-weight: 700; font-size: 18px; }
   .nome { font-size: 20px; font-weight: 700; }
   main { flex: 1; max-width: 1080px; width: 100%; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 40px; }
   .chamada { display: flex; flex-direction: column; gap: 16px; max-width: 680px; }
@@ -37,7 +37,7 @@
 </head>
 <body>
 <header class="topo">
-  <span class="logo" aria-hidden="true">E</span>
+  <svg class="marca-svg" width="40" height="40" viewBox="5 13 74 74" aria-hidden="true"><g transform="rotate(-8 55 52)"><path d="M14 40 H27 M9 52 H27 M15 64 H27" stroke="#9BF0D2" stroke-width="6" stroke-linecap="round"/><path d="M36 20 H62 L74 32 V82 H36 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round"/><path d="M62 20 V32 H74" fill="#CFE9E1" stroke="#CFE9E1" stroke-width="2" stroke-linejoin="round"/><path d="M44 54 H66 A11 11 0 1 0 62.8 61.8" fill="none" stroke="#0E7C66" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
   <span class="nome">Emitta</span>
   <a class="botao" href="/entrar" style="margin-left:auto">Entrar</a>
 </header>

@@ -781,7 +781,7 @@ def criar_app(
             return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)
         except regras.ErroDeNegocio as erro:
             raise traduzir_erro(erro)
-        evento("nota_emitida", request, usuario, detalhe=f"nº {nota.numero_dps}, R$ {regras.centavos_para_texto(nota.valor_centavos)}")
+        evento("nota_emitida", request, usuario, detalhe=f"nº {nota.numero_dps}, R$ {regras.centavos_para_texto(nota.valor_centavos).replace('.', ',')}")
         return nota_json(nota)
 
     @app.post("/app/{cliente_id}/notas/{nota_id}/verificar", tags=["app da empresa"])
