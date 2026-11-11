@@ -3,15 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0F2A24">
+<meta name="theme-color" content="#1B2340">
+<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
 <title>Emitta · Nota fiscal de serviço sem complicação</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=8">
+<link rel="stylesheet" href="/static/estilo.css?v=9">
 <style>
   body { background: var(--noite); color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
   .topo { display: flex; align-items: center; gap: 12px; padding: 20px 24px; max-width: 1080px; width: 100%; margin: 0 auto; }
-  .logo { width: 40px; height: 40px; border-radius: 11px; background: var(--verde); display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+  
   .nome { font-size: 20px; font-weight: 700; }
   main { flex: 1; max-width: 1080px; width: 100%; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 40px; }
   .chamada { display: flex; flex-direction: column; gap: 16px; max-width: 680px; }
@@ -20,24 +21,24 @@
   .portas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
   .porta {
     display: flex; flex-direction: column; gap: 12px; padding: 24px; border-radius: 16px; text-decoration: none;
-    background: var(--noite-2); color: #fff; border: 1px solid #24524A; transition: border-color .15s;
+    background: var(--noite-2); color: #fff; border: 1px solid #3A4470; transition: border-color .15s;
   }
   .porta:hover { border-color: var(--verde); color: #fff; }
   .porta h2 { font-size: 20px; }
   .porta p { color: var(--verde-borda); font-size: 15px; line-height: 1.55; }
-  .porta .ir { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #7FD3BE; }
+  .porta .ir { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #FF8A6B; }
   .passos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
   .passo { display: flex; flex-direction: column; gap: 8px; }
   .passo .num { width: 32px; height: 32px; border-radius: 999px; background: var(--verde); display: grid; place-items: center; font-weight: 700; }
   .passo h3 { font-size: 16px; }
   .passo p { color: var(--verde-borda); font-size: 14px; line-height: 1.55; }
-  footer { max-width: 1080px; width: 100%; margin: 0 auto; padding: 20px 24px 28px; color: #8FB8AD; font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
-  footer a { color: #8FB8AD; }
+  footer { max-width: 1080px; width: 100%; margin: 0 auto; padding: 20px 24px 28px; color: #AEB4CF; font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+  footer a { color: #AEB4CF; }
 </style>
 </head>
 <body>
 <header class="topo">
-  <span class="logo" aria-hidden="true">E</span>
+  <svg class="marca-svg" width="44" height="44" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-8 55 52)"><path d="M14 40 H27 M9 52 H27 M15 64 H27" stroke="#FF6B4A" stroke-width="6" stroke-linecap="round"/><path d="M36 20 H62 L74 32 V82 H36 Z" fill="#FBF7F1" stroke="#FBF7F1" stroke-width="4" stroke-linejoin="round"/><path d="M62 20 V32 H74" fill="#E6DCCD" stroke="#E6DCCD" stroke-width="2" stroke-linejoin="round"/><path d="M44 54 H66 A11 11 0 1 0 62.8 61.8" fill="none" stroke="#FF6B4A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
   <span class="nome">Emitta</span>
   <a class="botao" href="/entrar" style="margin-left:auto">Entrar</a>
 </header>

@@ -52,7 +52,7 @@
       if (/\d/.test(s)) pontos++;
       if (/[^A-Za-z0-9]/.test(s)) pontos++;
       const nivel = s.length < 10 ? 0 : Math.min(pontos, 4);
-      const cores = ["#B42318", "#B42318", "#B45309", "#0E7C66", "#0A5C4C"];
+      const cores = ["#B42318", "#B42318", "#B45309", "#1F7A50", "#16603E"];
       const nomes = ["Curta demais", "Fraca", "Razoável", "Boa", "Forte"];
       barra.style.width = `${Math.max(8, nivel * 25)}%`;
       barra.style.background = cores[nivel];

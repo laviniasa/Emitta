@@ -207,7 +207,7 @@
       previa.replaceChildren(
         el("h2", {}, "O cliente vai ver no app"),
         ...(liberados.length
-          ? liberados.map((s) => el("div", { class: "linha" }, icone("certo", 16, "#0E7C66"), (s.apelido || "").trim() || s.descricao))
+          ? liberados.map((s) => el("div", { class: "linha" }, icone("certo", 16, "#1F7A50"), (s.apelido || "").trim() || s.descricao))
           : [el("p", { style: "color:var(--vermelho);font-size:14px" }, "Nenhum serviço liberado: o cliente não consegue emitir.")]),
       );
     }

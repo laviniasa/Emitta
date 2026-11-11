@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0F2A24">
+<meta name="theme-color" content="#1B2340">
 <meta name="robots" content="noindex">
+<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
 <title>Entrar · Emitta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=8">
+<link rel="stylesheet" href="/static/estilo.css?v=9">
 <style>
   body { background: var(--noite); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; }
   .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; margin-bottom: 24px; }
   .marca:hover { color: #fff; }
-  .logo { width: 40px; height: 40px; border-radius: 11px; background: var(--verde); display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+  
   .nome { font-size: 20px; font-weight: 700; }
   .caixa { width: 100%; max-width: 420px; background: #fff; border-radius: 18px; padding: 28px 24px; display: flex; flex-direction: column; gap: 18px; }
   .caixa h1 { font-size: 22px; }
@@ -24,7 +25,7 @@
   .ver-senha { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 40px; border: 0; background: transparent; cursor: pointer; color: var(--texto-2); border-radius: 8px; display: grid; place-items: center; }
   .ver-senha:hover { background: var(--fundo); }
   .codigo { font-size: 26px !important; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }
-  .rodape-seguro { display: flex; align-items: center; gap: 8px; color: #8FB8AD; font-size: 13px; margin-top: 20px; }
+  .rodape-seguro { display: flex; align-items: center; gap: 8px; color: #AEB4CF; font-size: 13px; margin-top: 20px; }
   .forca { height: 6px; border-radius: 999px; background: var(--borda); overflow: hidden; }
   .opcao-perfil { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; min-height: 76px; padding: 16px 18px; border: 1px solid var(--borda); border-radius: 14px; background: #fff; text-align: left; cursor: pointer; font: inherit; color: var(--texto); }
   .opcao-perfil:hover, .opcao-perfil:focus-visible { border-color: var(--verde); background: var(--verde-claro); }
@@ -39,10 +40,10 @@
 </style>
 </head>
 <body>
-<a class="marca" href="/"><span class="logo" aria-hidden="true">E</span><span class="nome">Emitta</span></a>
+<a class="marca" href="/"><svg class="marca-svg" width="44" height="44" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-8 55 52)"><path d="M14 40 H27 M9 52 H27 M15 64 H27" stroke="#FF6B4A" stroke-width="6" stroke-linecap="round"/><path d="M36 20 H62 L74 32 V82 H36 Z" fill="#FBF7F1" stroke="#FBF7F1" stroke-width="4" stroke-linejoin="round"/><path d="M62 20 V32 H74" fill="#E6DCCD" stroke="#E6DCCD" stroke-width="2" stroke-linejoin="round"/><path d="M44 54 H66 A11 11 0 1 0 62.8 61.8" fill="none" stroke="#FF6B4A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g></svg><span class="nome">Emitta</span></a>
 <main class="caixa" id="caixa" aria-live="polite"></main>
 <p class="rodape-seguro" id="rodape"></p>
-<script src="/static/comum.js?v=8"></script>
-<script src="/static/entrar.js?v=8"></script>
+<script src="/static/comum.js?v=9"></script>
+<script src="/static/entrar.js?v=9"></script>
 </body>
 </html>

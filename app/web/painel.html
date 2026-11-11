@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
 <title>Emitta · Painel do contador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=8">
+<link rel="stylesheet" href="/static/estilo.css?v=9">
 <style>
   .topo {
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
@@ -14,10 +15,10 @@
   }
   .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; }
   .marca:hover { color: #fff; }
-  .marca-logo { width: 36px; height: 36px; border-radius: 10px; background: var(--verde); display: grid; place-items: center; font-weight: 700; }
+  
   .marca-nome { font-size: 17px; font-weight: 700; }
   .marca-sub { font-size: 13px; color: var(--verde-borda); }
-  .topo-botao { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #24524A; background: transparent; color: #fff; font-size: 14px; cursor: pointer; }
+  .topo-botao { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #3A4470; background: transparent; color: #fff; font-size: 14px; cursor: pointer; }
   .topo-botao:hover { background: var(--noite-2); }
   .quem { color: var(--verde-borda); font-size: 14px; }
   .senha-gerada { font-family: ui-monospace, monospace; font-size: 20px; letter-spacing: .05em; background: #fff; border: 1px dashed var(--verde); border-radius: 10px; padding: 10px 14px; text-align: center; user-select: all; }
@@ -48,7 +49,7 @@
     display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--borda);
     border-radius: var(--raio); background: #fff; cursor: pointer;
   }
-  .servico.ligado { border-color: var(--verde); background: #F3FAF8; }
+  .servico.ligado { border-color: var(--verde); background: #FFF5F1; }
   .servico input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--verde); margin: 0; flex-shrink: 0; }
   .servico .textos { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
   .servico .apelido {
@@ -79,7 +80,7 @@
 <body>
 <header class="topo">
   <a class="marca" href="/">
-    <span class="marca-logo" aria-hidden="true">E</span>
+    <svg class="marca-svg" width="40" height="40" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-8 55 52)"><path d="M14 40 H27 M9 52 H27 M15 64 H27" stroke="#FF6B4A" stroke-width="6" stroke-linecap="round"/><path d="M36 20 H62 L74 32 V82 H36 Z" fill="#FBF7F1" stroke="#FBF7F1" stroke-width="4" stroke-linejoin="round"/><path d="M62 20 V32 H74" fill="#E6DCCD" stroke="#E6DCCD" stroke-width="2" stroke-linejoin="round"/><path d="M44 54 H66 A11 11 0 1 0 62.8 61.8" fill="none" stroke="#FF6B4A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
     <span><span class="marca-nome">Emitta</span><br><span class="marca-sub">Painel do contador</span></span>
   </a>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="topo-acoes">
@@ -101,7 +102,7 @@
   <main class="principal" id="principal" aria-live="polite"></main>
 </div>
 
-<script src="/static/comum.js?v=8"></script>
-<script src="/static/painel.js?v=8"></script>
+<script src="/static/comum.js?v=9"></script>
+<script src="/static/painel.js?v=9"></script>
 </body>
 </html>

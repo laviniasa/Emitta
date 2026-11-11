@@ -1,17 +1,24 @@
 :root {
-  --verde: #0E7C66;
-  --verde-escuro: #0A5C4C;
-  --verde-claro: #E6F4F0;
-  --verde-borda: #B7D9D0;
-  --noite: #0F2A24;
-  --noite-2: #163B33;
-  --fundo: #F3F4F6;
+  /* Identidade "tinta e coral": tinta da impressão, papel da nota, coral do movimento.
+     Os nomes antigos (--verde…) continuam para não mexer em todas as telas:
+     --verde agora é o coral escuro (texto, links, seleção), legível sobre o papel. */
+  --coral: #FF6B4A;
+  --coral-forte: #F2552F;
+  --verde: #C2401F;
+  --verde-escuro: #9A3016;
+  --verde-claro: #FFECE5;
+  --verde-borda: #F5B9A8;
+  --ok: #1F7A50;
+  --ok-claro: #E3F4EA;
+  --noite: #1B2340;
+  --noite-2: #262F52;
+  --fundo: #FBF7F1;
   --card: #FFFFFF;
-  --texto: #111827;
-  --texto-2: #4B5563;
-  --texto-3: #6B7280;
-  --borda: #E5E7EB;
-  --borda-forte: #D1D5DB;
+  --texto: #1B2340;
+  --texto-2: #4A4F63;
+  --texto-3: #636779;
+  --borda: #E8DFD3;
+  --borda-forte: #D6CBBC;
   --vermelho: #B42318;
   --vermelho-claro: #FEE4E2;
   --amarelo: #92400E;
@@ -33,6 +40,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--verde); }
 a:hover { color: var(--verde-escuro); }
 [hidden] { display: none !important; }
+.marca-svg { display: block; flex-shrink: 0; }
 
 .selo {
   display: inline-flex; align-items: center; gap: 4px;
@@ -40,9 +48,9 @@ a:hover { color: var(--verde-escuro); }
   white-space: nowrap;
 }
 .selo-amarelo { color: var(--amarelo); background: var(--amarelo-claro); }
-.selo-verde { color: var(--verde-escuro); background: var(--verde-claro); }
+.selo-verde { color: var(--ok); background: var(--ok-claro); }
 .selo-vermelho { color: var(--vermelho); background: var(--vermelho-claro); }
-.selo-cinza { color: var(--texto-2); background: #EEF0F2; }
+.selo-cinza { color: var(--texto-2); background: #F1ECE4; }
 
 .card {
   background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 16px;
@@ -51,16 +59,16 @@ a:hover { color: var(--verde-escuro); }
 .botao {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 44px; padding: 0 18px; border-radius: var(--raio); border: 0;
-  background: var(--verde); color: #fff; font-weight: 600; font-size: 15px;
+  background: var(--coral); color: var(--noite); font-weight: 700; font-size: 15px;
   cursor: pointer; text-decoration: none;
 }
-.botao:hover { background: var(--verde-escuro); color: #fff; }
+.botao:hover { background: var(--coral-forte); color: var(--noite); }
 .botao:disabled { opacity: .55; cursor: wait; }
 .botao-grande { min-height: 52px; font-size: 16px; width: 100%; }
 .botao-secundario { background: #fff; color: var(--texto); border: 1px solid var(--borda-forte); }
 .botao-secundario:hover { background: var(--fundo); color: var(--texto); }
-.botao-perigo { background: var(--vermelho); }
-.botao-perigo:hover { background: #912018; }
+.botao-perigo { background: var(--vermelho); color: #fff; }
+.botao-perigo:hover { background: #912018; color: #fff; }
 .botao-texto { background: transparent; color: var(--verde); padding: 0 8px; }
 .botao-texto:hover { background: var(--verde-claro); color: var(--verde-escuro); }
 .botao-texto-perigo { background: transparent; color: var(--vermelho); }
@@ -74,7 +82,7 @@ a:hover { color: var(--verde-escuro); }
 .campo textarea { padding: 10px 12px; min-height: 80px; resize: vertical; }
 .campo input:focus, .campo select:focus, .campo textarea:focus,
 .opcao:focus-visible, .botao:focus-visible {
-  outline: 3px solid rgba(14, 124, 102, .35); outline-offset: 1px; border-color: var(--verde);
+  outline: 3px solid rgba(194, 64, 31, .35); outline-offset: 1px; border-color: var(--verde);
 }
 .campo .ajuda { font-size: 12px; color: var(--texto-3); }
 .campo-erro input { border-color: var(--vermelho); }
