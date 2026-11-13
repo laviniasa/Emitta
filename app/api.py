@@ -337,6 +337,27 @@ def criar_app(
     def pagina_app():
         return pagina("app.html")
 
+    # ---------------------------------------------------------- app instalável (PWA)
+    @app.get("/abrir", include_in_schema=False)
+    def pagina_abrir():
+        # Abertura com a animação da nota; decide para onde levar cada pessoa.
+        return FileResponse(PASTA_WEB / "abrir.html", headers={"Cache-Control": "no-cache"})
+
+    @app.get("/offline", include_in_schema=False)
+    def pagina_offline():
+        return FileResponse(PASTA_WEB / "offline.html", headers={"Cache-Control": "no-cache"})
+
+    @app.get("/manifest.webmanifest", include_in_schema=False)
+    def manifesto():
+        return FileResponse(PASTA_WEB / "manifest.webmanifest", media_type="application/manifest+json",
+                            headers={"Cache-Control": "no-cache"})
+
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker():
+        # Servido na raiz para valer para o site todo; sempre conferido (no-cache).
+        return FileResponse(PASTA_WEB / "sw.js", media_type="text/javascript",
+                            headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
     @app.get("/admin", include_in_schema=False)
     def pagina_admin():
         resposta = pagina("admin.html")

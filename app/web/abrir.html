@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F2A24">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="emitta">
+<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
+<title>emitta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(420px 420px at 85% 0%, rgba(198,243,107,.18), transparent 70%), #0F2A24;
+    color: #fff; font-family: "Space Grotesk", Inter, system-ui, sans-serif;
+    display: grid; place-items: center; overflow: hidden;
+  }
+  .abertura { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  /* a "impressora" com a fenda e o cupom saindo */
+  .impressora { position: relative; width: 150px; height: 178px; }
+  .impressora .fenda-topo { position: absolute; left: -8px; right: -8px; top: 0; height: 16px; border-radius: 9px; background: #071713; box-shadow: 0 6px 18px rgba(0,0,0,.35); z-index: 2; }
+  .impressora .saida { position: absolute; left: 10px; right: 10px; top: 8px; bottom: 0; overflow: hidden; }
+  .impressora svg { position: absolute; left: 0; top: 0; width: 130px; height: 154px; overflow: visible;
+    filter: drop-shadow(0 16px 24px rgba(120,170,30,.35)); animation: sai 1s cubic-bezier(.2,.8,.2,1) .15s backwards; }
+  .impressora .e { stroke-dasharray: 1; animation: escreve .6s ease-out 1s backwards; }
+  @keyframes sai { from { transform: translateY(-160px); } }
+  @keyframes escreve { from { stroke-dashoffset: 1; opacity: 0; } 8% { opacity: 1; } }
+  .nome { font-size: 46px; font-weight: 700; letter-spacing: -.02em; animation: aparece .5s ease 1.35s backwards; }
+  .frase { margin-top: -14px; font-size: 15px; font-weight: 500; color: #C6F36B; animation: aparece .5s ease 1.55s backwards; }
+  @keyframes aparece { from { opacity: 0; transform: translateY(10px); } }
+  .sai-da-tela { animation: some .35s ease forwards; }
+  @keyframes some { to { opacity: 0; transform: scale(.96); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+</style>
+</head>
+<body>
+<main class="abertura" id="abertura" aria-label="Abrindo o Emitta">
+  <div class="impressora" aria-hidden="true">
+    <div class="fenda-topo"></div>
+    <div class="saida">
+      <svg viewBox="17 10 66 78">
+        <path d="M27 14 H73 Q79 14 79 20 V84 L71.75 78.5 L64.5 84 L57.25 78.5 L50 84 L42.75 78.5 L35.5 84 L28.25 78.5 L21 84 V20 Q21 14 27 14 Z" fill="#C6F36B"/>
+        <path class="e" pathLength="1" d="M35 46 H65 A15 15 0 1 0 60.6 56.6" fill="none" stroke="#0F2A24" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+  <div class="nome">emitta</div>
+  <div class="frase">nota fiscal sem complicação</div>
+</main>
+<script src="/static/abrir.js?v=12"></script>
+<script src="/static/pwa.js?v=12"></script>
+</body>
+</html>

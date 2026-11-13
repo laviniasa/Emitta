@@ -3,13 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0F2A24">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#0F2A24">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="emitta">
 <link rel="icon" href="/static/icone.svg" type="image/svg+xml">
 <title>Entrar · Emitta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=11">
+<link rel="stylesheet" href="/static/estilo.css?v=12">
 <style>
   body { background: var(--noite); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; }
   .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; margin-bottom: 24px; }
@@ -36,13 +41,28 @@
   .separador::before, .separador::after { content: ""; flex: 1; height: 1px; background: var(--borda); }
   .nota-pe { font-size: 13px; color: var(--texto-2); text-align: center; }
   .forca span { display: block; height: 100%; width: 0; transition: width .2s; }
+  .instalar { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(198,243,107,.5); background: transparent; color: #C6F36B; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .instalar:active { transform: scale(.96); }
+  .dica-iphone { margin: 12px auto 0; max-width: 520px; padding: 14px 16px; border-radius: 16px; background: rgba(198,243,107,.1); border: 1px solid rgba(198,243,107,.35); color: #E8F5D8; font-size: 14px; line-height: 1.5; }
+  .dica-iphone strong { color: #C6F36B; }
+  .dica-iphone ol { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 </style>
 </head>
 <body>
 <a class="marca" href="/"><svg class="marca-svg" width="34" height="40" viewBox="17 10 66 78" aria-hidden="true"><path class="logo-papel" d="M27 14 H73 Q79 14 79 20 V84 L71.75 78.5 L64.5 84 L57.25 78.5 L50 84 L42.75 78.5 L35.5 84 L28.25 78.5 L21 84 V20 Q21 14 27 14 Z" fill="#C6F36B"/><path class="logo-e" pathLength="1" d="M35 46 H65 A15 15 0 1 0 60.6 56.6" fill="none" stroke="#0F2A24" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="nome">emitta</span></a>
 <main class="caixa" id="caixa" aria-live="polite"></main>
 <p class="rodape-seguro" id="rodape"></p>
-<script src="/static/comum.js?v=11"></script>
-<script src="/static/entrar.js?v=11"></script>
+<p style="text-align:center;margin:14px 0 0"><button class="instalar" type="button" data-instalar hidden>Instalar o app no celular</button></p>
+<div class="dica-iphone" data-dica-iphone hidden>
+  <strong>Instalar no iPhone</strong>
+  <ol>
+    <li>Toque em <b>Compartilhar</b> (o quadrado com a seta para cima), na barra do Safari.</li>
+    <li>Escolha <b>Adicionar à Tela de Início</b>.</li>
+    <li>Toque em <b>Adicionar</b>. Pronto: o emitta aparece junto com os outros apps.</li>
+  </ol>
+</div>
+<script src="/static/comum.js?v=12"></script>
+<script src="/static/entrar.js?v=12"></script>
+<script src="/static/pwa.js?v=12"></script>
 </body>
 </html>

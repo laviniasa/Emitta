@@ -413,3 +413,31 @@ def test_pedido_de_conta_recusado(app, admin):
     assert admin.post(f"/admin/contas/{pedido['id']}/recusar").status_code == 200
     assert all(c["email"] != "intruso@x.com" for c in admin.get("/admin/contas").json())
     assert novo_cliente(app).post("/auth/entrar", json={"email": "intruso@x.com", "senha": SENHA}).status_code == 401
+
+
+# ---------------------------------------------------------------- app instalável (PWA)
+
+def test_pwa_manifesto_e_service_worker(anonimo):
+    m = anonimo.get("/manifest.webmanifest")
+    assert m.status_code == 200 and "manifest+json" in m.headers["content-type"]
+    dados = m.json()
+    assert dados["display"] == "standalone" and dados["start_url"].startswith("/abrir")
+    assert {"192x192", "512x512"} <= {i["sizes"] for i in dados["icons"]}
+    assert any(i.get("purpose") == "maskable" for i in dados["icons"])
+    for icone in dados["icons"]:
+        assert anonimo.get(icone["src"]).status_code == 200
+    sw = anonimo.get("/sw.js")
+    assert sw.status_code == 200 and "javascript" in sw.headers["content-type"]
+    assert sw.headers["service-worker-allowed"] == "/" and sw.headers["cache-control"] == "no-cache"
+    # o service worker nunca guarda dados privados
+    for privado in ['"/auth"', '"/app/"', '"/contador"', '"/admin"']:
+        assert privado in sw.text
+
+
+def test_pwa_abertura_e_offline(anonimo):
+    for caminho, texto in [("/abrir", "emitta"), ("/offline", "Sem internet")]:
+        r = anonimo.get(caminho)
+        assert r.status_code == 200 and texto in r.text
+        assert "Content-Security-Policy" in r.headers
+    for pagina in ["/", "/entrar", "/escritorio", "/empresa", "/admin"]:
+        assert 'rel="manifest"' in anonimo.get(pagina).text, pagina

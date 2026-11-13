@@ -1,0 +1,22 @@
+{
+  "name": "Emitta · Nota fiscal sem complicação",
+  "short_name": "emitta",
+  "description": "Emita e cancele notas fiscais de serviço pelo celular, só com os serviços que o seu contador liberou.",
+  "id": "/abrir",
+  "start_url": "/abrir?origem=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "pt-BR",
+  "background_color": "#0F2A24",
+  "theme_color": "#0F2A24",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    { "src": "/static/icones/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icones/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nova nota", "short_name": "Nova nota", "url": "/empresa?nova=1", "icons": [{ "src": "/static/icones/icone-192.png", "sizes": "192x192" }] }
+  ]
+}

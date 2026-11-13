@@ -104,6 +104,7 @@
       ]);
       Object.assign(estado, { empresa, servicos, notas });
       ir("inicio");
+      if (new URLSearchParams(location.search).get("nova") === "1" && servicos.length) novaNota();
     } catch (erro) {
       estado.erroCarga = erro.message;
       ir("semAcesso");
