@@ -238,11 +238,14 @@
         return;
       }
       const achados = buscarServicos(livres, termo);
+      const jaLiberados = buscarServicos(estado.servicos.filter((s) => s.liberado), termo);
       const LIMITE = 40;
       $resultados.replaceChildren(
         achados.length
           ? el("p", { class: "sub2" }, achados.length === 1 ? "1 serviço encontrado" : `${achados.length} serviços encontrados${achados.length > LIMITE ? ` (mostrando ${LIMITE})` : ""}`)
-          : el("p", { class: "vazio" }, `Nada encontrado para "${termo}". Tente outra palavra ou o código (ex.: 17.19).`),
+          : jaLiberados.length
+            ? el("p", { class: "vazio" }, `"${jaLiberados[0].apelido || jaLiberados[0].descricao}" já está liberado, lá em cima.`)
+            : el("p", { class: "vazio" }, `Nada encontrado para "${termo}". Tente outra palavra ou o código (ex.: 17.19).`),
         ...achados.slice(0, LIMITE).map(linhaServico),
       );
     };
