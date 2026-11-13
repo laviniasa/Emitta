@@ -1,22 +1,28 @@
 :root {
-  --verde: #0E7C66;
-  --verde-escuro: #0A5C4C;
-  --verde-claro: #E6F4F0;
-  --verde-borda: #B7D9D0;
+  /* Identidade "cupom": verde-noite + limão. --verde é o verde de texto/links (legível no claro). */
+  --lima: #C6F36B;
+  --lima-forte: #B2E24B;
+  --verde: #1C7A43;
+  --verde-escuro: #135A30;
+  --verde-claro: #EEF9D9;
+  --verde-borda: #C6F36B;
   --noite: #0F2A24;
-  --noite-2: #163B33;
-  --fundo: #F3F4F6;
+  --noite-2: #18392F;
+  --fundo: #F4F6EF;
   --card: #FFFFFF;
-  --texto: #111827;
-  --texto-2: #4B5563;
-  --texto-3: #6B7280;
-  --borda: #E5E7EB;
-  --borda-forte: #D1D5DB;
+  --texto: #0F2A24;
+  --texto-2: #4A5A54;
+  --texto-3: #5F6E68;
+  --borda: #E2E7DA;
+  --borda-forte: #CFD7C6;
+  --titulo: "Space Grotesk", Inter, system-ui, sans-serif;
+  --mola: cubic-bezier(.34, 1.56, .64, 1);
+  --suave: cubic-bezier(.2, .8, .2, 1);
   --vermelho: #B42318;
   --vermelho-claro: #FEE4E2;
   --amarelo: #92400E;
   --amarelo-claro: #FEF3C7;
-  --raio: 12px;
+  --raio: 14px;
 }
 
 * { box-sizing: border-box; }
@@ -29,6 +35,7 @@ body {
   line-height: 1.45;
 }
 h1, h2, h3, p { margin: 0; }
+h1, h2, h3, .grande, .num, .marca-nome, .nome { font-family: var(--titulo); letter-spacing: -.01em; }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--verde); }
 a:hover { color: var(--verde-escuro); }
@@ -46,25 +53,28 @@ a:hover { color: var(--verde-escuro); }
 .selo-cinza { color: var(--texto-2); background: #EEF0F2; }
 
 .card {
-  background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 16px;
+  background: var(--card); border: 1px solid var(--borda); border-radius: 18px; padding: 16px;
 }
 
 .botao {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 44px; padding: 0 18px; border-radius: var(--raio); border: 0;
-  background: var(--verde); color: #fff; font-weight: 600; font-size: 15px;
+  background: var(--lima); color: var(--noite); font-family: var(--titulo); font-weight: 700; font-size: 15px;
   cursor: pointer; text-decoration: none;
+  box-shadow: 0 6px 18px -8px rgba(120, 170, 30, .7);
+  transition: transform .18s var(--mola), background .2s ease, box-shadow .2s ease;
 }
-.botao:hover { background: var(--verde-escuro); color: #fff; }
+.botao:hover { background: var(--lima-forte); color: var(--noite); }
+.botao:active { transform: scale(.96); box-shadow: 0 2px 8px -4px rgba(120, 170, 30, .7); }
 .botao:disabled { opacity: .55; cursor: wait; }
 .botao-grande { min-height: 52px; font-size: 16px; width: 100%; }
-.botao-secundario { background: #fff; color: var(--texto); border: 1px solid var(--borda-forte); }
+.botao-secundario { background: #fff; color: var(--texto); border: 1px solid var(--borda-forte); box-shadow: none; }
 .botao-secundario:hover { background: var(--fundo); color: var(--texto); }
-.botao-perigo { background: var(--vermelho); }
-.botao-perigo:hover { background: #912018; }
-.botao-texto { background: transparent; color: var(--verde); padding: 0 8px; }
+.botao-perigo { background: var(--vermelho); color: #fff; box-shadow: none; }
+.botao-perigo:hover { background: #912018; color: #fff; }
+.botao-texto { background: transparent; color: var(--verde); padding: 0 8px; box-shadow: none; }
 .botao-texto:hover { background: var(--verde-claro); color: var(--verde-escuro); }
-.botao-texto-perigo { background: transparent; color: var(--vermelho); }
+.botao-texto-perigo { background: transparent; color: var(--vermelho); box-shadow: none; }
 .botao-texto-perigo:hover { background: var(--vermelho-claro); color: var(--vermelho); }
 
 .campo { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--texto-2); }
@@ -75,7 +85,7 @@ a:hover { color: var(--verde-escuro); }
 .campo textarea { padding: 10px 12px; min-height: 80px; resize: vertical; }
 .campo input:focus, .campo select:focus, .campo textarea:focus,
 .opcao:focus-visible, .botao:focus-visible {
-  outline: 3px solid rgba(14, 124, 102, .35); outline-offset: 1px; border-color: var(--verde);
+  outline: 3px solid rgba(198, 243, 107, .9); outline-offset: 1px; border-color: var(--verde);
 }
 .campo .ajuda { font-size: 12px; color: var(--texto-3); }
 .campo-erro input { border-color: var(--vermelho); }
@@ -84,7 +94,9 @@ a:hover { color: var(--verde-escuro); }
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px;
   padding: 12px 14px; border-radius: var(--raio); border: 2px solid var(--borda-forte);
   background: #fff; text-align: left; cursor: pointer;
+  transition: transform .18s var(--mola), border-color .2s ease, background .2s ease;
 }
+.opcao:active { transform: scale(.98); }
 .opcao .bolinha {
   width: 20px; height: 20px; border-radius: 999px; border: 2px solid var(--borda-forte);
   flex-shrink: 0; display: grid; place-items: center;
@@ -93,6 +105,7 @@ a:hover { color: var(--verde-escuro); }
 .opcao[aria-checked="true"] .bolinha { border-color: var(--verde); }
 .opcao[aria-checked="true"] .bolinha::after {
   content: ""; width: 10px; height: 10px; border-radius: 999px; background: var(--verde);
+  animation: pop .35s var(--mola);
 }
 .opcao.perigo[aria-checked="true"] { border-color: var(--vermelho); background: #FEF3F2; }
 .opcao.perigo[aria-checked="true"] .bolinha { border-color: var(--vermelho); }
@@ -114,11 +127,12 @@ a:hover { color: var(--verde-escuro); }
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
   background: var(--noite); color: #fff; padding: 12px 18px; border-radius: 10px;
   font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 50; max-width: calc(100% - 32px);
+  border-left: 4px solid var(--lima); animation: subir .35s var(--suave);
 }
 
 .carregando {
   width: 56px; height: 56px; border-radius: 999px;
-  border: 6px solid var(--verde-claro); border-top-color: var(--verde);
+  border: 6px solid var(--verde-claro); border-top-color: var(--lima-forte);
   animation: girar 1s linear infinite;
 }
 @keyframes girar { to { transform: rotate(360deg); } }
@@ -133,4 +147,23 @@ a:hover { color: var(--verde-escuro); }
   border-radius: var(--raio); background: #fff; cursor: pointer;
 }
 .campo-check input { width: 22px; height: 22px; margin: 0; accent-color: var(--verde); flex-shrink: 0; }
+
+/* ---------------------------------------------------------- movimento
+   Animações curtas e com "mola", para o app parecer vivo.
+   Quem ativou "reduzir movimento" no aparelho não vê nenhuma. */
+@keyframes pop { from { transform: scale(0); } }
+@keyframes subir { from { opacity: 0; transform: translate(-50%, 16px); } }
+@keyframes entrar-direita { from { opacity: 0; transform: translateX(28px); } }
+@keyframes entrar-esquerda { from { opacity: 0; transform: translateX(-28px); } }
+@keyframes aparecer { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+@keyframes tremer { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@keyframes balancar { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+
+.campo input, .campo select, .campo textarea { transition: border-color .2s ease, box-shadow .2s ease; }
+.campo input:focus, .campo select:focus, .campo textarea:focus { box-shadow: 0 0 0 4px rgba(198, 243, 107, .45); outline: none; }
+.aviso-erro:not([hidden]) { animation: tremer .4s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
 .campo .ajuda, .ajuda { font-size: 12px; color: var(--texto-3); line-height: 1.45; }

@@ -22,6 +22,76 @@
     window.scrollTo(0, 0);
   }
 
+  // ------------------------------------------------------------ movimento
+  const calmo = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Ordem das telas: avançar desliza da direita, voltar desliza da esquerda.
+  const ORDEM = { carregando: 0, semAcesso: 1, inicio: 1, detalhe: 2, nova: 2, cancelar: 3, enviando: 3, erro: 4, processando: 4, sucesso: 4, cancelada: 4 };
+  let telaAnterior = null;
+
+  function animarTroca() {
+    const atual = estado.tela;
+    if (atual === telaAnterior) return false;
+    const dir = telaAnterior && (ORDEM[atual] ?? 0) < (ORDEM[telaAnterior] ?? 0) ? "volta" : "vai";
+    telaAnterior = atual;
+    if (calmo) return true;
+    $tela.dataset.dir = dir;
+    $tela.classList.remove("animando");
+    void $tela.offsetWidth; // reinicia a animação
+    $tela.classList.add("animando");
+    return true;
+  }
+
+  // Valores do topo contam do zero até o número certo.
+  function contarNumeros() {
+    $tela.querySelectorAll("[data-contar]").forEach((n) => {
+      const alvo = parseFloat(n.dataset.contar) || 0;
+      const formato = n.dataset.formato === "dinheiro" ? dinheiro : (v) => String(Math.round(v));
+      if (calmo || !alvo) { n.textContent = formato(alvo); return; }
+      const t0 = performance.now();
+      const passo = (t) => {
+        const k = Math.min(1, (t - t0) / 900);
+        n.textContent = formato(alvo * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) requestAnimationFrame(passo);
+      };
+      requestAnimationFrame(passo);
+    });
+  }
+
+  // Confete nas cores do Emitta quando a nota é autorizada.
+  function confete() {
+    if (calmo) return;
+    const cores = ["#C6F36B", "#0F2A24", "#2BB673", "#FFFFFF", "#B2E24B"];
+    for (let i = 0; i < 46; i++) {
+      const c = document.createElement("span");
+      c.className = "confete";
+      c.style.left = Math.random() * 100 + "vw";
+      c.style.background = cores[i % cores.length];
+      c.style.setProperty("--x", (Math.random() * 160 - 80) + "px");
+      c.style.setProperty("--r", (Math.random() * 900 - 450) + "deg");
+      c.style.setProperty("--t", (1.6 + Math.random() * 1.4) + "s");
+      c.style.animationDelay = Math.random() * 0.35 + "s";
+      if (i % 3 === 0) { c.style.width = "8px"; c.style.height = "8px"; c.style.borderRadius = "50%"; }
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 3600);
+    }
+    if (navigator.vibrate) navigator.vibrate([25, 40, 60]);
+  }
+
+  // Cupom com visto, desenhado em SVG (mesma forma da logo).
+  function cupomOk() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "17 10 66 78"); svg.setAttribute("aria-hidden", "true");
+    const papel = document.createElementNS(ns, "path");
+    papel.setAttribute("d", "M27 14 H73 Q79 14 79 20 V84 L71.75 78.5 L64.5 84 L57.25 78.5 L50 84 L42.75 78.5 L35.5 84 L28.25 78.5 L21 84 V20 Q21 14 27 14 Z");
+    papel.setAttribute("fill", "#C6F36B");
+    const visto = document.createElementNS(ns, "path");
+    visto.setAttribute("d", "M35 47 L46 58 L66 36"); visto.setAttribute("class", "visto");
+    for (const [k, v] of Object.entries({ fill: "none", stroke: "#0F2A24", "stroke-width": "8", "stroke-linecap": "round", "stroke-linejoin": "round" })) visto.setAttribute(k, v);
+    svg.append(papel, visto);
+    return el("span", { class: "cupom-ok", role: "img", "aria-label": "Nota autorizada" }, svg);
+  }
+
   // ------------------------------------------------------------ dados
 
   async function entrar(id) {
@@ -121,8 +191,8 @@
             el("div", {}, el("div", { class: "ola" }, "Olá,"), el("h1", {}, estado.empresa.razao_social)),
             seloAmbiente()),
           el("div", { class: "resumo" },
-            el("div", {}, el("span", { class: "rot" }, `Faturado em ${mes}`), el("span", { class: "num" }, dinheiro(total))),
-            el("div", {}, el("span", { class: "rot" }, "Notas no mês"), el("span", { class: "num" }, String(doMes.length))))),
+            el("div", {}, el("span", { class: "rot" }, `Faturado em ${mes}`), el("span", { class: "num", "data-contar": String(total), "data-formato": "dinheiro" }, dinheiro(total))),
+            el("div", {}, el("span", { class: "rot" }, "Notas no mês"), el("span", { class: "num", "data-contar": String(doMes.length) }, String(doMes.length))))),
         el("main", { class: "conteudo" },
           estado.eu.papel === "contador" && el("div", { class: "aviso aviso-alerta" },
             icone("olho"), "Você está vendo o app como a empresa vê. As notas emitidas aqui ficam no nome dela."),
@@ -253,7 +323,9 @@
         barra("Transmitindo"),
         el("main", { class: "conteudo" },
           el("div", { class: "centro", style: "padding-top:32px" },
-            el("div", { class: "carregando", role: "img", "aria-label": "Enviando" }),
+            el("div", { class: "impressora", role: "img", "aria-label": "Enviando" },
+              el("div", { class: "fenda" }, el("div", { class: "papel" }, el("span"), el("span"), el("span"))),
+              el("div", { class: "corpo" })),
             el("p", { class: "grande", style: "font-size:18px" }, "Enviando para a prefeitura"),
             el("p", { class: "ajuda-pequena", style: "font-size:14px" }, "Isso costuma levar poucos segundos. Não feche o app.")),
           el("ol", { class: "etapas card" },
@@ -268,7 +340,7 @@
       barra("Nota emitida"),
       el("main", { class: "conteudo" },
         el("div", { class: "centro" },
-          el("span", { class: "circulo", style: "background:var(--verde-claro)" }, icone("certo", 32, "#0E7C66")),
+          cupomOk(),
           el("p", { class: "grande" }, "Nota autorizada"),
           estado.ambiente !== "producao" && el("p", { class: "ajuda-pequena", style: "color:var(--amarelo)" }, "Ambiente de teste, sem valor fiscal")),
         detalhesNota(estado.nota),
@@ -282,7 +354,7 @@
       barra("Nota não emitida"),
       el("main", { class: "conteudo" },
         el("div", { class: "centro" },
-          el("span", { class: "circulo", style: "background:var(--vermelho-claro)" }, icone("alerta", 32, "#B42318")),
+          el("span", { class: "circulo balanca", style: "background:var(--vermelho-claro)" }, icone("alerta", 32, "#B42318")),
           el("p", { class: "grande" }, estado.erro.titulo),
           el("p", { class: "ajuda-pequena", style: "font-size:14px" }, "Nada foi emitido. Corrija e envie de novo.")),
         el("section", { class: "card secao", style: "border-color:#F4C7C3" },
@@ -296,7 +368,7 @@
       barra("Aguardando a prefeitura"),
       el("main", { class: "conteudo" },
         el("div", { class: "centro" },
-          el("span", { class: "circulo", style: "background:var(--amarelo-claro)" }, icone("relogio", 32, "#92400E")),
+          el("span", { class: "circulo balanca", style: "background:var(--amarelo-claro)" }, icone("relogio", 32, "#92400E")),
           el("p", { class: "grande" }, "A prefeitura ainda não respondeu"),
           el("p", { class: "ajuda-pequena", style: "font-size:14px" },
             "Pode ser instabilidade na internet ou no sistema do governo. Não emita a nota de novo: o Emitta confere sozinho se ela foi gerada, sem duplicar.")),
@@ -383,7 +455,7 @@
       barra("Nota cancelada"),
       el("main", { class: "conteudo" },
         el("div", { class: "centro" },
-          el("span", { class: "circulo", style: "background:var(--vermelho-claro)" }, icone("x", 30, "#B42318")),
+          el("span", { class: "circulo carimbo", style: "background:var(--vermelho-claro)" }, icone("x", 30, "#B42318")),
           el("p", { class: "grande" }, "Nota cancelada"),
           el("p", { class: "ajuda-pequena", style: "font-size:14px" },
             `A prefeitura registrou o cancelamento da nota nº ${String(estado.nota.numero_dps).padStart(6, "0")}.`),
@@ -531,6 +603,9 @@
 
   function desenhar() {
     $tela.replaceChildren(...TELAS[estado.tela]().filter(Boolean));
+    if (!animarTroca()) return; // mesma tela (ex.: escolheu um serviço): sem animação de entrada
+    if (estado.tela === "inicio") contarNumeros();
+    if (estado.tela === "sucesso") confete();
   }
 
   // ------------------------------------------------------------ início
