@@ -1,6 +1,6 @@
 // App do cliente: início, nova nota, resultado e cancelamento.
 (() => {
-  const { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, sair, exigirLogin } = Emitta;
+  const { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, sair, exigirLogin } = Emitta;
   const $tela = document.getElementById("tela");
 
   const estado = {
@@ -166,8 +166,7 @@
 
   const TELAS = {
     carregando: () => [
-      el("div", { class: "conteudo", style: "display:grid;place-items:center" },
-        el("div", { class: "carregando", role: "img", "aria-label": "Carregando" })),
+      el("div", { class: "conteudo", style: "display:grid;place-items:center" }, logoCarregando("Abrindo suas notas...")),
     ],
 
     semAcesso: () => [

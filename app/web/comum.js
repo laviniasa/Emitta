@@ -164,6 +164,17 @@ const Emitta = (() => {
     download: "M12 4v12M7 11l5 5 5-5M5 20h14",
     documento: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6",
   };
+  // Logo imprimindo em loop (tela de carregamento). SVG fixo, sem dados de fora.
+  function logoCarregando(texto = "Carregando...") {
+    const caixa = el("div", { class: "logo-carregando", role: "status" });
+    caixa.innerHTML = '<div class="fenda"><svg viewBox="17 10 66 78" aria-hidden="true">'
+      + '<path d="M27 14 H73 Q79 14 79 20 V84 L71.75 78.5 L64.5 84 L57.25 78.5 L50 84 L42.75 78.5 L35.5 84 L28.25 78.5 L21 84 V20 Q21 14 27 14 Z" fill="#C6F36B"/>'
+      + '<path class="logo-e" pathLength="1" d="M35 46 H65 A15 15 0 1 0 60.6 56.6" fill="none" stroke="#0F2A24" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>'
+      + "</svg></div>";
+    caixa.append(el("span", {}, texto));
+    return caixa;
+  }
+
   function icone(nome, tamanho = 20, cor = "currentColor") {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
@@ -188,5 +199,5 @@ const Emitta = (() => {
     try { return localStorage.getItem(chave); } catch { return null; }
   }
 
-  return { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin };
+  return { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, guardar, ler, sair, exigirLogin };
 })();

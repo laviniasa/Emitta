@@ -40,7 +40,25 @@ button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--verde); }
 a:hover { color: var(--verde-escuro); }
 [hidden] { display: none !important; }
-.marca-svg { display: block; flex-shrink: 0; }
+.marca-svg { display: block; flex-shrink: 0; overflow: visible; }
+
+/* Logo "Impressão": o cupom sai da fenda, o "e" se escreve e o nome aparece.
+   Toca uma vez ao abrir a página. Sem animação, a logo aparece inteira. */
+.marca-svg .logo-papel { animation: logo-imprime .7s cubic-bezier(.2,.8,.2,1) .15s backwards; }
+.marca-svg .logo-e { stroke-dasharray: 1; animation: logo-escreve .55s ease-out .7s backwards; }
+.marca-svg + * { animation: logo-nome .5s ease .95s backwards; }
+@keyframes logo-imprime { from { transform: translateY(-62px); clip-path: inset(62px 0 0 0); } }
+@keyframes logo-escreve { from { stroke-dashoffset: 1; opacity: 0; } 8% { opacity: 1; } }
+@keyframes logo-nome { from { opacity: 0; transform: translateX(-10px); } }
+
+/* Carregando: o cupom imprimindo sem parar */
+.logo-carregando { display: grid; justify-items: center; gap: 14px; color: var(--texto-2); font-size: 14px; }
+.logo-carregando .fenda { position: relative; width: 84px; height: 104px; overflow: hidden; }
+.logo-carregando .fenda::before { content: ""; position: absolute; left: -6px; right: -6px; top: 0; height: 10px; border-radius: 6px; background: var(--noite); z-index: 1; }
+.logo-carregando svg { position: absolute; left: 8px; top: 4px; width: 68px; height: 80px; animation: logo-loop 1.6s cubic-bezier(.2,.8,.2,1) infinite; }
+.logo-carregando .logo-e { stroke-dasharray: 1; animation: logo-loop-e 1.6s ease-out infinite; }
+@keyframes logo-loop { 0% { transform: translateY(-84px); opacity: 1; } 45% { transform: translateY(0); opacity: 1; } 85% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(0); opacity: 0; } }
+@keyframes logo-loop-e { 0%, 40% { stroke-dashoffset: 1; opacity: 0; } 43% { opacity: 1; } 70%, 100% { stroke-dashoffset: 0; opacity: 1; } }
 
 .selo {
   display: inline-flex; align-items: center; gap: 4px;
