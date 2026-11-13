@@ -12,6 +12,7 @@
     acessoCriado: null, // {email, senha_provisoria} mostrado uma única vez
     modo: "carregando", // carregando | cliente | nova | vazio | seguranca
     busca: "",
+    buscaServico: "",
     eu: null,
     segredo2fa: null,
   };
@@ -158,6 +159,25 @@
     }
   }
 
+  // ------------------------------------------------------------ busca de serviços
+
+  const semAcento = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const codigoBonito = (c) => (c && c.length === 6 ? `${c.slice(0, 2)}.${c.slice(2, 4)}.${c.slice(4)}` : c);
+  function buscarServicos(lista, termo) {
+    const digitos = termo.replace(/\D/g, "");
+    const soCodigo = /^[\d.\s]+$/.test(termo);
+    if (soCodigo && digitos) return lista.filter((s) => s.codigo.startsWith(digitos));
+    const palavras = semAcento(termo).split(/\s+/).filter((p) => p.length > 1);
+    if (!palavras.length) return [];
+    const texto = (s) => s._busca || (s._busca = semAcento(`${s.descricao} ${s.item_descricao || ""} ${(s.palavras || []).join(" ")}`));
+    const casa = (ps) => lista.filter((s) => ps.every((p) => texto(s).includes(p)));
+    let achados = casa(palavras);
+    // "cabelo" acha "cabeleireiros", "contador" acha "contabilidade": tenta pelo começo da palavra
+    if (!achados.length) achados = casa(palavras.map((p) => (p.length > 5 ? p.slice(0, p.length - 2) : p.length > 4 ? p.slice(0, 4) : p)));
+    const nota = (s) => (semAcento(s.descricao).startsWith(palavras[0]) ? 0 : semAcento(s.descricao).includes(palavras[0]) ? 1 : 2);
+    return achados.sort((a, b) => nota(a) - nota(b) || a.codigo.localeCompare(b.codigo));
+  }
+
   function telaCliente() {
     const c = estado.clientes.find((x) => x.id === estado.selecionado);
     const liberados = estado.servicos.filter((s) => s.liberado);
@@ -169,8 +189,8 @@
       el("a", { class: "botao botao-secundario", href: `/empresa?empresa=${c.id}` }, "Ver como o cliente vê"),
     );
 
-    // Serviços
-    const listaServicos = estado.servicos.map((s) => {
+    // Serviços: os liberados ficam sempre em cima; o resto se acha pela busca ou por área.
+    const linhaServico = (s) => {
       const caixa = el("input", {
         type: "checkbox", checked: s.liberado,
         "aria-label": `Liberar ${s.descricao}`,
@@ -187,18 +207,66 @@
       return el("label", { class: "servico" + (s.liberado ? " ligado" : "") },
         caixa,
         el("span", { class: "textos" },
-          s.liberado ? apelido : el("span", { style: "font-weight:600" }, s.apelido),
-          el("span", { class: "oficial" }, `Código ${s.subitem || s.codigo} · ${s.descricao}`)),
+          s.liberado ? apelido : el("span", { class: "nome-servico" }, s.descricao),
+          el("span", { class: "oficial" }, s.liberado ? `Código ${codigoBonito(s.codigo)} · ${s.descricao}` : `Código ${codigoBonito(s.codigo)}`)),
         el("span", { class: s.liberado ? "selo selo-verde" : "selo selo-cinza" }, s.liberado ? "Liberado" : "Bloqueado"),
       );
-    });
+    };
 
+    const $resultados = el("div", { class: "resultados-servicos", "aria-live": "polite" });
+    const desenharResultados = () => {
+      const termo = estado.buscaServico.trim();
+      const livres = estado.servicos.filter((s) => !s.liberado);
+      if (!termo) {
+        const areas = new Map();
+        for (const s of livres) {
+          const chave = s.item || s.codigo.slice(0, 2);
+          if (!areas.has(chave)) areas.set(chave, { nome: s.item_descricao || `Item ${chave}`, lista: [] });
+          areas.get(chave).lista.push(s);
+        }
+        $resultados.replaceChildren(
+          el("p", { class: "sub2" }, `Ou navegue pelas ${areas.size} áreas da lista nacional (${livres.length} serviços):`),
+          ...[...areas.entries()].map(([chave, a]) => {
+            const caixa = el("details", { class: "area" },
+              el("summary", {}, el("span", { class: "area-cod" }, chave), el("span", { class: "area-nome" }, a.nome), el("span", { class: "area-qtd" }, String(a.lista.length))));
+            caixa.addEventListener("toggle", () => {
+              if (caixa.open && caixa.children.length === 1) caixa.append(...a.lista.map(linhaServico));
+            }, { once: false });
+            return caixa;
+          }),
+        );
+        return;
+      }
+      const achados = buscarServicos(livres, termo);
+      const LIMITE = 40;
+      $resultados.replaceChildren(
+        achados.length
+          ? el("p", { class: "sub2" }, achados.length === 1 ? "1 serviço encontrado" : `${achados.length} serviços encontrados${achados.length > LIMITE ? ` (mostrando ${LIMITE})` : ""}`)
+          : el("p", { class: "vazio" }, `Nada encontrado para "${termo}". Tente outra palavra ou o código (ex.: 17.19).`),
+        ...achados.slice(0, LIMITE).map(linhaServico),
+      );
+    };
+    const $buscaServico = el("input", {
+      type: "search", class: "busca-servico", value: estado.buscaServico,
+      placeholder: "Buscar serviço: ex. cabelo, contabilidade, 17.19",
+      "aria-label": "Buscar serviço na lista nacional", autocomplete: "off",
+      oninput: (e) => { estado.buscaServico = e.target.value; desenharResultados(); },
+    });
+    desenharResultados();
+
+    const liberadosLista = estado.servicos.filter((s) => s.liberado);
     const colServicos = el("section", { class: "card col-servicos" },
       el("div", {},
         el("h2", { class: "titulo" }, "Serviços liberados para emitir"),
         el("p", { class: "sub2", style: "margin-top:4px" },
           "Só os serviços marcados aparecem no app do cliente. Clique no nome para trocar pelo nome que ele entende.")),
-      ...listaServicos,
+      ...(liberadosLista.length
+        ? liberadosLista.map(linhaServico)
+        : [el("p", { class: "vazio" }, "Nenhum serviço liberado ainda. Busque abaixo e marque os que esta empresa presta.")]),
+      el("div", { class: "busca-servico-caixa" },
+        el("h3", { class: "titulo-busca" }, "Liberar mais serviços"),
+        el("div", { class: "busca-servico-campo" }, icone("busca", 18), $buscaServico)),
+      $resultados,
     );
 
     // Prévia + regras + salvar
