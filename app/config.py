@@ -42,5 +42,5 @@ def carregar_config() -> Config:
         ambiente=ambiente,
         banco=Path(os.getenv("NFSE_BANCO", "dados/emissor.db")),
         pasta_certificados=Path(os.getenv("NFSE_PASTA_CERTIFICADOS", "certificados")),
-        pasta_xsd=Path(xsd) if xsd else None,
+        pasta_xsd=Path(xsd) if xsd else Path(__file__).parent / "xsd",  # XSD oficial v1.01 junto do app
     )

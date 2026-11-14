@@ -67,6 +67,7 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     _sub(inf, "nDPS", str(d.numero))
     _sub(inf, "dCompet", (d.competencia or d.emitida_em.date()).isoformat())
     _sub(inf, "tpEmit", "1")  # 1 = emitido pelo prestador
+    _sub(inf, "finNFSe", "0")  # 0 = NFS-e regular (obrigatório no leiaute 1.01 / NT 009)
     _sub(inf, "cLocEmi", d.municipio_ibge)
 
     prest = _sub(inf, "prest")
@@ -129,13 +130,13 @@ def montar_pedido_cancelamento(d: DadosCancelamento) -> etree._Element:
         f"{{{NS_NFSE}}}pedRegEvento", nsmap={None: NS_NFSE}, versao=VERSAO_LEIAUTE
     )
     inf = _sub(raiz, "infPedReg")
-    inf.set("Id", f"PRE{d.chave_acesso}{CODIGO_EVENTO_CANCELAMENTO}{d.numero_pedido:03d}")
+    # leiaute 1.01: Id = "PRE" + chave de acesso (50) + código do evento (6) = 59 caracteres
+    inf.set("Id", f"PRE{d.chave_acesso}{CODIGO_EVENTO_CANCELAMENTO}")
     _sub(inf, "tpAmb", d.tp_amb)
     _sub(inf, "verAplic", d.versao_aplicativo)
     _sub(inf, "dhEvento", d.quando.isoformat(timespec="seconds"))
     _sub(inf, "CNPJAutor", d.autor_cnpj)
     _sub(inf, "chNFSe", d.chave_acesso)
-    _sub(inf, "nPedRegEvento", str(d.numero_pedido))
     evento = _sub(inf, f"e{CODIGO_EVENTO_CANCELAMENTO}")
     _sub(evento, "xDesc", "Cancelamento de NFS-e")
     _sub(evento, "cMotivo", d.codigo_motivo)
