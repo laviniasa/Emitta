@@ -778,6 +778,23 @@ def criar_app(
             "opcao_simples": c.opcao_simples,
         }
 
+    @app.get("/contador/clientes/{cliente_id}/servicos/{codigo}/prefeitura", tags=["contador"])
+    def conferir_servico_na_prefeitura(cliente_id: int, codigo: str, request: Request,
+                                       usuario: Usuario = Depends(dono_do_cliente)):
+        """Pergunta ao governo se o município da empresa aceita este código de serviço."""
+        cliente = cliente_ou_404(cliente_id)
+        if codigo not in carregar_catalogo():
+            raise HTTPException(404, "Serviço fora da lista nacional.")
+        if not limitador_consultas.permitir(f"prefeitura:{usuario.id}"):
+            raise HTTPException(429, "Muitas consultas seguidas. Aguarde um minuto.")
+        try:
+            cert = servico.certificados.para(cliente)
+        except ErroCertificado as e:
+            raise HTTPException(422, str(e))
+        r = servico.sefin.consultar_servico_municipio(cliente.municipio_ibge, codigo, cert)
+        return {"codigo": codigo, "municipio_ibge": cliente.municipio_ibge, "administrado": r.administrado,
+                "conveniado": r.conveniado, "aliquotas": r.aliquotas, "mensagens": r.mensagens}
+
     @app.get("/app/{cliente_id}/servicos", tags=["app da empresa"])
     def servicos_para_emitir(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
         """Só os serviços liberados pelo contador."""

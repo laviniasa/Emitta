@@ -39,6 +39,21 @@ class RespostaSefin:
     mensagens: list[str] = field(default_factory=list)
 
 
+@dataclass
+class ServicoNaPrefeitura:
+    """O que o governo diz sobre um serviço num município (parâmetros municipais)."""
+    administrado: bool | None  # None = não deu para saber
+    conveniado: bool | None = None
+    aliquotas: dict = field(default_factory=dict)
+    mensagens: list[str] = field(default_factory=list)
+
+
+def codigo_servico_api(codigo: str) -> str:
+    """060201 -> 06.02.01.000 (formato pedido pela API de parâmetros municipais)."""
+    c = codigo.zfill(6)
+    return f"{c[:2]}.{c[2:4]}.{c[4:6]}.000"
+
+
 class ClienteSefin(Protocol):
     def enviar_dps(self, xml_assinado: bytes, cert: Certificado | None) -> RespostaSefin: ...
 
@@ -105,6 +120,11 @@ class SefinSimulada:
         return RespostaSefin(sucesso=True, chave_acesso=chave_acesso)
 
 
+    def consultar_servico_municipio(self, municipio_ibge, codigo, cert):
+        return ServicoNaPrefeitura(administrado=True, conveniado=True,
+                                   mensagens=["Modo simulação: a prefeitura não foi consultada."])
+
+
 class SefinNacional:
     def __init__(self, url_base: str, timeout: int = 40):
         self.url_base = url_base.rstrip("/")
@@ -144,6 +164,9 @@ class SefinNacional:
             descricao = e.get("descricao") or e.get("Descricao") or ""
             complemento = e.get("complemento") or e.get("Complemento") or ""
             mensagens.append(" ".join(x for x in (codigo, descricao, complemento) if x).strip())
+            if codigo == "E0312":
+                mensagens.append("Dica: a prefeitura da empresa não aceita este código de serviço. "
+                                 "No painel do contador, use \"Conferir na prefeitura\" para testar outro código.")
         return mensagens or [f"HTTP {resp.status_code}"]
 
     def enviar_dps(self, xml_assinado, cert):
@@ -182,3 +205,39 @@ class SefinNacional:
         xml = dados.get("eventoXmlGZipB64")
         return RespostaSefin(sucesso=True, chave_acesso=chave_acesso,
                              xml=descompactar(xml) if xml else None)
+
+    def consultar_servico_municipio(self, municipio_ibge: str, codigo: str, cert) -> ServicoNaPrefeitura:
+        """Pergunta ao governo se o município aceita este código de serviço
+        (e com qual alíquota). Evita a recusa E0312 antes de emitir."""
+        conveniado = None
+        try:
+            conv = self._chamar("GET", f"/parametros_municipais/{municipio_ibge}/convenio", cert)
+            if conv.ok:
+                conveniado = True
+            elif conv.status_code == 404:
+                conveniado = False
+        except SemResposta:
+            pass
+        ultimo = None
+        for formato in (codigo_servico_api(codigo), codigo.zfill(6)):
+            try:
+                resp = self._chamar("GET", f"/parametros_municipais/{municipio_ibge}/{formato}/historicoaliquotas", cert)
+            except SemResposta:
+                return ServicoNaPrefeitura(administrado=None, conveniado=conveniado,
+                                           mensagens=["O governo não respondeu agora. Tente de novo em instantes."])
+            ultimo = resp
+            if resp.ok:
+                try:
+                    dados = resp.json()
+                except ValueError:
+                    dados = {}
+                return ServicoNaPrefeitura(administrado=True, conveniado=conveniado,
+                                           aliquotas=dados.get("aliquotas") or {},
+                                           mensagens=[m for m in [dados.get("mensagem")] if m])
+            if resp.status_code == 404:
+                continue
+            break
+        if ultimo is not None and ultimo.status_code == 404:
+            return ServicoNaPrefeitura(administrado=False, conveniado=conveniado, mensagens=self._mensagens(ultimo))
+        return ServicoNaPrefeitura(administrado=None, conveniado=conveniado,
+                                   mensagens=self._mensagens(ultimo) if ultimo is not None else [])

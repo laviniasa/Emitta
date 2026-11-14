@@ -13,6 +13,7 @@
     modo: "carregando", // carregando | cliente | nova | vazio | seguranca
     busca: "",
     buscaServico: "",
+    prefeitura: {},
     eu: null,
     segredo2fa: null,
   };
@@ -204,11 +205,37 @@
         class: "apelido", value: s.apelido, "aria-label": `Nome que o cliente vê para ${s.descricao}`,
         oninput: (e) => { s.apelido = e.target.value; estado.alterado = true; atualizarPrevia(); },
       });
+      const conferido = estado.prefeitura[`${c.id}:${s.codigo}`];
+      const conferir = s.liberado && el("span", { class: "conferir" },
+        el("button", {
+          class: "botao-mini", type: "button",
+          onclick: async (e) => {
+            e.preventDefault();
+            const chave = `${c.id}:${s.codigo}`;
+            estado.prefeitura[chave] = { carregando: true };
+            desenharPrincipal();
+            try {
+              estado.prefeitura[chave] = await api("GET", `/contador/clientes/${c.id}/servicos/${s.codigo}/prefeitura`);
+            } catch (erro) {
+              estado.prefeitura[chave] = { erro: erro.message };
+            }
+            desenharPrincipal();
+          },
+        }, conferido && conferido.carregando ? "Conferindo…" : "Conferir na prefeitura"),
+        conferido && !conferido.carregando && el("span", {
+          class: "resultado-pref " + (conferido.erro || conferido.administrado === null ? "neutro" : conferido.administrado ? "ok" : "nao"),
+        }, conferido.erro ? conferido.erro
+          : conferido.administrado === true ? "✓ A prefeitura aceita este serviço"
+          : conferido.administrado === false ? (conferido.conveniado === false
+              ? "✗ O município ainda não usa o Emissor Nacional"
+              : "✗ A prefeitura não aceita este código. Tente outro serviço parecido.")
+          : (conferido.mensagens || []).join(" ") || "Não deu para conferir agora."));
       return el("label", { class: "servico" + (s.liberado ? " ligado" : "") },
         caixa,
         el("span", { class: "textos" },
           s.liberado ? apelido : el("span", { class: "nome-servico" }, s.descricao),
-          el("span", { class: "oficial" }, s.liberado ? `Código ${codigoBonito(s.codigo)} · ${s.descricao}` : `Código ${codigoBonito(s.codigo)}`)),
+          el("span", { class: "oficial" }, s.liberado ? `Código ${codigoBonito(s.codigo)} · ${s.descricao}` : `Código ${codigoBonito(s.codigo)}`),
+          conferir || null),
         el("span", { class: s.liberado ? "selo selo-verde" : "selo selo-cinza" }, s.liberado ? "Liberado" : "Bloqueado"),
       );
     };
