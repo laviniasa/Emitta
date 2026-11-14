@@ -137,6 +137,7 @@ class ServicoEmissao:
         servicos = {s["codigo"]: s for s in self.repo.servicos_liberados(cliente_id)}
         regras.verificar_servico_liberado(set(servicos), codigo_servico)
         codigo_municipal = (servicos.get(codigo_servico) or {}).get("codigo_municipal")
+        print(f"[emissao] cliente {cliente_id} servico {codigo_servico} codigo_municipal {codigo_municipal or '-'}", flush=True)
         tomador = regras.validar_documento(tomador_documento)
         tomador_nome = (tomador_nome or "").strip()
         if len(tomador_nome) < 2:

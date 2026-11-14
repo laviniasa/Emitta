@@ -222,7 +222,8 @@ class SefinNacional:
                 r = self._chamar("GET", f"/parametrizacao/{caminho}", cert, base=self.url_adn)
             except SemResposta:
                 return None
-            print(f"[parametrizacao] {caminho} -> HTTP {r.status_code}", flush=True)
+            print(f"[parametrizacao] {caminho} -> HTTP {r.status_code}"
+                  + (f" {r.text[:300]!r}" if r.ok else ""), flush=True)
             return r
 
         conv = get(f"{municipio_ibge}/convenio")

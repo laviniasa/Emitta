@@ -239,7 +239,12 @@
           : conferido.administrado === false ? (conferido.conveniado === false
               ? "✗ O município ainda não usa o Emissor Nacional"
               : "✗ A prefeitura não aceita este código. Tente outro serviço parecido.")
-          : (conferido.mensagens || []).join(" ") || "Não deu para conferir agora."));
+          : (conferido.mensagens || []).join(" ") || "Não deu para conferir agora."),
+        conferido && (conferido.codigos_municipais || []).length > 1 && el("span", { class: "escolher-cod" },
+          ...conferido.codigos_municipais.map((cod) => el("button", {
+            type: "button", class: "botao-mini" + (s.codigo_municipal === cod ? " escolhido" : ""),
+            onclick: (e) => { e.preventDefault(); s.codigo_municipal = cod; estado.alterado = true; desenharPrincipal(); },
+          }, `Usar ${cod}`))));
       return el("label", { class: "servico" + (s.liberado ? " ligado" : "") },
         caixa,
         el("span", { class: "textos" },
