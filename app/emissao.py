@@ -11,7 +11,7 @@ Proteção contra nota duplicada:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from . import regras
 from .assinatura import assinar
@@ -55,6 +55,20 @@ class NotaEmProcessamento(regras.ErroDeNegocio):
         )
 
 
+FUSO_BRASILIA = timezone(timedelta(hours=-3))  # o Brasil não tem horário de verão desde 2019
+
+
+def agora_brasilia() -> datetime:
+    """Hora de Brasília, 1 minuto para trás.
+
+    O Emissor Nacional recusa (E0008) DPS com data de emissão posterior ao
+    relógio dele; um pequeno atraso evita a recusa quando os relógios
+    diferem por alguns segundos. O fuso -03:00 também garante que a
+    competência (data) seja a do Brasil, e não a do servidor em UTC.
+    """
+    return (datetime.now(FUSO_BRASILIA) - timedelta(minutes=1)).replace(microsecond=0)
+
+
 class ServicoEmissao:
     def __init__(
         self,
@@ -62,13 +76,13 @@ class ServicoEmissao:
         sefin: ClienteSefin,
         config: Config,
         certificados: ProvedorCertificados,
-        relogio=lambda: datetime.now().astimezone(),
+        relogio=None,
     ):
         self.repo = repo
         self.sefin = sefin
         self.config = config
         self.certificados = certificados
-        self.agora = relogio
+        self.agora = relogio or agora_brasilia
 
     def _cliente(self, cliente_id: int):
         cliente = self.repo.buscar_cliente(cliente_id)
