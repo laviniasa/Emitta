@@ -185,3 +185,8 @@ a:hover { color: var(--verde-escuro); }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 .campo .ajuda, .ajuda { font-size: 12px; color: var(--texto-3); line-height: 1.45; }
+
+/* App instalado no iPhone: o conteúdo não fica embaixo do relógio e da bateria */
+@media (display-mode: standalone) {
+  body { padding-top: env(safe-area-inset-top); }
+}
