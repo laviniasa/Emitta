@@ -228,6 +228,7 @@ class Repositorio:
             "cert_pfx_cifrado": "BLOB", "cert_senha_cifrada": "BLOB",
             "cert_validade": "TEXT", "cert_titular": "TEXT",
         },
+        "servicos_liberados": {"codigo_municipal": "TEXT"},
         "notas": {
             "competencia": "TEXT", "iss_retido": "INTEGER NOT NULL DEFAULT 0", "id_dps": "TEXT",
             "xml_dps": "TEXT", "chave_envio": "TEXT",
@@ -302,18 +303,19 @@ class Repositorio:
 
     # ------------------------------------------------------------ serviços
 
-    def definir_servicos_liberados(self, cliente_id: int, servicos: list[tuple[str, str]]) -> None:
-        """Substitui toda a lista de serviços liberados (codigo, apelido)."""
+    def definir_servicos_liberados(self, cliente_id: int, servicos: list[tuple]) -> None:
+        """Substitui toda a lista de serviços liberados: (codigo, apelido[, codigo_municipal])."""
+        linhas = [(cliente_id, s[0], s[1], (s[2] if len(s) > 2 else None) or None) for s in servicos]
         with self.con:
             self.con.execute("DELETE FROM servicos_liberados WHERE cliente_id = ?", (cliente_id,))
             self.con.executemany(
-                "INSERT INTO servicos_liberados (cliente_id, codigo, apelido) VALUES (?, ?, ?)",
-                [(cliente_id, codigo, apelido) for codigo, apelido in servicos],
+                "INSERT INTO servicos_liberados (cliente_id, codigo, apelido, codigo_municipal) VALUES (?, ?, ?, ?)",
+                linhas,
             )
 
     def servicos_liberados(self, cliente_id: int) -> list[dict]:
         linhas = self.con.execute(
-            "SELECT codigo, apelido FROM servicos_liberados WHERE cliente_id = ? ORDER BY apelido",
+            "SELECT codigo, apelido, codigo_municipal FROM servicos_liberados WHERE cliente_id = ? ORDER BY apelido",
             (cliente_id,),
         ).fetchall()
         return [dict(l) for l in linhas]

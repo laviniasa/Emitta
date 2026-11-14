@@ -134,8 +134,9 @@ class ServicoEmissao:
                 return self._resolver_existente(cliente, existente)
 
         # 1. Regras antes de qualquer coisa sair do servidor
-        liberados = {s["codigo"] for s in self.repo.servicos_liberados(cliente_id)}
-        regras.verificar_servico_liberado(liberados, codigo_servico)
+        servicos = {s["codigo"]: s for s in self.repo.servicos_liberados(cliente_id)}
+        regras.verificar_servico_liberado(set(servicos), codigo_servico)
+        codigo_municipal = (servicos.get(codigo_servico) or {}).get("codigo_municipal")
         tomador = regras.validar_documento(tomador_documento)
         tomador_nome = (tomador_nome or "").strip()
         if len(tomador_nome) < 2:
@@ -171,6 +172,7 @@ class ServicoEmissao:
             aliquota_iss=cliente.aliquota_iss,
             reg_ap_trib_sn=cliente.reg_ap_trib_sn or "1",
             p_tot_trib_sn=percentual_sn,
+            codigo_municipal=codigo_municipal,
         ))
         assinar(xml, "infDPS", cert)
         self._validar_xsd(xml, "DPS_v1.01.xsd")

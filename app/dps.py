@@ -40,6 +40,7 @@ class DadosDPS:
     aliquota_iss: str = "0"  # % do ISS (só vai no XML quando a regra exige)
     reg_ap_trib_sn: str = "1"  # regime de apuração do Simples (só ME/EPP)
     p_tot_trib_sn: str = "0.00"  # % aproximado de tributos do Simples (ME/EPP)
+    codigo_municipal: str | None = None  # cTribMun: complemento exigido por algumas prefeituras
 
 
 def _sub(pai: etree._Element, tag: str, texto: str | None = None) -> etree._Element:
@@ -87,6 +88,8 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     _sub(loc, "cLocPrestacao", d.municipio_ibge)
     cserv = _sub(serv, "cServ")
     _sub(cserv, "cTribNac", d.codigo_servico.zfill(6))
+    if d.codigo_municipal:
+        _sub(cserv, "cTribMun", d.codigo_municipal)
     _sub(cserv, "xDescServ", d.descricao)
 
     valores = _sub(inf, "valores")

@@ -46,12 +46,14 @@ class ServicoNaPrefeitura:
     conveniado: bool | None = None
     aliquotas: dict = field(default_factory=dict)
     mensagens: list[str] = field(default_factory=list)
+    codigos_municipais: list[str] = field(default_factory=list)  # cTribMun aceitos (ex.: "001")
 
 
-def codigo_servico_api(codigo: str) -> str:
-    """060201 -> 06.02.01.000 (formato pedido pela API de parâmetros municipais)."""
+def codigo_servico_api(codigo: str, municipal: str = "000") -> str:
+    """060201 (+ 003) -> 06.02.01.003: formato da API de parâmetros municipais
+    (código nacional + complemento municipal cTribMun; 000 = sem complemento)."""
     c = codigo.zfill(6)
-    return f"{c[:2]}.{c[2:4]}.{c[4:6]}.000"
+    return f"{c[:2]}.{c[2:4]}.{c[4:6]}.{municipal}"
 
 
 class ClienteSefin(Protocol):
@@ -126,11 +128,13 @@ class SefinSimulada:
 
 
 class SefinNacional:
-    def __init__(self, url_base: str, timeout: int = 40):
+    def __init__(self, url_base: str, url_adn: str | None = None, timeout: int = 40):
         self.url_base = url_base.rstrip("/")
+        self.url_adn = (url_adn or url_base.replace("://sefin.", "://adn.").split("/Sefin")[0]).rstrip("/")
         self.timeout = timeout
 
-    def _chamar(self, metodo: str, caminho: str, cert: Certificado, corpo: dict | None = None) -> requests.Response:
+    def _chamar(self, metodo: str, caminho: str, cert: Certificado, corpo: dict | None = None,
+                base: str | None = None) -> requests.Response:
         # requests precisa do certificado em arquivos PEM: criamos temporários
         # só durante a chamada, com permissão restrita, e apagamos em seguida.
         with tempfile.TemporaryDirectory() as pasta:
@@ -140,7 +144,7 @@ class SefinNacional:
             key.write_bytes(cert.pem_chave())
             try:
                 return requests.request(
-                    metodo, f"{self.url_base}{caminho}", json=corpo, cert=(str(crt), str(key)),
+                    metodo, f"{base or self.url_base}{caminho}", json=corpo, cert=(str(crt), str(key)),
                     timeout=self.timeout, headers={"Accept": "application/json"},
                 )
             except (requests.Timeout, requests.ConnectionError) as erro:
@@ -207,37 +211,57 @@ class SefinNacional:
                              xml=descompactar(xml) if xml else None)
 
     def consultar_servico_municipio(self, municipio_ibge: str, codigo: str, cert) -> ServicoNaPrefeitura:
-        """Pergunta ao governo se o município aceita este código de serviço
-        (e com qual alíquota). Evita a recusa E0312 antes de emitir."""
-        conveniado = None
-        try:
-            conv = self._chamar("GET", f"/parametros_municipais/{municipio_ibge}/convenio", cert)
-            if conv.ok:
-                conveniado = True
-            elif conv.status_code == 404:
-                conveniado = False
-        except SemResposta:
-            pass
-        ultimo = None
-        for formato in (codigo_servico_api(codigo), codigo.zfill(6)):
+        """Pergunta ao governo (ADN, /parametrizacao) se o município aceita este
+        serviço e com quais complementos municipais (cTribMun). Evita a recusa
+        E0312, que acontece quando a prefeitura exige o complemento."""
+        from concurrent.futures import ThreadPoolExecutor
+        from datetime import date
+
+        def get(caminho):
             try:
-                resp = self._chamar("GET", f"/parametros_municipais/{municipio_ibge}/{formato}/historicoaliquotas", cert)
+                r = self._chamar("GET", f"/parametrizacao/{caminho}", cert, base=self.url_adn)
             except SemResposta:
-                return ServicoNaPrefeitura(administrado=None, conveniado=conveniado,
-                                           mensagens=["O governo não respondeu agora. Tente de novo em instantes."])
-            ultimo = resp
-            if resp.ok:
-                try:
-                    dados = resp.json()
-                except ValueError:
-                    dados = {}
-                return ServicoNaPrefeitura(administrado=True, conveniado=conveniado,
-                                           aliquotas=dados.get("aliquotas") or {},
-                                           mensagens=[m for m in [dados.get("mensagem")] if m])
-            if resp.status_code == 404:
-                continue
-            break
-        if ultimo is not None and ultimo.status_code == 404:
-            return ServicoNaPrefeitura(administrado=False, conveniado=conveniado, mensagens=self._mensagens(ultimo))
-        return ServicoNaPrefeitura(administrado=None, conveniado=conveniado,
-                                   mensagens=self._mensagens(ultimo) if ultimo is not None else [])
+                return None
+            print(f"[parametrizacao] {caminho} -> HTTP {r.status_code}", flush=True)
+            return r
+
+        conv = get(f"{municipio_ibge}/convenio")
+        conveniado = None if conv is None else (True if conv.ok else False if conv.status_code == 404 else None)
+
+        candidatos = ["000"] + [f"{n:03d}" for n in range(1, 31)]
+        hoje = date.today().isoformat()
+
+        def consulta(municipal, modo):
+            cod = codigo_servico_api(codigo, municipal)
+            caminho = (f"{municipio_ibge}/{cod}/historicoaliquotas" if modo == "historico"
+                       else f"{municipio_ibge}/{cod}/{hoje}/aliquota")
+            return municipal, get(caminho)
+
+        aceitos, aliquotas, mensagens, algum_erro = [], {}, [], False
+        for modo in ("historico", "aliquota"):
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                resultados = list(pool.map(lambda m: consulta(m, modo), candidatos))
+            for municipal, r in resultados:
+                if r is None or r.status_code >= 500:
+                    algum_erro = True
+                    continue
+                if r.ok:
+                    try:
+                        dados = r.json()
+                    except ValueError:
+                        dados = {}
+                    if dados.get("aliquotas") or dados.get("aliquota") is not None or not dados.get("mensagem"):
+                        aceitos.append(municipal)
+                        aliquotas[municipal] = dados.get("aliquotas") or dados.get("aliquota")
+                    elif dados.get("mensagem"):
+                        mensagens.append(dados["mensagem"])
+            if aceitos:
+                break
+        if aceitos:
+            return ServicoNaPrefeitura(administrado=True, conveniado=conveniado if conveniado is not None else True,
+                                       aliquotas=aliquotas, mensagens=mensagens[:2],
+                                       codigos_municipais=[m for m in aceitos if m != "000"])
+        if algum_erro:
+            return ServicoNaPrefeitura(administrado=None, conveniado=conveniado,
+                                       mensagens=["O governo não respondeu a todas as consultas. Tente de novo em instantes."])
+        return ServicoNaPrefeitura(administrado=False, conveniado=conveniado, mensagens=mensagens[:2])

@@ -101,6 +101,7 @@ class NovoCliente(BaseModel):
 class ServicoLiberado(BaseModel):
     codigo: str
     apelido: str | None = None
+    codigo_municipal: str | None = None  # complemento da prefeitura (cTribMun), 3 dígitos
 
 
 class ListaServicos(BaseModel):
@@ -193,7 +194,7 @@ def criar_app(
 ) -> FastAPI:
     if servico is None:
         config = carregar_config()
-        sefin = SefinSimulada() if config.ambiente == "simulacao" else SefinNacional(config.url_sefin)
+        sefin = SefinSimulada() if config.ambiente == "simulacao" else SefinNacional(config.url_sefin, config.url_adn)
         servico = ServicoEmissao(
             repo=Repositorio(config.banco),
             sefin=sefin,
@@ -717,9 +718,11 @@ def criar_app(
     @app.get("/contador/clientes/{cliente_id}/servicos", tags=["contador"])
     def ver_servicos_do_cliente(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):
         cliente_ou_404(cliente_id)
-        liberados = {s["codigo"]: s["apelido"] for s in repo.servicos_liberados(cliente_id)}
+        liberados = {s["codigo"]: s for s in repo.servicos_liberados(cliente_id)}
         return [
-            {**s, "liberado": s["codigo"] in liberados, "apelido": liberados.get(s["codigo"])}
+            {**s, "liberado": s["codigo"] in liberados,
+             "apelido": (liberados.get(s["codigo"]) or {}).get("apelido"),
+             "codigo_municipal": (liberados.get(s["codigo"]) or {}).get("codigo_municipal")}
             for s in carregar_catalogo().values()
         ]
 
@@ -729,11 +732,16 @@ def criar_app(
         cliente_ou_404(cliente_id)
         catalogo = carregar_catalogo()
         desconhecidos = [s.codigo for s in dados.servicos if s.codigo not in catalogo]
+        invalidos = [s.codigo_municipal for s in dados.servicos
+                     if s.codigo_municipal and not (len(s.codigo_municipal) == 3 and s.codigo_municipal.isdigit())]
+        if invalidos:
+            raise HTTPException(422, "O código municipal tem 3 números (ex.: 001).")
         if desconhecidos:
             raise HTTPException(422, f"Códigos fora da lista nacional: {', '.join(desconhecidos)}")
         repo.definir_servicos_liberados(
             cliente_id,
-            [(s.codigo, (s.apelido or catalogo[s.codigo]["descricao"]).strip()) for s in dados.servicos],
+            [(s.codigo, (s.apelido or catalogo[s.codigo]["descricao"]).strip(), s.codigo_municipal or None)
+             for s in dados.servicos],
         )
         return repo.servicos_liberados(cliente_id)
 
@@ -793,13 +801,14 @@ def criar_app(
             raise HTTPException(422, str(e))
         r = servico.sefin.consultar_servico_municipio(cliente.municipio_ibge, codigo, cert)
         return {"codigo": codigo, "municipio_ibge": cliente.municipio_ibge, "administrado": r.administrado,
-                "conveniado": r.conveniado, "aliquotas": r.aliquotas, "mensagens": r.mensagens}
+                "conveniado": r.conveniado, "aliquotas": r.aliquotas, "mensagens": r.mensagens,
+                "codigos_municipais": r.codigos_municipais}
 
     @app.get("/app/{cliente_id}/servicos", tags=["app da empresa"])
     def servicos_para_emitir(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
         """Só os serviços liberados pelo contador."""
         cliente_ou_404(cliente_id)
-        return repo.servicos_liberados(cliente_id)
+        return [{"codigo": s["codigo"], "apelido": s["apelido"]} for s in repo.servicos_liberados(cliente_id)]
 
     @app.post("/app/{cliente_id}/notas", status_code=201, tags=["app da empresa"])
     def emitir_nota(cliente_id: int, dados: NovaNota, request: Request, usuario: Usuario = Depends(autorizar_empresa)):

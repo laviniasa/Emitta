@@ -84,7 +84,8 @@
   async function salvarServicos(botao) {
     const servicos = estado.servicos
       .filter((s) => s.liberado)
-      .map((s) => ({ codigo: s.codigo, apelido: (s.apelido || "").trim() || s.descricao }));
+      .map((s) => ({ codigo: s.codigo, apelido: (s.apelido || "").trim() || s.descricao,
+        codigo_municipal: (s.codigo_municipal || "").trim() || null }));
     botao.disabled = true;
     try {
       await api("PUT", `/contador/clientes/${estado.selecionado}/servicos`, { servicos });
@@ -215,7 +216,14 @@
             estado.prefeitura[chave] = { carregando: true };
             desenharPrincipal();
             try {
-              estado.prefeitura[chave] = await api("GET", `/contador/clientes/${c.id}/servicos/${s.codigo}/prefeitura`);
+              const r = await api("GET", `/contador/clientes/${c.id}/servicos/${s.codigo}/prefeitura`);
+              estado.prefeitura[chave] = r;
+              // a prefeitura exige complemento e só aceita um: já preenche (falta salvar)
+              const cods = r.codigos_municipais || [];
+              if (cods.length && !cods.includes(s.codigo_municipal || "")) {
+                s.codigo_municipal = cods[0];
+                estado.alterado = true;
+              }
             } catch (erro) {
               estado.prefeitura[chave] = { erro: erro.message };
             }
@@ -225,7 +233,9 @@
         conferido && !conferido.carregando && el("span", {
           class: "resultado-pref " + (conferido.erro || conferido.administrado === null ? "neutro" : conferido.administrado ? "ok" : "nao"),
         }, conferido.erro ? conferido.erro
-          : conferido.administrado === true ? "✓ A prefeitura aceita este serviço"
+          : conferido.administrado === true ? ((conferido.codigos_municipais || []).length
+              ? `✓ Aceita com o código municipal ${conferido.codigos_municipais.join(" ou ")}. Já preenchi: toque em "Salvar e enviar para o app".`
+              : "✓ A prefeitura aceita este serviço")
           : conferido.administrado === false ? (conferido.conveniado === false
               ? "✗ O município ainda não usa o Emissor Nacional"
               : "✗ A prefeitura não aceita este código. Tente outro serviço parecido.")
@@ -235,6 +245,13 @@
         el("span", { class: "textos" },
           s.liberado ? apelido : el("span", { class: "nome-servico" }, s.descricao),
           el("span", { class: "oficial" }, s.liberado ? `Código ${codigoBonito(s.codigo)} · ${s.descricao}` : `Código ${codigoBonito(s.codigo)}`),
+          s.liberado && el("label", { class: "cod-mun" }, "Código municipal",
+            el("input", {
+              value: s.codigo_municipal || "", inputmode: "numeric", maxlength: 3, placeholder: "opcional",
+              "aria-label": `Código municipal de ${s.descricao}`,
+              onclick: (e) => e.stopPropagation(),
+              oninput: (e) => { s.codigo_municipal = e.target.value.replace(/\D/g, "").slice(0, 3); e.target.value = s.codigo_municipal; estado.alterado = true; botaoSalvar.disabled = false; botaoSalvar.textContent = "Salvar e enviar para o app"; },
+            })),
           conferir || null),
         el("span", { class: s.liberado ? "selo selo-verde" : "selo selo-cinza" }, s.liberado ? "Liberado" : "Bloqueado"),
       );

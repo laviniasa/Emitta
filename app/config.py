@@ -12,6 +12,12 @@ URLS_SEFIN = {
     "producao": "https://sefin.nfse.gov.br/SefinNacional",
 }
 
+URLS_ADN = {
+    # Ambiente de Dados Nacional: onde ficam os parâmetros municipais (parametrizacao).
+    "homologacao": "https://adn.producaorestrita.nfse.gov.br",
+    "producao": "https://adn.nfse.gov.br",
+}
+
 AMBIENTES = ("simulacao", "homologacao", "producao")
 
 
@@ -26,6 +32,10 @@ class Config:
     @property
     def url_sefin(self) -> str | None:
         return URLS_SEFIN.get(self.ambiente)
+
+    @property
+    def url_adn(self) -> str | None:
+        return URLS_ADN.get(self.ambiente)
 
     @property
     def tp_amb(self) -> str:

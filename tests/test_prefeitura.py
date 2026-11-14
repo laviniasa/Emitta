@@ -14,10 +14,10 @@ class Resp:
 
 
 def sefin_com(respostas):
-    s = SefinNacional("https://exemplo")
+    s = SefinNacional("https://sefin.exemplo/SefinNacional")
     chamadas = []
 
-    def chamar(metodo, caminho, cert, corpo=None):
+    def chamar(metodo, caminho, cert, corpo=None, base=None):
         chamadas.append(caminho)
         for trecho, resp in respostas.items():
             if trecho in caminho:
@@ -30,13 +30,25 @@ def sefin_com(respostas):
 
 def test_formato_do_codigo():
     assert codigo_servico_api("60201") == "06.02.01.000"
+    assert codigo_servico_api("010401", "003") == "01.04.01.003"
 
 
-def test_servico_aceito():
-    s, chamadas = sefin_com({"/convenio": Resp(200, {}), "historicoaliquotas": Resp(200, {"aliquotas": {"06.02.01.000": []}})})
+def test_url_do_adn():
+    assert SefinNacional("https://sefin.producaorestrita.nfse.gov.br/SefinNacional").url_adn == \
+        "https://adn.producaorestrita.nfse.gov.br"
+
+
+def test_servico_aceito_sem_complemento():
+    s, chamadas = sefin_com({"/convenio": Resp(200, {}), "06.02.01.000/historicoaliquotas": Resp(200, {"aliquotas": {"x": []}})})
     r = s.consultar_servico_municipio("3550308", "060201", None)
-    assert r.administrado is True and r.conveniado is True
-    assert "/parametros_municipais/3550308/06.02.01.000/historicoaliquotas" in chamadas
+    assert r.administrado is True and r.conveniado is True and r.codigos_municipais == []
+    assert "/parametrizacao/3550308/06.02.01.000/historicoaliquotas" in chamadas
+
+
+def test_prefeitura_exige_codigo_municipal():
+    s, _ = sefin_com({"/convenio": Resp(200, {}), "01.04.01.003/historicoaliquotas": Resp(200, {"aliquotas": {"x": []}})})
+    r = s.consultar_servico_municipio("3304557", "010401", None)
+    assert r.administrado is True and r.codigos_municipais == ["003"]
 
 
 def test_servico_nao_aceito_e_municipio_sem_convenio():
