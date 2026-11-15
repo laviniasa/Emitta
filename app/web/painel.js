@@ -15,7 +15,7 @@
     buscaServico: "",
     prefeitura: {},
     aba: null, // servicos | notas | certificado | acesso | dados
-    janelaServicos: false,
+    vistaServicos: "liberados", // liberados | todos
     eu: null,
     segredo2fa: null,
   };
@@ -63,8 +63,8 @@
     estado.modo = "carregando";
     estado.alterado = false;
     estado.aba = null;
-    estado.janelaServicos = false;
     estado.buscaServico = "";
+    estado.vistaServicos = null;
     guardar("emitta.painel.cliente", String(id));
     desenharLista();
     desenharPrincipal();
@@ -247,7 +247,7 @@
 
     return [cabecalho, passos || null, abas,
       el("div", { role: "tabpanel", "aria-labelledby": `aba-${estado.aba}`, class: "painel-aba" }, ...conteudo),
-      estado.janelaServicos ? janelaServicos(c) : null].filter(Boolean);
+    ].filter(Boolean);
   }
 
   // ------------------------------------------------------------ aba Serviços
@@ -315,17 +315,29 @@
         maisOpcoes);
     };
 
+    if (!estado.vistaServicos) estado.vistaServicos = liberados.length ? "liberados" : "todos";
+    const todos = estado.vistaServicos === "todos";
+    const chave = el("div", { class: "chave-vista", role: "tablist", "aria-label": "Quais serviços mostrar" },
+      el("button", { type: "button", role: "tab", "aria-selected": todos ? "false" : "true", id: "vista-liberados",
+        onclick: () => { estado.vistaServicos = "liberados"; desenharPrincipal(); } },
+        "Liberados ", el("span", { class: "aba-qtd" }, String(liberados.length))),
+      el("button", { type: "button", role: "tab", "aria-selected": todos ? "true" : "false",
+        onclick: () => { estado.vistaServicos = "todos"; desenharPrincipal(); } },
+        "Todos os serviços ", el("span", { class: "aba-qtd" }, String(estado.servicos.length))));
     const lista = el("section", { class: "card col-servicos" },
-      el("div", { class: "cabecalho-secao" },
-        el("div", {},
-          el("h2", { class: "titulo" }, "Serviços que a empresa pode emitir"),
-          el("p", { class: "sub2", style: "margin-top:4px" }, "Só estes aparecem no app do cliente. Toque no nome para trocar pelo nome que ele entende.")),
-        el("button", { class: "botao", type: "button", onclick: () => { estado.janelaServicos = true; estado.buscaServico = ""; desenharPrincipal(); } },
-          icone("mais", 18), "Liberar serviço")),
-      ...(liberados.length ? liberados.map(cartaoServico)
+      el("div", {},
+        el("h2", { class: "titulo" }, "Serviços que a empresa pode emitir"),
+        el("p", { class: "sub2", style: "margin-top:4px" }, todos
+          ? "Lista nacional completa. Toque em \"Liberar\" nos serviços que esta empresa presta."
+          : "Só os liberados aparecem no app do cliente. Toque no nome para trocar pelo nome que ele entende.")),
+      chave,
+      ...(todos ? catalogoServicos()
+        : liberados.length ? liberados.map(cartaoServico)
         : [el("div", { class: "vazio-servicos" },
           el("p", {}, "Nenhum serviço liberado ainda."),
-          el("p", { class: "sub2" }, "Toque em \"Liberar serviço\" e busque os serviços que esta empresa presta."))]),
+          el("p", { class: "sub2" }, "Abra \"Todos os serviços\" e libere os que esta empresa presta."),
+          el("button", { class: "botao", type: "button", style: "align-self:center;margin-top:8px",
+            onclick: () => { estado.vistaServicos = "todos"; desenharPrincipal(); } }, "Ver todos os serviços"))]),
     );
 
     const previa = el("section", { class: "card previa", id: "previa" });
@@ -353,30 +365,35 @@
     if (b) { b.disabled = false; b.textContent = "Salvar e enviar para o app"; }
   }
 
-  // Janela por cima da tela para achar e liberar serviços da lista nacional.
-  function janelaServicos(c) {
-    const fechar = () => { estado.janelaServicos = false; desenharPrincipal(); };
+  // Lista nacional completa dentro da aba Serviços: busca + áreas, com "Liberar" em cada um.
+  function catalogoServicos() {
+    const atualizarContagem = () => {
+      const n = estado.servicos.filter((s) => s.liberado).length;
+      const q = document.querySelector("#vista-liberados .aba-qtd");
+      if (q) q.textContent = String(n);
+      const q2 = document.querySelector("#aba-servicos .aba-qtd");
+      if (q2) q2.textContent = String(n);
+    };
     const linha = (s) => {
       const botao = el("button", {
         type: "button", class: s.liberado ? "botao-mini escolhido" : "botao-mini",
+        "aria-pressed": s.liberado ? "true" : "false",
         onclick: () => {
           s.liberado = !s.liberado;
           if (s.liberado && !s.apelido) s.apelido = s.descricao;
-          estado.alterado = true;
+          marcarAlterado();
           botao.className = s.liberado ? "botao-mini escolhido" : "botao-mini";
+          botao.setAttribute("aria-pressed", s.liberado ? "true" : "false");
           botao.textContent = s.liberado ? "✓ Liberado" : "Liberar";
-          contador.textContent = textoContador();
+          linhaEl.classList.toggle("ligada", s.liberado);
+          atualizarContagem();
         },
       }, s.liberado ? "✓ Liberado" : "Liberar");
-      return el("div", { class: "linha-catalogo" },
+      const linhaEl = el("div", { class: "linha-catalogo" + (s.liberado ? " ligada" : "") },
         el("span", { class: "textos" }, el("span", { class: "nome-servico" }, s.descricao), el("span", { class: "oficial" }, codigoBonito(s.codigo))),
         botao);
+      return linhaEl;
     };
-    const textoContador = () => {
-      const n = estado.servicos.filter((s) => s.liberado).length;
-      return n === 1 ? "1 serviço liberado" : `${n} serviços liberados`;
-    };
-    const contador = el("span", { class: "sub2" }, textoContador());
     const $resultados = el("div", { class: "resultados-servicos", "aria-live": "polite" });
     const desenhar = () => {
       const termo = estado.buscaServico.trim();
@@ -390,8 +407,11 @@
         $resultados.replaceChildren(
           el("p", { class: "sub2" }, `Ou navegue pelas ${areas.size} áreas da lista nacional:`),
           ...[...areas.entries()].map(([chave, a]) => {
+            const qtdLib = a.lista.filter((s) => s.liberado).length;
             const caixa = el("details", { class: "area" },
-              el("summary", {}, el("span", { class: "area-cod" }, chave), el("span", { class: "area-nome" }, a.nome), el("span", { class: "area-qtd" }, String(a.lista.length))));
+              el("summary", {}, el("span", { class: "area-cod" }, chave), el("span", { class: "area-nome" }, a.nome),
+                qtdLib ? el("span", { class: "area-qtd area-lib" }, `${qtdLib} liberado${qtdLib > 1 ? "s" : ""}`) : null,
+                el("span", { class: "area-qtd" }, String(a.lista.length))));
             caixa.addEventListener("toggle", () => { if (caixa.open && caixa.children.length === 1) caixa.append(...a.lista.map(linha)); });
             return caixa;
           }));
@@ -407,21 +427,11 @@
     };
     const $busca = el("input", {
       type: "search", class: "busca-servico", value: estado.buscaServico,
-      placeholder: "Ex.: cabelo, contabilidade, 17.19", "aria-label": "Buscar serviço na lista nacional", autocomplete: "off",
+      placeholder: "Buscar: ex. cabelo, contabilidade, 17.19", "aria-label": "Buscar serviço na lista nacional", autocomplete: "off",
       oninput: (e) => { estado.buscaServico = e.target.value; desenhar(); },
     });
     desenhar();
-    const caixa = el("div", { class: "janela", role: "dialog", "aria-modal": "true", "aria-labelledby": "titulo-janela" },
-      el("div", { class: "janela-topo" },
-        el("div", {}, el("h2", { class: "titulo", id: "titulo-janela" }, "Liberar serviços"), contador),
-        el("button", { type: "button", class: "botao-icone", "aria-label": "Fechar", onclick: fechar }, icone("fechar", 20))),
-      el("div", { class: "busca-servico-campo" }, icone("busca", 18), $busca),
-      el("div", { class: "janela-corpo" }, $resultados),
-      el("div", { class: "janela-rodape" }, el("button", { class: "botao", type: "button", onclick: fechar }, "Pronto")));
-    const fundo = el("div", { class: "janela-fundo", onclick: (e) => { if (e.target === fundo) fechar(); } }, caixa);
-    fundo.addEventListener("keydown", (e) => { if (e.key === "Escape") fechar(); });
-    setTimeout(() => $busca.focus(), 0);
-    return fundo;
+    return [el("div", { class: "busca-servico-campo" }, icone("busca", 18), $busca), $resultados];
   }
 
   // ------------------------------------------------------------ abas Notas e Dados

@@ -86,6 +86,11 @@
   .aba-qtd { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--fundo); color: var(--texto); }
   .aba-empresa[aria-selected="true"] .aba-qtd { background: var(--lima); color: var(--noite); }
   .painel-aba { display: flex; flex-direction: column; gap: 16px; }
+  .chave-vista { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--fundo); }
+  .chave-vista button { min-height: 42px; border: 0; border-radius: 10px; background: transparent; font: inherit; font-size: 14px; font-weight: 600; color: var(--texto-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .chave-vista button[aria-selected="true"] { background: #fff; color: var(--texto); box-shadow: 0 1px 4px rgba(15,42,36,.12); }
+  .linha-catalogo.ligada .nome-servico { color: var(--verde); }
+  .area-qtd.area-lib { background: var(--lima); color: var(--noite); font-weight: 700; }
   .cabecalho-secao { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
   .vazio-servicos { padding: 28px 16px; text-align: center; border: 1.5px dashed var(--borda); border-radius: var(--raio); display: flex; flex-direction: column; gap: 4px; }
   .cartao-servico { border: 1.5px solid #D7EDB0; background: #FBFEF5; border-radius: var(--raio); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
@@ -116,7 +121,7 @@
     .janela { width: 100%; max-height: 92vh; border-radius: 22px 22px 0 0; }
   }
   .conferir { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
-  .botao-mini { border: 1.5px solid var(--borda); background: #fff; color: var(--texto); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .botao-mini { white-space: nowrap; flex-shrink: 0; border: 1.5px solid var(--borda); background: #fff; color: var(--texto); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
   .botao-mini:hover { border-color: var(--verde); }
   .escolher-cod { display: inline-flex; gap: 6px; }
   .botao-mini.escolhido { background: var(--verde); color: #fff; border-color: var(--verde); }
