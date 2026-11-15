@@ -14,6 +14,8 @@
     busca: "",
     buscaServico: "",
     prefeitura: {},
+    aba: null, // servicos | notas | certificado | acesso | dados
+    janelaServicos: false,
     eu: null,
     segredo2fa: null,
   };
@@ -60,6 +62,9 @@
     estado.selecionado = id;
     estado.modo = "carregando";
     estado.alterado = false;
+    estado.aba = null;
+    estado.janelaServicos = false;
+    estado.buscaServico = "";
     guardar("emitta.painel.cliente", String(id));
     desenharLista();
     desenharPrincipal();
@@ -180,148 +185,149 @@
     return achados.sort((a, b) => nota(a) - nota(b) || a.codigo.localeCompare(b.codigo));
   }
 
+  const ABAS = [
+    { id: "servicos", nome: "Serviços" },
+    { id: "notas", nome: "Notas" },
+    { id: "certificado", nome: "Certificado" },
+    { id: "acesso", nome: "Acesso ao app" },
+    { id: "dados", nome: "Dados da empresa" },
+  ];
+
+  function irParaAba(aba) {
+    estado.aba = aba;
+    desenharPrincipal();
+  }
+
   function telaCliente() {
     const c = estado.clientes.find((x) => x.id === estado.selecionado);
     const liberados = estado.servicos.filter((s) => s.liberado);
+    if (!estado.aba) estado.aba = "servicos";
 
     const cabecalho = el("section", { class: "card cabecalho-cliente" },
       el("div", {},
         el("h1", {}, c.razao_social),
-        el("p", { class: "sub" }, `CNPJ ${formatarDocumento(c.cnpj)} · ${c.municipio_nome} · Simples Nacional`)),
+        el("p", { class: "sub" }, `CNPJ ${formatarDocumento(c.cnpj)} · ${c.municipio_nome}`)),
       el("a", { class: "botao botao-secundario", href: `/empresa?empresa=${c.id}` }, "Ver como o cliente vê"),
     );
 
-    // Serviços: os liberados ficam sempre em cima; o resto se acha pela busca ou por área.
-    const linhaServico = (s) => {
-      const caixa = el("input", {
-        type: "checkbox", checked: s.liberado,
-        "aria-label": `Liberar ${s.descricao}`,
-        onchange: (e) => {
-          s.liberado = e.target.checked;
-          estado.alterado = true;
-          desenharPrincipal();
+    // Passo a passo da empresa nova: some quando as três etapas estão prontas.
+    const etapas = [
+      { aba: "certificado", nome: "Certificado", feito: !!c.certificado },
+      { aba: "servicos", nome: "Serviços", feito: c.servicos_liberados > 0 },
+      { aba: "acesso", nome: "Acesso ao app", feito: estado.acessos.length > 0 },
+    ];
+    const faltam = etapas.filter((e) => !e.feito).length;
+    const passos = faltam > 0 && el("section", { class: "card passos" },
+      el("div", { class: "passos-titulo" },
+        el("strong", {}, "Deixe a empresa pronta para emitir"),
+        el("span", { class: "sub2" }, faltam === 1 ? "Falta 1 etapa" : `Faltam ${faltam} etapas`)),
+      el("ol", { class: "passos-lista" }, ...etapas.map((e, i) => el("li", {},
+        el("button", {
+          type: "button", class: "passo" + (e.feito ? " feito" : "") + (estado.aba === e.aba ? " atual" : ""),
+          onclick: () => irParaAba(e.aba),
         },
-      });
+          el("span", { class: "passo-num", "aria-hidden": "true" }, e.feito ? "✓" : String(i + 1)),
+          el("span", {}, e.nome, el("span", { class: "visualmente-oculto" }, e.feito ? " (feito)" : " (pendente)")))))));
+
+    const abas = el("div", { class: "abas-empresa", role: "tablist", "aria-label": "Seções da empresa" },
+      ...ABAS.map((a) => el("button", {
+        type: "button", role: "tab", class: "aba-empresa", id: `aba-${a.id}`,
+        "aria-selected": estado.aba === a.id ? "true" : "false",
+        onclick: () => { if (a.id !== estado.aba) irParaAba(a.id); },
+      }, a.nome,
+        a.id === "servicos" && el("span", { class: "aba-qtd" }, String(liberados.length)),
+        a.id === "notas" && estado.notas.length > 0 && el("span", { class: "aba-qtd" }, String(estado.notas.length)))));
+
+    let conteudo;
+    if (estado.aba === "notas") conteudo = [secaoNotas()];
+    else if (estado.aba === "certificado") conteudo = [secaoCertificado(c)];
+    else if (estado.aba === "acesso") conteudo = [secaoAcessos(c)];
+    else if (estado.aba === "dados") conteudo = [secaoDados(c)];
+    else conteudo = abaServicos(c, liberados);
+
+    return [cabecalho, passos || null, abas,
+      el("div", { role: "tabpanel", "aria-labelledby": `aba-${estado.aba}`, class: "painel-aba" }, ...conteudo),
+      estado.janelaServicos ? janelaServicos(c) : null].filter(Boolean);
+  }
+
+  // ------------------------------------------------------------ aba Serviços
+
+  function abaServicos(c, liberados) {
+    const cartaoServico = (s) => {
+      const chave = `${c.id}:${s.codigo}`;
+      const conferido = estado.prefeitura[chave];
       const apelido = el("input", {
         class: "apelido", value: s.apelido, "aria-label": `Nome que o cliente vê para ${s.descricao}`,
-        oninput: (e) => { s.apelido = e.target.value; estado.alterado = true; atualizarPrevia(); },
+        oninput: (e) => { s.apelido = e.target.value; marcarAlterado(); atualizarPrevia(); },
       });
-      const conferido = estado.prefeitura[`${c.id}:${s.codigo}`];
-      const conferir = s.liberado && el("span", { class: "conferir" },
-        el("button", {
-          class: "botao-mini", type: "button",
-          onclick: async (e) => {
-            e.preventDefault();
-            const chave = `${c.id}:${s.codigo}`;
-            estado.prefeitura[chave] = { carregando: true };
-            desenharPrincipal();
-            try {
-              const r = await api("GET", `/contador/clientes/${c.id}/servicos/${s.codigo}/prefeitura`);
-              estado.prefeitura[chave] = r;
-              // a prefeitura exige complemento e só aceita um: já preenche (falta salvar)
-              const cods = r.codigos_municipais || [];
-              if (cods.length && !cods.includes(s.codigo_municipal || "")) {
-                s.codigo_municipal = cods[0];
-                estado.alterado = true;
-              }
-            } catch (erro) {
-              estado.prefeitura[chave] = { erro: erro.message };
-            }
-            desenharPrincipal();
-          },
-        }, conferido && conferido.carregando ? "Conferindo…" : "Conferir na prefeitura"),
-        conferido && !conferido.carregando && el("span", {
-          class: "resultado-pref " + (conferido.erro || conferido.administrado === null ? "neutro" : conferido.administrado ? "ok" : "nao"),
-        }, conferido.erro ? conferido.erro
-          : conferido.administrado === true ? ((conferido.codigos_municipais || []).length
-              ? `✓ Aceita com o código municipal ${conferido.codigos_municipais.join(" ou ")}. Já preenchi: toque em "Salvar e enviar para o app".`
-              : "✓ A prefeitura aceita este serviço")
-          : conferido.administrado === false ? (conferido.conveniado === false
-              ? "✗ O município ainda não usa o Emissor Nacional"
-              : "✗ A prefeitura não aceita este código. Tente outro serviço parecido.")
-          : (conferido.mensagens || []).join(" ") || "Não deu para conferir agora."),
-        conferido && (conferido.codigos_municipais || []).length > 1 && el("span", { class: "escolher-cod" },
-          ...conferido.codigos_municipais.map((cod) => el("button", {
-            type: "button", class: "botao-mini" + (s.codigo_municipal === cod ? " escolhido" : ""),
-            onclick: (e) => { e.preventDefault(); s.codigo_municipal = cod; estado.alterado = true; desenharPrincipal(); },
-          }, `Usar ${cod}`))));
-      return el("label", { class: "servico" + (s.liberado ? " ligado" : "") },
-        caixa,
-        el("span", { class: "textos" },
-          s.liberado ? apelido : el("span", { class: "nome-servico" }, s.descricao),
-          el("span", { class: "oficial" }, s.liberado ? `Código ${codigoBonito(s.codigo)} · ${s.descricao}` : `Código ${codigoBonito(s.codigo)}`),
-          s.liberado && el("label", { class: "cod-mun" }, "Código municipal",
+      const resultado = conferido && !conferido.carregando && el("span", {
+        class: "resultado-pref " + (conferido.erro || conferido.administrado === null ? "neutro" : conferido.administrado ? "ok" : "nao"),
+      }, conferido.erro ? conferido.erro
+        : conferido.administrado === true ? ((conferido.codigos_municipais || []).length
+            ? `✓ Aceita com o código municipal ${conferido.codigos_municipais.join(" ou ")}.`
+            : "✓ A prefeitura aceita este serviço")
+        : conferido.administrado === false ? (conferido.conveniado === false
+            ? "✗ O município ainda não usa o Emissor Nacional"
+            : "✗ A prefeitura não aceita este código. Tente um serviço parecido.")
+        : (conferido.mensagens || []).join(" ") || "Não deu para conferir agora.");
+      const precisaCodigo = !!s.codigo_municipal || (conferido && (conferido.codigos_municipais || []).length > 0);
+      const maisOpcoes = el("details", { class: "mais-opcoes", open: precisaCodigo },
+        el("summary", {}, s.codigo_municipal ? `Código municipal: ${s.codigo_municipal}` : "Mais opções"),
+        el("div", { class: "mais-opcoes-corpo" },
+          el("label", { class: "cod-mun" }, "Código municipal",
             el("input", {
               value: s.codigo_municipal || "", inputmode: "numeric", maxlength: 3, placeholder: "opcional",
-              "aria-label": `Código municipal de ${s.descricao}`,
-              onclick: (e) => e.stopPropagation(),
-              oninput: (e) => { s.codigo_municipal = e.target.value.replace(/\D/g, "").slice(0, 3); e.target.value = s.codigo_municipal; estado.alterado = true; botaoSalvar.disabled = false; botaoSalvar.textContent = "Salvar e enviar para o app"; },
+              oninput: (e) => { s.codigo_municipal = e.target.value.replace(/\D/g, "").slice(0, 3); e.target.value = s.codigo_municipal; marcarAlterado(); },
             })),
-          conferir || null),
-        el("span", { class: s.liberado ? "selo selo-verde" : "selo selo-cinza" }, s.liberado ? "Liberado" : "Bloqueado"),
-      );
+          conferido && (conferido.codigos_municipais || []).length > 1 && el("span", { class: "escolher-cod" },
+            ...conferido.codigos_municipais.map((cod) => el("button", {
+              type: "button", class: "botao-mini" + (s.codigo_municipal === cod ? " escolhido" : ""),
+              onclick: () => { s.codigo_municipal = cod; marcarAlterado(); desenharPrincipal(); },
+            }, `Usar ${cod}`))),
+          el("span", { class: "ajuda-pequena" }, "Algumas prefeituras pedem um complemento de 3 números. O \"Conferir na prefeitura\" preenche sozinho.")));
+      return el("article", { class: "cartao-servico" },
+        el("div", { class: "cartao-topo" },
+          el("div", { class: "textos" },
+            apelido,
+            el("span", { class: "oficial" }, `${codigoBonito(s.codigo)} · ${s.descricao}`)),
+          el("button", {
+            type: "button", class: "botao-icone", "aria-label": `Tirar ${s.apelido || s.descricao} da lista`, title: "Tirar da lista",
+            onclick: () => { s.liberado = false; marcarAlterado(); desenharPrincipal(); },
+          }, icone("fechar", 18))),
+        el("div", { class: "cartao-acoes" },
+          el("button", {
+            class: "botao-mini", type: "button", disabled: conferido && conferido.carregando,
+            onclick: async () => {
+              estado.prefeitura[chave] = { carregando: true };
+              desenharPrincipal();
+              try {
+                const r = await api("GET", `/contador/clientes/${c.id}/servicos/${s.codigo}/prefeitura`);
+                estado.prefeitura[chave] = r;
+                const cods = r.codigos_municipais || [];
+                if (cods.length && !cods.includes(s.codigo_municipal || "")) { s.codigo_municipal = cods[0]; marcarAlterado(); }
+              } catch (erro) {
+                estado.prefeitura[chave] = { erro: erro.message };
+              }
+              desenharPrincipal();
+            },
+          }, conferido && conferido.carregando ? "Conferindo… (até 15 s)" : "Conferir na prefeitura"),
+          resultado || null),
+        maisOpcoes);
     };
 
-    const $resultados = el("div", { class: "resultados-servicos", "aria-live": "polite" });
-    const desenharResultados = () => {
-      const termo = estado.buscaServico.trim();
-      const livres = estado.servicos.filter((s) => !s.liberado);
-      if (!termo) {
-        const areas = new Map();
-        for (const s of livres) {
-          const chave = s.item || s.codigo.slice(0, 2);
-          if (!areas.has(chave)) areas.set(chave, { nome: s.item_descricao || `Item ${chave}`, lista: [] });
-          areas.get(chave).lista.push(s);
-        }
-        $resultados.replaceChildren(
-          el("p", { class: "sub2" }, `Ou navegue pelas ${areas.size} áreas da lista nacional (${livres.length} serviços):`),
-          ...[...areas.entries()].map(([chave, a]) => {
-            const caixa = el("details", { class: "area" },
-              el("summary", {}, el("span", { class: "area-cod" }, chave), el("span", { class: "area-nome" }, a.nome), el("span", { class: "area-qtd" }, String(a.lista.length))));
-            caixa.addEventListener("toggle", () => {
-              if (caixa.open && caixa.children.length === 1) caixa.append(...a.lista.map(linhaServico));
-            }, { once: false });
-            return caixa;
-          }),
-        );
-        return;
-      }
-      const achados = buscarServicos(livres, termo);
-      const jaLiberados = buscarServicos(estado.servicos.filter((s) => s.liberado), termo);
-      const LIMITE = 40;
-      $resultados.replaceChildren(
-        achados.length
-          ? el("p", { class: "sub2" }, achados.length === 1 ? "1 serviço encontrado" : `${achados.length} serviços encontrados${achados.length > LIMITE ? ` (mostrando ${LIMITE})` : ""}`)
-          : jaLiberados.length
-            ? el("p", { class: "vazio" }, `"${jaLiberados[0].apelido || jaLiberados[0].descricao}" já está liberado, lá em cima.`)
-            : el("p", { class: "vazio" }, `Nada encontrado para "${termo}". Tente outra palavra ou o código (ex.: 17.19).`),
-        ...achados.slice(0, LIMITE).map(linhaServico),
-      );
-    };
-    const $buscaServico = el("input", {
-      type: "search", class: "busca-servico", value: estado.buscaServico,
-      placeholder: "Buscar serviço: ex. cabelo, contabilidade, 17.19",
-      "aria-label": "Buscar serviço na lista nacional", autocomplete: "off",
-      oninput: (e) => { estado.buscaServico = e.target.value; desenharResultados(); },
-    });
-    desenharResultados();
-
-    const liberadosLista = estado.servicos.filter((s) => s.liberado);
-    const colServicos = el("section", { class: "card col-servicos" },
-      el("div", {},
-        el("h2", { class: "titulo" }, "Serviços liberados para emitir"),
-        el("p", { class: "sub2", style: "margin-top:4px" },
-          "Só os serviços marcados aparecem no app do cliente. Clique no nome para trocar pelo nome que ele entende.")),
-      ...(liberadosLista.length
-        ? liberadosLista.map(linhaServico)
-        : [el("p", { class: "vazio" }, "Nenhum serviço liberado ainda. Busque abaixo e marque os que esta empresa presta.")]),
-      el("div", { class: "busca-servico-caixa" },
-        el("h3", { class: "titulo-busca" }, "Liberar mais serviços"),
-        el("div", { class: "busca-servico-campo" }, icone("busca", 18), $buscaServico)),
-      $resultados,
+    const lista = el("section", { class: "card col-servicos" },
+      el("div", { class: "cabecalho-secao" },
+        el("div", {},
+          el("h2", { class: "titulo" }, "Serviços que a empresa pode emitir"),
+          el("p", { class: "sub2", style: "margin-top:4px" }, "Só estes aparecem no app do cliente. Toque no nome para trocar pelo nome que ele entende.")),
+        el("button", { class: "botao", type: "button", onclick: () => { estado.janelaServicos = true; estado.buscaServico = ""; desenharPrincipal(); } },
+          icone("mais", 18), "Liberar serviço")),
+      ...(liberados.length ? liberados.map(cartaoServico)
+        : [el("div", { class: "vazio-servicos" },
+          el("p", {}, "Nenhum serviço liberado ainda."),
+          el("p", { class: "sub2" }, "Toque em \"Liberar serviço\" e busque os serviços que esta empresa presta."))]),
     );
 
-    // Prévia + regras + salvar
     const previa = el("section", { class: "card previa", id: "previa" });
     function atualizarPrevia() {
       previa.replaceChildren(
@@ -333,22 +339,95 @@
     }
     atualizarPrevia();
 
-    const regras = el("section", { class: "card regras" },
-      el("h2", { class: "titulo" }, "Regras da empresa"),
-      el("div", { class: "linha" }, el("span", {}, "Alíquota de ISS"), el("strong", {}, `${String(c.aliquota_iss).replace(".", ",")}%`)),
-      el("div", { class: "linha" }, el("span", {}, "Prazo para cancelar"),
-        el("strong", {}, c.prazo_cancelamento_dias ? `${c.prazo_cancelamento_dias} dias` : "Definido pela prefeitura")),
-    );
-
     const botaoSalvar = el("button", {
-      class: "botao botao-grande", type: "button", disabled: !estado.alterado,
+      class: "botao botao-grande", type: "button", disabled: !estado.alterado, id: "botao-salvar-servicos",
       onclick: (e) => salvarServicos(e.currentTarget),
     }, estado.alterado ? "Salvar e enviar para o app" : "Tudo salvo");
 
-    const colLado = el("div", { class: "col-lado" }, previa, botaoSalvar, regras);
+    return [el("div", { class: "colunas" }, lista, el("div", { class: "col-lado" }, previa, botaoSalvar))];
+  }
 
-    // Notas
-    const notas = el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:12px" },
+  function marcarAlterado() {
+    estado.alterado = true;
+    const b = document.getElementById("botao-salvar-servicos");
+    if (b) { b.disabled = false; b.textContent = "Salvar e enviar para o app"; }
+  }
+
+  // Janela por cima da tela para achar e liberar serviços da lista nacional.
+  function janelaServicos(c) {
+    const fechar = () => { estado.janelaServicos = false; desenharPrincipal(); };
+    const linha = (s) => {
+      const botao = el("button", {
+        type: "button", class: s.liberado ? "botao-mini escolhido" : "botao-mini",
+        onclick: () => {
+          s.liberado = !s.liberado;
+          if (s.liberado && !s.apelido) s.apelido = s.descricao;
+          estado.alterado = true;
+          botao.className = s.liberado ? "botao-mini escolhido" : "botao-mini";
+          botao.textContent = s.liberado ? "✓ Liberado" : "Liberar";
+          contador.textContent = textoContador();
+        },
+      }, s.liberado ? "✓ Liberado" : "Liberar");
+      return el("div", { class: "linha-catalogo" },
+        el("span", { class: "textos" }, el("span", { class: "nome-servico" }, s.descricao), el("span", { class: "oficial" }, codigoBonito(s.codigo))),
+        botao);
+    };
+    const textoContador = () => {
+      const n = estado.servicos.filter((s) => s.liberado).length;
+      return n === 1 ? "1 serviço liberado" : `${n} serviços liberados`;
+    };
+    const contador = el("span", { class: "sub2" }, textoContador());
+    const $resultados = el("div", { class: "resultados-servicos", "aria-live": "polite" });
+    const desenhar = () => {
+      const termo = estado.buscaServico.trim();
+      if (!termo) {
+        const areas = new Map();
+        for (const s of estado.servicos) {
+          const chave = s.item || s.codigo.slice(0, 2);
+          if (!areas.has(chave)) areas.set(chave, { nome: s.item_descricao || `Item ${chave}`, lista: [] });
+          areas.get(chave).lista.push(s);
+        }
+        $resultados.replaceChildren(
+          el("p", { class: "sub2" }, `Ou navegue pelas ${areas.size} áreas da lista nacional:`),
+          ...[...areas.entries()].map(([chave, a]) => {
+            const caixa = el("details", { class: "area" },
+              el("summary", {}, el("span", { class: "area-cod" }, chave), el("span", { class: "area-nome" }, a.nome), el("span", { class: "area-qtd" }, String(a.lista.length))));
+            caixa.addEventListener("toggle", () => { if (caixa.open && caixa.children.length === 1) caixa.append(...a.lista.map(linha)); });
+            return caixa;
+          }));
+        return;
+      }
+      const achados = buscarServicos(estado.servicos, termo);
+      const LIMITE = 40;
+      $resultados.replaceChildren(
+        achados.length
+          ? el("p", { class: "sub2" }, achados.length === 1 ? "1 serviço encontrado" : `${achados.length} serviços encontrados${achados.length > LIMITE ? ` (mostrando ${LIMITE})` : ""}`)
+          : el("p", { class: "vazio" }, `Nada encontrado para "${termo}". Tente outra palavra ou o código (ex.: 17.19).`),
+        ...achados.slice(0, LIMITE).map(linha));
+    };
+    const $busca = el("input", {
+      type: "search", class: "busca-servico", value: estado.buscaServico,
+      placeholder: "Ex.: cabelo, contabilidade, 17.19", "aria-label": "Buscar serviço na lista nacional", autocomplete: "off",
+      oninput: (e) => { estado.buscaServico = e.target.value; desenhar(); },
+    });
+    desenhar();
+    const caixa = el("div", { class: "janela", role: "dialog", "aria-modal": "true", "aria-labelledby": "titulo-janela" },
+      el("div", { class: "janela-topo" },
+        el("div", {}, el("h2", { class: "titulo", id: "titulo-janela" }, "Liberar serviços"), contador),
+        el("button", { type: "button", class: "botao-icone", "aria-label": "Fechar", onclick: fechar }, icone("fechar", 20))),
+      el("div", { class: "busca-servico-campo" }, icone("busca", 18), $busca),
+      el("div", { class: "janela-corpo" }, $resultados),
+      el("div", { class: "janela-rodape" }, el("button", { class: "botao", type: "button", onclick: fechar }, "Pronto")));
+    const fundo = el("div", { class: "janela-fundo", onclick: (e) => { if (e.target === fundo) fechar(); } }, caixa);
+    fundo.addEventListener("keydown", (e) => { if (e.key === "Escape") fechar(); });
+    setTimeout(() => $busca.focus(), 0);
+    return fundo;
+  }
+
+  // ------------------------------------------------------------ abas Notas e Dados
+
+  function secaoNotas() {
+    return el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:12px" },
       el("h2", { class: "titulo" }, "Notas desta empresa"),
       estado.notas.length
         ? el("div", { class: "tabela-caixa" },
@@ -368,13 +447,25 @@
               el("td", { class: "valor" }, dinheiro(n.valor)),
               el("td", { style: "white-space:nowrap" },
                 n.situacao === "autorizada" || n.situacao === "cancelada"
-                  ? [el("a", { href: n.pdf, download: "" }, "PDF"), " · ", el("a", { href: n.xml, download: "" }, "XML")]
+                  ? [el("a", { href: n.pdf, download: "", target: "_blank", rel: "noopener" }, "PDF"), " · ",
+                    el("a", { href: n.xml, download: "", target: "_blank", rel: "noopener" }, "XML")]
                   : "—"),
             )))))
-        : el("p", { class: "vazio" }, "Esta empresa ainda não emitiu notas."),
-    );
+        : el("p", { class: "vazio" }, "Esta empresa ainda não emitiu notas."));
+  }
 
-    return [cabecalho, el("div", { class: "colunas" }, colServicos, colLado), secaoCertificado(c), secaoAcessos(c), notas];
+  function secaoDados(c) {
+    const regime = { "1": "Fora do Simples", "2": "MEI", "3": "Simples Nacional (ME/EPP)" }[c.opcao_simples] || "—";
+    const linha = (rotulo, valor) => el("div", { class: "linha" }, el("span", {}, rotulo), el("strong", {}, valor));
+    return el("section", { class: "card regras", style: "max-width:640px" },
+      el("h2", { class: "titulo" }, "Dados da empresa"),
+      linha("Razão social", c.razao_social),
+      linha("CNPJ", formatarDocumento(c.cnpj)),
+      linha("Município", `${c.municipio_nome} (IBGE ${c.municipio_ibge})`),
+      linha("Regime", regime),
+      linha("Alíquota de ISS", `${String(c.aliquota_iss).replace(".", ",")}%`),
+      c.opcao_simples === "3" && linha("Tributos aproximados do Simples", c.p_tot_trib_sn ? `${String(c.p_tot_trib_sn).replace(".", ",")}%` : "Não informado"),
+      linha("Prazo para cancelar", c.prazo_cancelamento_dias ? `${c.prazo_cancelamento_dias} dias (informado por você)` : "Definido pela prefeitura"));
   }
 
   function formularioNovaEmpresa() {
