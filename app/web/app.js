@@ -481,10 +481,40 @@
         el("span", { class: "ajuda-pequena" }, "Chave de acesso"), el("span", { class: "chave" }, n.chave_acesso)));
   }
 
+  // No celular (principalmente iPhone), o link só abre o PDF na tela. Aqui
+  // buscamos o arquivo e abrimos o "Compartilhar" do sistema, que tem
+  // "Salvar em Arquivos", WhatsApp, e-mail... No computador, baixa normal.
+  async function baixarArquivo(e, url, nome, tipo) {
+    if (!navigator.canShare || !/iphone|ipad|ipod|android/i.test(navigator.userAgent)) return; // segue o link
+    e.preventDefault();
+    const botao = e.currentTarget;
+    botao.classList.add("carregando");
+    try {
+      const resp = await fetch(url, { credentials: "same-origin" });
+      if (!resp.ok) throw new Error();
+      const arquivo = new File([await resp.blob()], nome, { type: tipo });
+      if (navigator.canShare({ files: [arquivo] })) {
+        await navigator.share({ files: [arquivo], title: nome });
+      } else {
+        location.href = url;
+      }
+    } catch (erro) {
+      if (erro && erro.name === "AbortError") return; // a pessoa fechou o compartilhar
+      location.href = url;
+    } finally {
+      botao.classList.remove("carregando");
+    }
+  }
+
   function botoesDownload(n) {
+    const numero = String(n.numero || n.numero_dps || "").padStart(6, "0");
     return el("div", { style: "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px" },
-      el("a", { class: "botao botao-secundario", href: n.pdf, download: "" }, icone("download", 18), "Baixar PDF"),
-      el("a", { class: "botao botao-secundario", href: n.xml, download: "" }, icone("download", 18), "Baixar XML"));
+      el("a", { class: "botao botao-secundario", href: n.pdf, download: "",
+        onclick: (e) => baixarArquivo(e, n.pdf, `nota-${numero}.pdf`, "application/pdf") },
+        icone("download", 18), "Baixar PDF"),
+      el("a", { class: "botao botao-secundario", href: n.xml, download: "",
+        onclick: (e) => baixarArquivo(e, n.xml, `nota-${numero}.xml`, "application/xml") },
+        icone("download", 18), "Baixar XML"));
   }
 
   function limparDoc(texto) {
