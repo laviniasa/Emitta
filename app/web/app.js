@@ -509,10 +509,10 @@
   function botoesDownload(n) {
     const numero = String(n.numero || n.numero_dps || "").padStart(6, "0");
     return el("div", { style: "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px" },
-      el("a", { class: "botao botao-secundario", href: n.pdf, download: "",
+      el("a", { class: "botao botao-secundario", href: n.pdf, download: "", target: "_blank", rel: "noopener",
         onclick: (e) => baixarArquivo(e, n.pdf, `nota-${numero}.pdf`, "application/pdf") },
         icone("download", 18), "Baixar PDF"),
-      el("a", { class: "botao botao-secundario", href: n.xml, download: "",
+      el("a", { class: "botao botao-secundario", href: n.xml, download: "", target: "_blank", rel: "noopener",
         onclick: (e) => baixarArquivo(e, n.xml, `nota-${numero}.xml`, "application/xml") },
         icone("download", 18), "Baixar XML"));
   }
