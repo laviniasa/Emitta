@@ -68,6 +68,12 @@ window.EmittaAssistente = (() => {
       return null;
     }
 
+    // Texto da assistente: **negrito** vira negrito; quebras de linha são mantidas (CSS); nada de HTML.
+    function formatar(texto) {
+      const partes = String(texto || "").replace(/^#+\s*/gm, "").replace(/^\s*[*-]\s+/gm, "• ").split(/\*\*(.+?)\*\*/g);
+      return partes.map((p, i) => (i % 2 ? el("strong", {}, p) : p.replace(/(^|\s)\*(\S)/g, "$1$2")));
+    }
+
     function desenhar() {
       const itens = [];
       if (!mensagens.length) {
@@ -78,7 +84,7 @@ window.EmittaAssistente = (() => {
         }, s))));
       }
       for (const m of mensagens) {
-        itens.push(el("div", { class: "assist-msg " + (m.de === "pessoa" ? "minha" : "dela") }, m.texto));
+        itens.push(el("div", { class: "assist-msg " + (m.de === "pessoa" ? "minha" : "dela") }, ...(m.de === "pessoa" ? [m.texto] : formatar(m.texto))));
         for (const a of m.acoes || []) { const c = cartao(a); if (c) itens.push(c); }
       }
       if (pensando) itens.push(el("div", { class: "assist-msg dela pensando", "aria-label": "Pensando" }, el("span"), el("span"), el("span")));
