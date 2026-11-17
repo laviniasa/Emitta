@@ -263,6 +263,9 @@ def responder(ctx: Contexto, mensagens: list[dict], config: ConfigIA | None = No
                           headers={"Authorization": f"Bearer {config.chave}"})
         if r.status_code == 429:
             raise _Ocupada()
+        if not r.ok:
+            # registra o motivo (nunca a chave) para descobrir o problema nos registros do Render
+            print(f"[assistente] IA respondeu HTTP {r.status_code}: {r.text[:400]}", flush=True)
         r.raise_for_status()
         return r.json()
 
@@ -292,7 +295,8 @@ def responder(ctx: Contexto, mensagens: list[dict], config: ConfigIA | None = No
         r = ajuda_basica(ctx, historico[-1]["content"])
         r["resposta"] = "Estou com muitas conversas agora. " + r["resposta"]
         return r
-    except Exception:
+    except Exception as erro:
+        print(f"[assistente] falha ao falar com a IA ({config.url}, modelo {config.modelo}): {type(erro).__name__}: {str(erro)[:300]}", flush=True)
         r = ajuda_basica(ctx, historico[-1]["content"])
         r["resposta"] = "Não consegui falar com a IA agora, mas posso ajudar assim: " + r["resposta"]
         return r
