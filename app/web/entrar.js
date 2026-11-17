@@ -105,7 +105,6 @@
       el("div", {}, el("h1", {}, "Bem-vindo ao Emitta"), el("p", { class: "sub" }, "Como você vai usar o Emitta?")),
       opcao("Sou contador", "Cadastro as empresas e libero os serviços de cada uma.", "contador"),
       opcao("Sou empresa", "Emito e cancelo as notas da minha empresa.", "empresa"),
-      opcao("Sou MEI ou autônomo, sem contador", "Configuro tudo sozinho e emito as minhas notas, com a ajuda da assistente.", "autonomo"),
     );
   }
 
@@ -138,9 +137,7 @@
     } else if (ehEmpresa) {
       extras.push(el("div", { class: "aviso aviso-info" }, icone("escudo"),
         "Seu acesso é criado pelo seu contador. Ele te passa o e-mail e uma senha provisória, e no primeiro acesso você cria a sua."),
-        el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."),
-        el("p", { class: "nota-pe" }, "Não tem contador? ",
-          el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar("autonomo") }, "Use o Emitta como MEI ou autônomo")));
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."));
     }
     $caixa.prepend(voltarPara(telaEscolha));
     $caixa.append(...extras);
@@ -231,6 +228,8 @@
       if (volta.startsWith("/admin")) telaEntrar("");
       else if (params.get("criar") === "1") telaCadastro();
       else if (perfil === "contador" || perfil === "empresa") telaEntrar(perfil);
+      // MEI/autônomo não aparece na tela inicial: só por link direto (/entrar?perfil=mei).
+      else if (perfil === "mei" || perfil === "autonomo") telaEntrar("autonomo");
       else telaEscolha();
     } catch (erro) {
       $caixa.replaceChildren(el("h1", {}, "Não foi possível carregar"), el("p", { class: "sub" }, erro.message));
