@@ -163,6 +163,31 @@
     );
   }
 
+  // Passo a passo para quem configura sozinho (MEI): some quando a primeira nota sai.
+  function passoAPasso() {
+    if (estado.eu.papel !== "autonomo") return null;
+    const passos = [
+      { nome: "Enviar o certificado digital", feito: !!estado.empresa.tem_certificado, href: "/escritorio?aba=certificado" },
+      { nome: "Escolher os seus serviços", feito: estado.servicos.length > 0, href: "/escritorio?aba=servicos" },
+      { nome: "Emitir a primeira nota", feito: estado.notas.length > 0, acao: novaNota },
+    ];
+    if (passos.every((p) => p.feito)) return null;
+    const proximo = passos.findIndex((p) => !p.feito);
+    return el("section", { class: "card passo-a-passo" },
+      el("strong", {}, "Seu passo a passo"),
+      el("ol", {}, ...passos.map((p, i) => {
+        const conteudo = [
+          el("span", { class: "pp-num", "aria-hidden": "true" }, p.feito ? "✓" : String(i + 1)),
+          el("span", { class: "pp-nome" }, p.nome, el("span", { class: "visualmente-oculto" }, p.feito ? " (feito)" : " (pendente)")),
+          i === proximo && el("span", { class: "pp-ir" }, "Fazer agora", icone("seta", 16)),
+        ];
+        const classe = "pp" + (p.feito ? " feito" : "") + (i === proximo ? " atual" : "");
+        return el("li", {}, p.acao
+          ? el("button", { type: "button", class: classe, onclick: p.acao }, ...conteudo)
+          : el("a", { class: classe, href: p.href }, ...conteudo));
+      })));
+  }
+
   function nomeServico(codigo) {
     const s = estado.servicos.find((x) => x.codigo === codigo);
     return s ? s.apelido : codigo;
@@ -201,15 +226,18 @@
         el("main", { class: "conteudo" },
           estado.eu.papel === "contador" && el("div", { class: "aviso aviso-alerta" },
             icone("olho"), "Você está vendo o app como a empresa vê. As notas emitidas aqui ficam no nome dela."),
+          passoAPasso(),
           estado.servicos.length
             ? el("button", { class: "botao botao-grande", type: "button", style: "min-height:60px;font-size:17px", onclick: novaNota },
               icone("mais", 22), "Nova nota")
             : estado.eu.papel === "autonomo"
-            ? el("div", { class: "aviso aviso-alerta", style: "flex-direction:column;align-items:stretch;gap:10px" },
-              el("span", {}, "Falta escolher os serviços que você presta. É rapidinho:"),
-              el("a", { class: "botao", href: "/escritorio" }, "Escolher meus serviços"))
+            ? null
             : el("div", { class: "aviso aviso-alerta" }, icone("cadeado"),
               "Nenhum serviço liberado ainda. Peça ao seu contador para liberar os serviços da sua empresa."),
+          estado.eu.papel === "autonomo" && el("div", { class: "atalhos" },
+            el("a", { class: "atalho", href: "/escritorio?aba=servicos" }, icone("documento", 20), "Meus serviços"),
+            el("a", { class: "atalho", href: "/escritorio?aba=certificado" }, icone("escudo", 20), "Certificado"),
+            el("a", { class: "atalho", href: "/escritorio?aba=dados" }, icone("engrenagem", 20), "Dados")),
           el("h2", { style: "font-size:15px;margin-top:8px" }, "Últimas notas"),
           ...(estado.notas.length
             ? estado.notas.slice(0, 20).map(itemNota)
@@ -292,7 +320,7 @@
               el("h2", {}, "Qual serviço você prestou?"),
               el("span", { class: "selo selo-verde" }, icone("cadeado", 12), estado.eu.papel === "autonomo" ? "Seus serviços" : "Liberado pelo contador")),
             el("div", { role: "radiogroup", "aria-label": "Serviço", class: "secao" }, ...opcoes),
-            el("p", { class: "ajuda-pequena" }, estado.eu.papel === "autonomo" ? "Para mudar a lista, toque em Ajustes." : "Só aparecem os serviços que o seu contador liberou para a sua empresa.")),
+            el("p", { class: "ajuda-pequena" }, estado.eu.papel === "autonomo" ? el("a", { href: "/escritorio?aba=servicos" }, "Mudar meus serviços") : "Só aparecem os serviços que o seu contador liberou para a sua empresa.")),
           el("section", { class: "card secao" },
             el("h2", { style: "font-size:15px" }, "Para quem?"),
             el("div", { class: "campo" }, el("label", { class: "campo" }, "CNPJ ou CPF do cliente", $doc), $dicaDoc),

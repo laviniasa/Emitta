@@ -803,6 +803,7 @@ def criar_app(
             "aliquota_iss": c.aliquota_iss,
             "prazo_cancelamento_dias": c.prazo_cancelamento_dias,
             "opcao_simples": c.opcao_simples,
+            "tem_certificado": bool(c.cert_pfx_cifrado),
         }
 
     @app.get("/contador/clientes/{cliente_id}/servicos/{codigo}/prefeitura", tags=["contador"])

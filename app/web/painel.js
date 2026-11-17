@@ -219,7 +219,10 @@
   function telaCliente() {
     const c = estado.clientes.find((x) => x.id === estado.selecionado);
     const liberados = estado.servicos.filter((s) => s.liberado);
-    if (!estado.aba) estado.aba = "servicos";
+    if (!estado.aba) {
+      const pedida = new URLSearchParams(location.search).get("aba");
+      estado.aba = ABAS.some((a) => a.id === pedida) ? pedida : "servicos";
+    }
 
     const cabecalho = el("section", { class: "card cabecalho-cliente" },
       el("div", {},
@@ -266,7 +269,8 @@
     else if (estado.aba === "dados") conteudo = [secaoDados(c)];
     else conteudo = abaServicos(c, liberados);
 
-    return [cabecalho, passos || null, abas,
+    const voltar = autonomo() && el("a", { class: "voltar-app", href: "/empresa" }, icone("voltar", 18), "Voltar ao início do app");
+    return [voltar || null, cabecalho, passos || null, abas,
       el("div", { role: "tabpanel", "aria-labelledby": `aba-${estado.aba}`, class: "painel-aba" }, ...conteudo),
     ].filter(Boolean);
   }

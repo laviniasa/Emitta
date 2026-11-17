@@ -95,13 +95,20 @@ window.EmittaAssistente = (() => {
       pensando = true;
       desenhar();
       try {
-        const r = await api("POST", "/assistente", {
+        const corpo = {
           mensagens: mensagens.slice(-14).map(({ de, texto: t }) => ({ de, texto: t })),
           cliente_id: clienteId(),
-        });
+        };
+        let r;
+        try { r = await api("POST", "/assistente", corpo); }
+        catch (e) {
+          if (e.status) throw e; // erro de verdade do servidor: não repete
+          await new Promise((ok) => setTimeout(ok, 2500)); // sem conexão: o servidor pode estar acordando
+          r = await api("POST", "/assistente", corpo);
+        }
         mensagens.push({ de: "assistente", texto: r.resposta, acoes: r.acoes || [] });
       } catch (erro) {
-        mensagens.push({ de: "assistente", texto: erro.message || "Não consegui responder agora. Tente de novo." });
+        mensagens.push({ de: "assistente", texto: erro.status ? (erro.message || "Não consegui responder agora. Tente de novo.") : "Não consegui falar com o Emitta agora. Confira a internet e tente de novo em alguns segundos." });
       }
       pensando = false;
       guardar();

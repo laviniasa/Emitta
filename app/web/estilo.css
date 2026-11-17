@@ -144,7 +144,7 @@ a:hover { color: var(--verde-escuro); }
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
   background: var(--noite); color: #fff; padding: 12px 18px; border-radius: 10px;
-  font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 50; max-width: calc(100% - 32px);
+  font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 62; max-width: calc(100% - 32px);
   border-left: 4px solid var(--lima); animation: subir .35s var(--suave);
 }
 
@@ -228,6 +228,25 @@ body.com-menu .assist-botao { bottom: calc(84px + env(safe-area-inset-bottom)); 
 .assist-enviar { width: 44px; height: 44px; flex-shrink: 0; border: 0; border-radius: 14px; background: var(--lima); color: var(--noite); display: grid; place-items: center; cursor: pointer; }
 @media (max-width: 640px) {
   .assist-painel { right: 0; bottom: 0; width: 100vw; height: 100dvh; border-radius: 0; }
+  .assist-topo { padding-top: calc(14px + env(safe-area-inset-top)); }
   body.assist-aberto { overflow: hidden; }
 }
 @media (prefers-reduced-motion: reduce) { .assist-painel { animation: none; } }
+
+/* Passo a passo do MEI e atalhos para os ajustes */
+.passo-a-passo { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.passo-a-passo ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.passo-a-passo .pp { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1.5px solid var(--borda); border-radius: 14px; background: #fff; color: var(--texto); text-decoration: none; font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+.passo-a-passo .pp-num { width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; background: var(--fundo, #f3f4ee); color: var(--texto-2); }
+.passo-a-passo .pp-nome { flex: 1; }
+.passo-a-passo .pp.feito { color: var(--texto-2); }
+.passo-a-passo .pp.feito .pp-nome { text-decoration: line-through; }
+.passo-a-passo .pp.feito .pp-num { background: var(--verde); color: #fff; }
+.passo-a-passo .pp.atual { border-color: var(--verde); background: #f6fbe9; font-weight: 600; }
+.passo-a-passo .pp.atual .pp-num { background: var(--lima); color: var(--noite); }
+.passo-a-passo .pp-ir { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--verde); white-space: nowrap; }
+.atalhos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.atalho { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border: 1px solid var(--borda); border-radius: 14px; background: #fff; color: var(--texto); text-decoration: none; font-size: 13px; font-weight: 600; text-align: center; }
+.visualmente-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.voltar-app { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-weight: 600; font-size: 15px; color: var(--verde); text-decoration: none; padding: 4px 0; }
+body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
