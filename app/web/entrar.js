@@ -104,11 +104,26 @@
     $caixa.replaceChildren(
       el("div", {}, el("h1", {}, "Bem-vindo ao Emitta"), el("p", { class: "sub" }, "Como você vai usar o Emitta?")),
       opcao("Sou contador", "Cadastro as empresas e libero os serviços de cada uma.", "contador"),
-      opcao("Sou empresa", "Emito e cancelo as notas da minha empresa.", "empresa"),
+      opcao("Sou empresa ou MEI", "Emito e cancelo as notas da minha empresa.", "pergunta-contador"),
+    );
+  }
+
+  // Quem é empresa diz se tem contador: com contador entra pelo acesso que ele criou;
+  // sem contador (MEI/autônomo) cria a própria conta.
+  function telaTemContador() {
+    const opcao = (titulo, texto, perfil) => el("button", {
+      type: "button", class: "opcao-perfil", onclick: () => telaEntrar(perfil),
+    }, el("strong", {}, titulo), el("span", {}, texto));
+    $caixa.replaceChildren(
+      voltarPara(telaEscolha),
+      el("div", {}, el("h1", {}, "Você tem contador?"), el("p", { class: "sub" }, "Assim a gente te leva para o lugar certo.")),
+      opcao("Sim, tenho contador", "Meu contador criou o meu acesso ao Emitta.", "empresa"),
+      opcao("Não, sou MEI ou não tenho contador", "Eu mesmo configuro e emito as minhas notas, com a ajuda da assistente.", "autonomo"),
     );
   }
 
   function telaEntrar(perfil) {
+    if (perfil === "pergunta-contador") return telaTemContador();
     const ehEmpresa = perfil === "empresa";
     formulario(
       ehEmpresa ? "Entrar · Empresa" : perfil === "contador" ? "Entrar · Contador" : perfil === "autonomo" ? "Entrar · MEI ou autônomo" : "Entrar",
@@ -139,7 +154,7 @@
         "Seu acesso é criado pelo seu contador. Ele te passa o e-mail e uma senha provisória, e no primeiro acesso você cria a sua."),
         el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."));
     }
-    $caixa.prepend(voltarPara(telaEscolha));
+    $caixa.prepend(voltarPara(ehEmpresa || perfil === "autonomo" ? telaTemContador : telaEscolha));
     $caixa.append(...extras);
   }
 
@@ -228,7 +243,6 @@
       if (volta.startsWith("/admin")) telaEntrar("");
       else if (params.get("criar") === "1") telaCadastro();
       else if (perfil === "contador" || perfil === "empresa") telaEntrar(perfil);
-      // MEI/autônomo não aparece na tela inicial: só por link direto (/entrar?perfil=mei).
       else if (perfil === "mei" || perfil === "autonomo") telaEntrar("autonomo");
       else telaEscolha();
     } catch (erro) {
