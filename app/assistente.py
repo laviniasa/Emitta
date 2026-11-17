@@ -24,7 +24,7 @@ import requests
 from . import regras
 
 URL_PADRAO = "https://api.groq.com/openai/v1"
-MODELO_PADRAO = "llama-3.3-70b-versatile"
+MODELO_PADRAO = "openai/gpt-oss-120b"  # o Llama 3.3 saiu do plano gratuito do Groq em 16/08/2026
 MAX_MENSAGENS = 14
 MAX_CARACTERES = 1200
 MAX_RODADAS_FERRAMENTAS = 4
