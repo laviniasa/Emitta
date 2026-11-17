@@ -104,6 +104,8 @@
       ]);
       Object.assign(estado, { empresa, servicos, notas });
       ir("inicio");
+      const rascunho = rascunhoDoPainel();
+      if (rascunho && rascunho.cliente_id === empresa.id) ajudaAgir(rascunho.acao);
       if (new URLSearchParams(location.search).get("nova") === "1" && servicos.length) novaNota();
     } catch (erro) {
       estado.erroCarga = erro.message;
@@ -141,6 +143,7 @@
     return el("nav", { class: "menu", "aria-label": "Menu" },
       item("inicio", "Início", "casa", () => ir("inicio")),
       item("nova", "Emitir", "mais", novaNota),
+      item("ajuda", "Ajuda", "brilho", () => ajuda.abrir()),
       estado.eu.papel === "contador"
         ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/escritorio"; })
         : item("sair", "Sair", "sair", () => { if (window.confirm("Sair do Emitta neste aparelho?")) sair(); }),
@@ -537,6 +540,48 @@
     const limite = new Date(new Date(n.emitida_em).getTime() + dias * 86400000);
     const vencido = Date.now() > limite.getTime();
     return { vencido, texto: `Dentro do prazo da sua prefeitura: dá para cancelar direto até ${limite.toLocaleDateString("pt-BR")}.` };
+  }
+
+  // ------------------------------------------------------------ assistente
+
+  // A assistente monta rascunhos; aqui eles viram a tela de sempre, já preenchida,
+  // para a pessoa conferir e confirmar.
+  const ajuda = EmittaAssistente.montar({
+    botao: false,
+    clienteId: () => (estado.empresa ? estado.empresa.id : null),
+    sugestoes: ["Quero emitir uma nota", "Como cancelo uma nota?", "Como baixo o PDF?"],
+    aoAgir: (acao) => ajudaAgir(acao),
+  });
+
+  function ajudaAgir(acao) {
+      const d = acao.dados || {};
+      if (acao.tipo === "nota") {
+        if (!estado.servicos.some((s) => s.codigo === d.codigo)) { avisar("Esse serviço não está liberado."); return; }
+        estado.form = {
+          codigo: d.codigo, documento: formatarDocumento(d.documento), nome: d.nome, valor: d.valor, descricao: d.descricao,
+          competencia: hojeIsoLocal(), iss_retido: false, chave_envio: novaChaveEnvio(),
+        };
+        avisar("Confira os dados e toque em Emitir nota.");
+        ir("nova");
+      } else if (acao.tipo === "cancelamento") {
+        const n = estado.notas.find((x) => x.id === d.nota_id);
+        if (!n) { avisar("Não achei essa nota. Atualize a tela."); return; }
+        estado.nota = n;
+        estado.motivo = d.motivo;
+        estado.textoMotivo = d.texto_motivo || "";
+        ir("cancelar");
+      } else if (acao.tipo === "abrir" && d.tela === "nova") {
+        novaNota();
+      }
+  }
+
+  // Rascunho vindo do painel do contador (ele monta com a assistente e abre o app).
+  function rascunhoDoPainel() {
+    try {
+      const r = JSON.parse(sessionStorage.getItem("emitta.rascunho") || "null");
+      sessionStorage.removeItem("emitta.rascunho");
+      return r;
+    } catch { return null; }
   }
 
   // ------------------------------------------------------------ ações

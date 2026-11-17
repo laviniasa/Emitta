@@ -164,6 +164,8 @@ const Emitta = (() => {
     download: "M12 4v12M7 11l5 5 5-5M5 20h14",
     busca: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4",
     fechar: "M6 6l12 12M18 6L6 18",
+    enviar: "M4 12l16-8-6 16-2.5-6.5L4 12z",
+    brilho: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z",
     documento: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6",
   };
   // Logo imprimindo em loop (tela de carregamento). SVG fixo, sem dados de fora.

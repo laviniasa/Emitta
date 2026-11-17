@@ -51,6 +51,22 @@
     return !estado.alterado || window.confirm("Há alterações nos serviços que não foram salvas. Sair mesmo assim?");
   }
 
+  // ------------------------------------------------------------ assistente
+
+  // No painel, o contador pode pedir ajuda e até montar uma nota de uma empresa:
+  // o rascunho abre no app da empresa para ele conferir e emitir.
+  EmittaAssistente.montar({
+    clienteId: () => (estado.modo === "cliente" ? estado.selecionado : null),
+    sugestoes: ["Qual código uso para cabeleireiro?", "Como libero um serviço?", "Como envio o certificado?"],
+    aoAgir: (acao) => {
+      const id = estado.selecionado;
+      if (!id) return;
+      if (acao.tipo === "abrir") { location.href = `/empresa?empresa=${id}&nova=1`; return; }
+      try { sessionStorage.setItem("emitta.rascunho", JSON.stringify({ cliente_id: id, acao })); } catch {}
+      location.href = `/empresa?empresa=${id}`;
+    },
+  });
+
   // ------------------------------------------------------------ dados
 
   async function carregarClientes() {

@@ -46,6 +46,7 @@ from .autenticacao import (
     DURACAO_SESSAO,
     ServicoAutenticacao,
 )
+from . import assistente
 from .assinatura import ErroCertificado
 from .catalogo import carregar_catalogo
 from .certificados import ProvedorCertificados, preparar_certificado
@@ -117,6 +118,16 @@ class NovaNota(BaseModel):
     competencia: str | None = Field(None, description="Data do serviço (AAAA-MM-DD). Padrão: hoje.")
     iss_retido: bool = False
     chave_envio: str | None = Field(None, max_length=64, description="Identificador único deste envio (evita nota duplicada)")
+
+
+class MensagemAssistente(BaseModel):
+    de: Literal["pessoa", "assistente"]
+    texto: str = Field(max_length=4000)
+
+
+class ConversaAssistente(BaseModel):
+    mensagens: list[MensagemAssistente] = Field(max_length=40)
+    cliente_id: int | None = None
 
 
 class PedidoCancelamento(BaseModel):
@@ -870,6 +881,45 @@ def criar_app(
             "Content-Disposition": f'attachment; filename="{nome}"',
             "Cache-Control": "no-store",
         })
+
+    limitador_assistente = LimitadorTentativas(limite=20, janela=60)
+
+    @app.post("/assistente", tags=["assistente"])
+    def conversar_com_assistente(dados: ConversaAssistente, usuario: Usuario = Depends(usuario_atual)):
+        """Assistente do Emitta. Só monta rascunhos; quem emite ou cancela é a pessoa, no app."""
+        if usuario.papel == "admin":
+            raise HTTPException(404, "Não encontrado.")
+        if not limitador_assistente.permitir(f"assistente:{usuario.id}"):
+            raise HTTPException(429, "Muitas mensagens seguidas. Aguarde um minuto.")
+        cliente_id = usuario.cliente_id if usuario.papel == "empresa" else dados.cliente_id
+        empresa = None
+        servicos_lib: list[dict] = []
+        notas: list[dict] = []
+        if cliente_id is not None:
+            autorizar_empresa(cliente_id, usuario)  # mesma regra de acesso do app
+            c = cliente_ou_404(cliente_id)
+            empresa = {"razao_social": c.razao_social, "municipio": c.municipio_nome,
+                       "aliquota_iss": str(c.aliquota_iss), "prazo_cancelamento_dias": c.prazo_cancelamento_dias,
+                       "regime": {"1": "fora do Simples", "2": "MEI", "3": "Simples Nacional"}.get(c.opcao_simples, "")}
+            catalogo_ = carregar_catalogo()
+            servicos_lib = [{"codigo": s["codigo"], "apelido": s["apelido"],
+                             "descricao": catalogo_.get(s["codigo"], {}).get("descricao", "")}
+                            for s in repo.servicos_liberados(cliente_id)]
+            for n in repo.listar_notas(cliente_id)[:15]:
+                notas.append({"id": n.id, "numero": str(n.numero_dps).zfill(6), "cliente": n.tomador_nome,
+                              "valor": regras.centavos_para_texto(n.valor_centavos).replace(".", ","),
+                              "situacao": n.situacao, "data": (n.emitida_em or "")[:10]})
+
+        def cnpj_para_ia(numero: str) -> dict:
+            if not limitador_consultas.permitir(f"cnpj:{usuario.id}"):
+                return {}
+            return consulta_cnpj.consultar(numero)
+
+        ctx = assistente.Contexto(
+            papel=usuario.papel, nome=usuario.nome.split()[0] if usuario.nome else "", ambiente=servico.config.ambiente,
+            hoje=datetime.now(timezone.utc).astimezone().date(), empresa=empresa, servicos=servicos_lib,
+            notas=notas, catalogo=carregar_catalogo(), consultar_cnpj=cnpj_para_ia)
+        return assistente.responder(ctx, [m.model_dump() for m in dados.mensagens])
 
     @app.get("/app/{cliente_id}/notas", tags=["app da empresa"])
     def minhas_notas(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
