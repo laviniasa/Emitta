@@ -146,6 +146,7 @@ class Cadastro(BaseModel):
     nome: str = Field(max_length=120)
     email: str = Field(max_length=254)
     senha: str = Field(max_length=200)
+    tipo: Literal["contador", "autonomo"] = "contador"  # autonomo = MEI/autônomo sem contador
 
 
 class Login(BaseModel):
@@ -285,7 +286,8 @@ def criar_app(
         return usuario
 
     def contador_atual(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
-        if usuario.papel != "contador":
+        # MEI/autônomo sem contador usa a mesma área para configurar a própria empresa.
+        if usuario.papel not in ("contador", "autonomo"):
             raise HTTPException(403, "Área exclusiva do contador.")
         return usuario
 
@@ -310,7 +312,7 @@ def criar_app(
         # a administração não acessa dados fiscais.
         if usuario.papel == "empresa" and usuario.cliente_id == cliente_id:
             return usuario
-        if usuario.papel == "contador":
+        if usuario.papel in ("contador", "autonomo"):
             cliente = repo.buscar_cliente(cliente_id)
             if cliente and cliente.contador_id == usuario.id:
                 return usuario
@@ -420,11 +422,11 @@ def criar_app(
         if not limitador_cadastros.permitir(ip_do_pedido(request)):
             raise HTTPException(429, "Muitas contas criadas deste aparelho. Tente mais tarde.")
         try:
-            usuario = auth.cadastrar_contador(dados.nome, dados.email, dados.senha)
+            usuario = auth.cadastrar_contador(dados.nome, dados.email, dados.senha, papel=dados.tipo)
         except ErroAutenticacao as e:
             raise erro_auth(e)
         # Não abre sessão: a conta só funciona depois da aprovação.
-        evento("contador_pediu_acesso", request, usuario)
+        evento("autonomo_pediu_acesso" if dados.tipo == "autonomo" else "contador_pediu_acesso", request, usuario)
         return {"pendente": True, "email": usuario.email}
 
     @app.post("/auth/entrar", tags=["autenticação"])
@@ -513,7 +515,7 @@ def criar_app(
 
     # ------------------------------------------------------------ administração
 
-    PAPEIS = {"admin": "Administração", "contador": "Contador", "empresa": "Empresa"}
+    PAPEIS = {"admin": "Administração", "contador": "Contador", "empresa": "Empresa", "autonomo": "MEI/autônomo"}
 
     @app.get("/admin/contas", tags=["administração"])
     def admin_contas(_: Usuario = Depends(admin_atual)):
@@ -645,6 +647,8 @@ def criar_app(
 
     @app.post("/contador/clientes", status_code=201, tags=["contador"])
     def criar_cliente(dados: NovoCliente, request: Request, usuario: Usuario = Depends(contador_atual)):
+        if usuario.papel == "autonomo" and repo.listar_clientes(contador_id=usuario.id):
+            raise HTTPException(409, "Sua conta já tem uma empresa cadastrada.")
         cnpj = regras.limpar_documento(dados.cnpj)
         if dados.opcao_simples == "3" and dados.p_tot_trib_sn is None and servico.config.ambiente != "simulacao":
             raise HTTPException(422, "Informe o percentual aproximado de tributos do Simples Nacional.")
@@ -671,6 +675,8 @@ def criar_app(
             if "UNIQUE" in str(erro):
                 raise HTTPException(409, "Você já cadastrou esta empresa.")
             raise
+        if usuario.papel == "autonomo":
+            repo.atualizar_usuario(usuario.id, cliente_id=cliente.id)  # a empresa é a própria pessoa
         evento("empresa_cadastrada", request, usuario, detalhe=f"{cliente.razao_social} ({cnpj})")
         return cliente.publico()
 
@@ -772,6 +778,8 @@ def criar_app(
     @app.post("/contador/clientes/{cliente_id}/acessos", tags=["contador"])
     def criar_acesso(cliente_id: int, dados: NovoAcesso, request: Request,
                      quem: Usuario = Depends(dono_do_cliente)):
+        if quem.papel == "autonomo":
+            raise HTTPException(403, "Na conta de MEI/autônomo, você mesmo emite as notas.")
         """Cria ou redefine o acesso da empresa. A senha provisória aparece
         uma única vez e precisa ser trocada no primeiro acesso."""
         cliente_ou_404(cliente_id)
@@ -891,7 +899,7 @@ def criar_app(
             raise HTTPException(404, "Não encontrado.")
         if not limitador_assistente.permitir(f"assistente:{usuario.id}"):
             raise HTTPException(429, "Muitas mensagens seguidas. Aguarde um minuto.")
-        cliente_id = usuario.cliente_id if usuario.papel == "empresa" else dados.cliente_id
+        cliente_id = usuario.cliente_id if usuario.papel in ("empresa", "autonomo") else dados.cliente_id
         empresa = None
         servicos_lib: list[dict] = []
         notas: list[dict] = []

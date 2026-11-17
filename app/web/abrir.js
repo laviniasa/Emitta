@@ -22,7 +22,7 @@
     .then((r) => (r.ok ? r.json() : null))
     .then((eu) => {
       if (!eu || eu.trocar_senha) return "/entrar";
-      return { admin: "/admin", contador: "/escritorio", empresa: "/empresa" }[eu.papel] || "/entrar";
+      return { admin: "/admin", contador: "/escritorio", empresa: "/empresa", autonomo: "/empresa" }[eu.papel] || "/entrar";
     })
     .catch(() => (navigator.onLine === false ? "/offline" : "/entrar"))
     .finally(() => clearTimeout(limite));

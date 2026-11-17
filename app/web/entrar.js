@@ -10,6 +10,7 @@
   function destino(papel) {
     const volta = new URLSearchParams(location.search).get("volta") || "";
     const valido = volta.startsWith("/") && !volta.startsWith("//") && !volta.startsWith("/entrar");
+    // MEI/autônomo: vai direto para o app (se ainda não cadastrou a empresa, o app manda para os Ajustes).
     const area = { admin: "/admin", contador: "/escritorio" }[papel] || "/empresa";
     return valido && volta.startsWith(area) ? volta : area;
   }
@@ -104,13 +105,14 @@
       el("div", {}, el("h1", {}, "Bem-vindo ao Emitta"), el("p", { class: "sub" }, "Como você vai usar o Emitta?")),
       opcao("Sou contador", "Cadastro as empresas e libero os serviços de cada uma.", "contador"),
       opcao("Sou empresa", "Emito e cancelo as notas da minha empresa.", "empresa"),
+      opcao("Sou MEI ou autônomo, sem contador", "Configuro tudo sozinho e emito as minhas notas, com a ajuda da assistente.", "autonomo"),
     );
   }
 
   function telaEntrar(perfil) {
     const ehEmpresa = perfil === "empresa";
     formulario(
-      ehEmpresa ? "Entrar · Empresa" : perfil === "contador" ? "Entrar · Contador" : "Entrar",
+      ehEmpresa ? "Entrar · Empresa" : perfil === "contador" ? "Entrar · Contador" : perfil === "autonomo" ? "Entrar · MEI ou autônomo" : "Entrar",
       "Use o e-mail e a senha da sua conta.",
       [
         el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", inputmode: "email", required: true })),
@@ -127,21 +129,31 @@
     const extras = [];
     if (perfil === "contador") {
       extras.push(el("div", { class: "separador" }, "Ainda não tem conta?"),
-        el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: telaCadastro }, "Criar conta de contador"),
+        el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaCadastro("contador") }, "Criar conta de contador"),
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? Fale com o suporte do Emitta."));
+    } else if (perfil === "autonomo") {
+      extras.push(el("div", { class: "separador" }, "Ainda não tem conta?"),
+        el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaCadastro("autonomo") }, "Criar conta de MEI ou autônomo"),
         el("p", { class: "nota-pe" }, "Esqueceu a senha? Fale com o suporte do Emitta."));
     } else if (ehEmpresa) {
       extras.push(el("div", { class: "aviso aviso-info" }, icone("escudo"),
         "Seu acesso é criado pelo seu contador. Ele te passa o e-mail e uma senha provisória, e no primeiro acesso você cria a sua."),
-        el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."));
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."),
+        el("p", { class: "nota-pe" }, "Não tem contador? ",
+          el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar("autonomo") }, "Use o Emitta como MEI ou autônomo")));
     }
     $caixa.prepend(voltarPara(telaEscolha));
     $caixa.append(...extras);
   }
 
-  function telaCadastro() {
+  function telaCadastro(tipo = "contador") {
+    const autonomo = tipo === "autonomo";
     const senha = el("input", { type: "password", name: "senha", autocomplete: "new-password", required: true });
     formulario(
-      "Criar conta de contador", "Depois de enviar, a sua conta passa por uma aprovação do Emitta. Você vai ver só as empresas que cadastrar.",
+      autonomo ? "Criar conta de MEI ou autônomo" : "Criar conta de contador",
+      autonomo
+        ? "Depois de enviar, a sua conta passa por uma aprovação do Emitta. Aí você cadastra a sua empresa, envia o certificado digital e escolhe os seus serviços, com a ajuda da assistente."
+        : "Depois de enviar, a sua conta passa por uma aprovação do Emitta. Você vai ver só as empresas que cadastrar.",
       [
         el("label", { class: "campo" }, "Seu nome", el("input", { name: "nome", autocomplete: "name", maxlength: "120", required: true })),
         el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", inputmode: "email", required: true })),
@@ -151,21 +163,21 @@
       "Enviar pedido de conta",
       async (d) => {
         if (d.senha !== d.repetir) throw new Error("As duas senhas não são iguais.");
-        const r = await api("POST", "/auth/cadastro", { nome: d.nome, email: d.email, senha: d.senha }, { semRedirecionar: true });
-        telaPedidoEnviado(r.email);
+        const r = await api("POST", "/auth/cadastro", { nome: d.nome, email: d.email, senha: d.senha, tipo }, { semRedirecionar: true });
+        telaPedidoEnviado(r.email, tipo);
       },
     );
-    $caixa.prepend(voltarPara(() => telaEntrar("contador")));
+    $caixa.prepend(voltarPara(() => telaEntrar(tipo)));
     $caixa.append(el("p", { class: "nota-pe" }, "Já tem conta? ",
-      el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar("contador") }, "Entrar")));
+      el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar(tipo) }, "Entrar")));
   }
 
-  function telaPedidoEnviado(email) {
+  function telaPedidoEnviado(email, tipo = "contador") {
     $caixa.replaceChildren(
       el("div", { style: "width:56px;height:56px;border-radius:50%;background:var(--verde-claro);color:var(--verde);display:grid;place-items:center" }, icone("relogio", 28)),
       el("div", {}, el("h1", {}, "Pedido enviado!"),
         el("p", { class: "sub" }, `A sua conta (${email}) está aguardando aprovação do Emitta. Assim que for liberada, é só entrar com o e-mail e a senha que você criou.`)),
-      el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaEntrar("contador") }, "Voltar para entrar"),
+      el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaEntrar(tipo) }, "Voltar para entrar"),
     );
   }
 

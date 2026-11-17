@@ -146,6 +146,8 @@
       item("ajuda", "Ajuda", "brilho", () => ajuda.abrir()),
       estado.eu.papel === "contador"
         ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/escritorio"; })
+        : estado.eu.papel === "autonomo"
+        ? item("ajustes", "Ajustes", "engrenagem", () => { location.href = "/escritorio"; })
         : item("sair", "Sair", "sair", () => { if (window.confirm("Sair do Emitta neste aparelho?")) sair(); }),
     );
   }
@@ -202,6 +204,10 @@
           estado.servicos.length
             ? el("button", { class: "botao botao-grande", type: "button", style: "min-height:60px;font-size:17px", onclick: novaNota },
               icone("mais", 22), "Nova nota")
+            : estado.eu.papel === "autonomo"
+            ? el("div", { class: "aviso aviso-alerta", style: "flex-direction:column;align-items:stretch;gap:10px" },
+              el("span", {}, "Falta escolher os serviços que você presta. É rapidinho:"),
+              el("a", { class: "botao", href: "/escritorio" }, "Escolher meus serviços"))
             : el("div", { class: "aviso aviso-alerta" }, icone("cadeado"),
               "Nenhum serviço liberado ainda. Peça ao seu contador para liberar os serviços da sua empresa."),
           el("h2", { style: "font-size:15px;margin-top:8px" }, "Últimas notas"),
@@ -221,7 +227,7 @@
         const i = v * parseFloat(estado.empresa.aliquota_iss) / 100;
         $totais.replaceChildren(
           el("div", { class: "linha", style: "color:var(--texto-2)" },
-            el("span", {}, `ISS ${estado.empresa.aliquota_iss.replace(".", ",")}% (definido pelo contador)`), el("span", {}, dinheiro(i))),
+            el("span", {}, `ISS ${estado.empresa.aliquota_iss.replace(".", ",")}% (${estado.eu.papel === "autonomo" ? "dos seus ajustes" : "definido pelo contador"})`), el("span", {}, dinheiro(i))),
           el("div", { class: "linha total" }, el("span", {}, "Total da nota"), el("span", {}, dinheiro(v))));
       }
       atualizarTotais();
@@ -284,9 +290,9 @@
           el("section", { class: "card secao" },
             el("div", { class: "secao-titulo" },
               el("h2", {}, "Qual serviço você prestou?"),
-              el("span", { class: "selo selo-verde" }, icone("cadeado", 12), "Liberado pelo contador")),
+              el("span", { class: "selo selo-verde" }, icone("cadeado", 12), estado.eu.papel === "autonomo" ? "Seus serviços" : "Liberado pelo contador")),
             el("div", { role: "radiogroup", "aria-label": "Serviço", class: "secao" }, ...opcoes),
-            el("p", { class: "ajuda-pequena" }, "Só aparecem os serviços que o seu contador liberou para a sua empresa.")),
+            el("p", { class: "ajuda-pequena" }, estado.eu.papel === "autonomo" ? "Para mudar a lista, toque em Ajustes." : "Só aparecem os serviços que o seu contador liberou para a sua empresa.")),
           el("section", { class: "card secao" },
             el("h2", { style: "font-size:15px" }, "Para quem?"),
             el("div", { class: "campo" }, el("label", { class: "campo" }, "CNPJ ou CPF do cliente", $doc), $dicaDoc),
@@ -587,7 +593,10 @@
   // ------------------------------------------------------------ ações
 
   function novaNota() {
-    if (!estado.servicos.length) { avisar("Nenhum serviço liberado. Fale com o seu contador."); return; }
+    if (!estado.servicos.length) {
+      if (estado.eu.papel === "autonomo") { location.href = "/escritorio"; return; }
+      avisar("Nenhum serviço liberado. Fale com o seu contador."); return;
+    }
     estado.form = {
       codigo: estado.servicos.length === 1 ? estado.servicos[0].codigo : null, documento: "", nome: "", valor: "", descricao: "",
       competencia: hojeIsoLocal(), iss_retido: false, chave_envio: novaChaveEnvio(),
@@ -693,9 +702,8 @@
     estado.eu = await exigirLogin();
     // A empresa só abre a própria conta. O contador pode abrir qualquer uma
     // pelo botão "Ver como o cliente vê" do painel.
-    const id = estado.eu.papel === "empresa"
-      ? estado.eu.cliente_id
-      : parseInt(new URLSearchParams(location.search).get("empresa"), 10);
+    const propria = estado.eu.papel === "empresa" || estado.eu.papel === "autonomo";
+    const id = propria ? estado.eu.cliente_id : parseInt(new URLSearchParams(location.search).get("empresa"), 10);
     if (!id) { location.href = "/escritorio"; return; }
     await entrar(id);
   })();

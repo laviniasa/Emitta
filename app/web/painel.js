@@ -201,6 +201,8 @@
     return achados.sort((a, b) => nota(a) - nota(b) || a.codigo.localeCompare(b.codigo));
   }
 
+  const autonomo = () => estado.eu && estado.eu.papel === "autonomo";
+
   const ABAS = [
     { id: "servicos", nome: "Serviços" },
     { id: "notas", nome: "Notas" },
@@ -223,15 +225,17 @@
       el("div", {},
         el("h1", {}, c.razao_social),
         el("p", { class: "sub" }, `CNPJ ${formatarDocumento(c.cnpj)} · ${c.municipio_nome}`)),
-      el("a", { class: "botao botao-secundario", href: `/empresa?empresa=${c.id}` }, "Ver como o cliente vê"),
+      autonomo()
+        ? el("a", { class: "botao", href: "/empresa" }, icone("mais", 18), "Emitir notas")
+        : el("a", { class: "botao botao-secundario", href: `/empresa?empresa=${c.id}` }, "Ver como o cliente vê"),
     );
 
     // Passo a passo da empresa nova: some quando as três etapas estão prontas.
     const etapas = [
       { aba: "certificado", nome: "Certificado", feito: !!c.certificado },
       { aba: "servicos", nome: "Serviços", feito: c.servicos_liberados > 0 },
-      { aba: "acesso", nome: "Acesso ao app", feito: estado.acessos.length > 0 },
-    ];
+      autonomo() ? null : { aba: "acesso", nome: "Acesso ao app", feito: estado.acessos.length > 0 },
+    ].filter(Boolean);
     const faltam = etapas.filter((e) => !e.feito).length;
     const passos = faltam > 0 && el("section", { class: "card passos" },
       el("div", { class: "passos-titulo" },
@@ -246,7 +250,7 @@
           el("span", {}, e.nome, el("span", { class: "visualmente-oculto" }, e.feito ? " (feito)" : " (pendente)")))))));
 
     const abas = el("div", { class: "abas-empresa", role: "tablist", "aria-label": "Seções da empresa" },
-      ...ABAS.map((a) => el("button", {
+      ...ABAS.filter((a) => !(autonomo() && a.id === "acesso")).map((a) => el("button", {
         type: "button", role: "tab", class: "aba-empresa", id: `aba-${a.id}`,
         "aria-selected": estado.aba === a.id ? "true" : "false",
         onclick: () => { if (a.id !== estado.aba) irParaAba(a.id); },
@@ -255,6 +259,7 @@
         a.id === "notas" && estado.notas.length > 0 && el("span", { class: "aba-qtd" }, String(estado.notas.length)))));
 
     let conteudo;
+    if (autonomo() && estado.aba === "acesso") estado.aba = "servicos";
     if (estado.aba === "notas") conteudo = [secaoNotas()];
     else if (estado.aba === "certificado") conteudo = [secaoCertificado(c)];
     else if (estado.aba === "acesso") conteudo = [secaoAcessos(c)];
@@ -507,8 +512,10 @@
 
     const form = el("form", { class: "card", style: "padding:24px;display:flex;flex-direction:column;gap:18px", novalidate: true },
       el("div", {},
-        el("h1", { style: "font-size:22px" }, "Nova empresa"),
-        el("p", { class: "sub2", style: "margin-top:4px" }, "Depois de cadastrar, você escolhe os serviços que ela pode emitir.")),
+        el("h1", { style: "font-size:22px" }, autonomo() ? "Cadastre a sua empresa" : "Nova empresa"),
+        el("p", { class: "sub2", style: "margin-top:4px" }, autonomo()
+          ? "Digite o seu CNPJ: o Emitta busca os dados na Receita. Depois você envia o certificado e escolhe os seus serviços. Dúvidas? Toque em Ajuda."
+          : "Depois de cadastrar, você escolhe os serviços que ela pode emitir.")),
       $erro,
       $dicaCnpj,
       el("div", { class: "form-grade" },
@@ -530,7 +537,7 @@
           "Deixe em branco se não souber"),
       ),
       el("div", { class: "acoes" },
-        el("button", { class: "botao botao-secundario", type: "button", onclick: () => { estado.modo = estado.selecionado ? "cliente" : "vazio"; desenharPrincipal(); } }, "Cancelar"),
+        !autonomo() && el("button", { class: "botao botao-secundario", type: "button", onclick: () => { estado.modo = estado.selecionado ? "cliente" : "vazio"; desenharPrincipal(); } }, "Cancelar"),
         el("button", { class: "botao", type: "submit" }, "Cadastrar empresa")),
     );
 
@@ -559,7 +566,7 @@
       try {
         const novo = await api("POST", "/contador/clientes", corpo);
         await carregarClientes();
-        avisar("Empresa cadastrada. Agora libere os serviços.");
+        avisar(autonomo() ? "Empresa cadastrada! Agora envie o certificado e escolha os seus serviços." : "Empresa cadastrada. Agora libere os serviços.");
         await abrirCliente(novo.id);
       } catch (erro) {
         $erro.textContent = erro.message;
@@ -850,10 +857,20 @@
       else { selo.textContent = "Produção"; selo.className = "selo selo-verde"; }
 
       await carregarClientes();
-      const ultimo = parseInt(ler("emitta.painel.cliente"), 10);
-      desenharLista();
-      if (estado.clientes.some((c) => c.id === ultimo)) await abrirCliente(ultimo);
-      else { estado.modo = "vazio"; desenharPrincipal(); }
+      if (autonomo()) {
+        // MEI/autônomo: só a própria empresa. Sem empresa ainda, abre o cadastro.
+        document.body.classList.add("modo-autonomo");
+        document.title = "Emitta · Ajustes da minha empresa";
+        const sub = document.querySelector(".marca-sub");
+        if (sub) sub.textContent = "Ajustes da minha empresa";
+        if (estado.clientes.length) await abrirCliente(estado.clientes[0].id);
+        else { estado.modo = "nova"; desenharPrincipal(); }
+      } else {
+        const ultimo = parseInt(ler("emitta.painel.cliente"), 10);
+        desenharLista();
+        if (estado.clientes.some((c) => c.id === ultimo)) await abrirCliente(ultimo);
+        else { estado.modo = "vazio"; desenharPrincipal(); }
+      }
       if (!estado.eu.dois_fatores && !ler("emitta.aviso2fa")) {
         guardar("emitta.aviso2fa", "1");
         avisar("Dica: ative a verificação em duas etapas em \"Segurança\".");

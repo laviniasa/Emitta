@@ -105,10 +105,12 @@ class ServicoAutenticacao:
             raise AcessoNegado("Código de instalação incorreto.")
         return self.criar_usuario(nome, email, senha, papel="admin")
 
-    def cadastrar_contador(self, nome: str, email: str, senha: str) -> Usuario:
-        """Contador pede a própria conta. Ela só funciona depois que a
-        administração aprovar. Ele só enxerga o que cadastrar."""
-        usuario = self.criar_usuario(nome, email, senha, papel="contador")
+    def cadastrar_contador(self, nome: str, email: str, senha: str, papel: str = "contador") -> Usuario:
+        """Contador (ou MEI/autônomo sem contador) pede a própria conta. Ela só
+        funciona depois que a administração aprovar. Só enxerga o que cadastrar."""
+        if papel not in ("contador", "autonomo"):
+            raise ErroAutenticacao("Tipo de conta inválido.")
+        usuario = self.criar_usuario(nome, email, senha, papel=papel)
         return self.repo.atualizar_usuario(usuario.id, aprovado=0)
 
     # ------------------------------------------------------------ contas

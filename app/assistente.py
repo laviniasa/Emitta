@@ -225,6 +225,8 @@ def _instrucoes(ctx: Contexto) -> str:
         "Cancelar: tocar na nota > 'Cancelar esta nota' > motivo > 'Cancelar nota'. Baixar PDF/XML: abrir a nota > 'Baixar PDF'. "
         "Contador: painel > empresa > abas Serviços (liberar com 'Todos os serviços'), Notas, Certificado, Acesso ao app, Dados. "
         "'Conferir na prefeitura' verifica se a cidade aceita o código e preenche o código municipal.",
+        "MEI/autônomo sem contador: as configurações (certificado, serviços, dados) ficam em 'Ajustes', no menu do app; "
+        "ele mesmo libera os serviços e confere na prefeitura. Para alíquota e código, se tiver dúvida, sugira confirmar com a prefeitura.",
     ]
     if ctx.empresa:
         e = ctx.empresa
@@ -319,7 +321,8 @@ def ajuda_basica(ctx: Contexto, pergunta: str) -> dict:
         resposta = ("Abra a nota e toque em \"Baixar PDF\" ou \"Baixar XML\". No celular, abre o Compartilhar: "
                     "escolha \"Salvar em Arquivos\", WhatsApp ou e-mail.")
     elif tem("servico", "codigo") and ctx.papel in ("contador", "autonomo"):
-        resposta = ("Na empresa, abra a aba Serviços e toque em \"Todos os serviços\". Busque por palavra (ex.: cabelo) ou código, "
+        inicio = "Toque em \"Ajustes\", abra a aba Serviços" if ctx.papel == "autonomo" else "Na empresa, abra a aba Serviços"
+        resposta = (inicio + " e toque em \"Todos os serviços\". Busque por palavra (ex.: cabelo) ou código, "
                     "toque em \"Liberar\" e depois em \"Salvar e enviar para o app\". Use \"Conferir na prefeitura\" para ver se a cidade aceita.")
     elif tem("servico", "codigo"):
         resposta = "Os serviços que aparecem são os que seu contador liberou. Se faltar algum, peça para ele liberar no painel."
@@ -327,7 +330,8 @@ def ajuda_basica(ctx: Contexto, pergunta: str) -> dict:
         resposta = ("O certificado digital A1 (.pfx) é enviado na aba Certificado da empresa, com a senha dele. "
                     "Ele fica guardado criptografado. Nunca mande o certificado por mensagem.")
     elif tem("senha", "esqueci", "acesso", "login", "entrar"):
-        resposta = "Se esqueceu a senha, peça ao seu contador para gerar uma nova senha provisória na aba Acesso ao app."
+        resposta = ("Se esqueceu a senha, fale com o suporte do Emitta." if ctx.papel == "autonomo" else
+                    "Se esqueceu a senha, peça ao seu contador para gerar uma nova senha provisória na aba Acesso ao app.")
     elif tem("recus", "erro", "rejeit", "nao foi", "deu errado"):
         resposta = ("Quando a prefeitura recusa, nada é emitido. Leia a mensagem na tela, toque em \"Corrigir dados\" e envie de novo. "
                     "Se o erro falar do código do serviço, o contador pode usar \"Conferir na prefeitura\".")

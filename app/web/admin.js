@@ -243,9 +243,9 @@
     const pedidos = estado.contas.filter((c) => c.aguardando_aprovacao);
     const blocoPedidos = pedidos.length ? el("section", { class: "card bloco pedidos" },
       el("h2", {}, `Pedidos de conta (${pedidos.length})`),
-      el("p", { class: "sub" }, "Contadores que criaram conta e esperam a sua liberação. Antes de aprovar, confirme que você conhece a pessoa."),
+      el("p", { class: "sub" }, "Contadores e MEIs que criaram conta e esperam a sua liberação. Antes de aprovar, confirme que você conhece a pessoa."),
       el("div", {}, ...pedidos.map(linhaPedido))) : null;
-    const grupos = [["contador", "Contadores"], ["empresa", "Acessos de empresas"], ["admin", "Administração"]];
+    const grupos = [["contador", "Contadores"], ["autonomo", "MEIs e autônomos (sem contador)"], ["empresa", "Acessos de empresas"], ["admin", "Administração"]];
     return [blocoPedidos, ...grupos.map(([papel, titulo]) => {
       const contas = estado.contas.filter((c) => c.papel === papel && !c.aguardando_aprovacao);
       return el("section", { class: "card bloco" }, el("h2", {}, `${titulo} (${contas.length})`),
@@ -257,7 +257,7 @@
     return el("div", { class: "conta" },
       el("div", { class: "info" },
         el("span", { class: "nome" }, c.nome),
-        el("span", { class: "detalhes" }, c.email),
+        el("span", { class: "detalhes" }, `${c.email} · ${c.papel === "autonomo" ? "MEI/autônomo" : "Contador"}`),
         el("span", { class: "detalhes" }, `Pedido em ${dataHora(c.criado_em)}`),
         el("div", { class: "selos" }, el("span", { class: "selo selo-amarelo" }, "Aguardando aprovação"))),
       el("div", { class: "acoes" },

@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email TEXT NOT NULL UNIQUE COLLATE NOCASE,
     nome TEXT NOT NULL,
     senha_hash TEXT NOT NULL,
-    papel TEXT NOT NULL CHECK (papel IN ('admin', 'contador', 'empresa')),
+    papel TEXT NOT NULL CHECK (papel IN ('admin', 'contador', 'empresa', 'autonomo')),
     cliente_id INTEGER REFERENCES clientes(id) ON DELETE CASCADE,
     trocar_senha INTEGER NOT NULL DEFAULT 0,
     totp_segredo TEXT,
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     ativo INTEGER NOT NULL DEFAULT 1,
     ultimo_acesso TEXT,
     aprovado INTEGER NOT NULL DEFAULT 1,
-    CHECK ((papel = 'empresa') = (cliente_id IS NOT NULL))
+    CHECK (papel = 'autonomo' OR (papel = 'empresa') = (cliente_id IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS eventos (
@@ -245,6 +245,19 @@ class Repositorio:
             self.con.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS notas_chave_envio ON notas (cliente_id, chave_envio)"
             )
+            # Bancos antigos só aceitavam admin/contador/empresa: o SQLite não muda um
+            # CHECK com ALTER, então ajusta o texto da tabela (seguro: só amplia a regra).
+            sql = self.con.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='usuarios'").fetchone()
+            if sql and "'autonomo'" not in sql[0]:
+                novo = (sql[0].replace("('admin', 'contador', 'empresa')", "('admin', 'contador', 'empresa', 'autonomo')")
+                        .replace("CHECK ((papel = 'empresa') = (cliente_id IS NOT NULL))",
+                                 "CHECK (papel = 'autonomo' OR (papel = 'empresa') = (cliente_id IS NOT NULL))"))
+                if novo != sql[0]:
+                    versao = self.con.execute("PRAGMA schema_version").fetchone()[0]
+                    self.con.execute("PRAGMA writable_schema = ON")
+                    self.con.execute("UPDATE sqlite_master SET sql = ? WHERE type='table' AND name='usuarios'", (novo,))
+                    self.con.execute(f"PRAGMA schema_version = {versao + 1}")
+                    self.con.execute("PRAGMA writable_schema = OFF")
 
     # ------------------------------------------------------------ clientes
 
@@ -408,7 +421,7 @@ class Repositorio:
 
     _CAMPOS_USUARIO = {
         "senha_hash", "trocar_senha", "totp_segredo", "totp_ativo", "totp_ultimo_passo",
-        "falhas_seguidas", "bloqueado_ate", "nome", "ativo", "ultimo_acesso", "aprovado",
+        "falhas_seguidas", "bloqueado_ate", "nome", "ativo", "ultimo_acesso", "aprovado", "cliente_id",
     }
 
     def contar_admins(self) -> int:

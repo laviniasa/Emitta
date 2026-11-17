@@ -13,7 +13,7 @@
 <title>Emitta · Painel do contador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=18">
+<link rel="stylesheet" href="/static/estilo.css?v=19">
 <style>
   .topo {
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
@@ -34,6 +34,9 @@
   .linha-acesso:last-child { border-bottom: 0; }
   .layout { display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; max-width: 1360px; margin: 0 auto; align-items: flex-start; }
   .lateral { flex: 1 1 260px; display: flex; flex-direction: column; gap: 12px; }
+  /* MEI/autônomo: uma empresa só (a dele), sem a lista lateral */
+  body.modo-autonomo .lateral { display: none; }
+  body.modo-autonomo .principal { flex-basis: 100%; }
   .lista-clientes { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
   .item-cliente {
     display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
@@ -188,9 +191,9 @@
   <main class="principal" id="principal" aria-live="polite"></main>
 </div>
 
-<script src="/static/comum.js?v=18"></script>
-<script src="/static/assistente.js?v=18"></script>
-<script src="/static/painel.js?v=18"></script>
-<script src="/static/pwa.js?v=18"></script>
+<script src="/static/comum.js?v=19"></script>
+<script src="/static/assistente.js?v=19"></script>
+<script src="/static/painel.js?v=19"></script>
+<script src="/static/pwa.js?v=19"></script>
 </body>
 </html>
