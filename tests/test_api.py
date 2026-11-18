@@ -441,3 +441,17 @@ def test_pwa_abertura_e_offline(anonimo):
         assert "Content-Security-Policy" in r.headers
     for pagina in ["/", "/entrar", "/escritorio", "/empresa", "/admin"]:
         assert 'rel="manifest"' in anonimo.get(pagina).text, pagina
+
+
+def test_admin_sem_duas_etapas_so_em_teste(servico, auth, monkeypatch):
+    monkeypatch.setenv("EMITTA_ADMIN_2FA_OPCIONAL", "1")
+    c = TestClient(criar_app(servico, auth=auth, cookie_seguro=False, consulta_cnpj=ConsultaFalsa()), headers=CSRF)
+    assert c.post("/auth/instalacao", json={"codigo": CODIGO, "nome": "Dona", "email": "dona@emitta.com", "senha": SENHA}).status_code == 200
+    assert c.get("/admin/contas").status_code == 200
+    # no ambiente de produção a chave não vale
+    import dataclasses
+    servico.config = dataclasses.replace(servico.config, ambiente="producao")
+    c2 = TestClient(criar_app(servico, auth=auth, cookie_seguro=True, consulta_cnpj=ConsultaFalsa()),
+                    headers=CSRF, base_url="https://testserver")
+    assert c2.post("/auth/entrar", json={"email": "dona@emitta.com", "senha": SENHA}).status_code == 200
+    assert c2.get("/admin/contas").json()["detail"]["codigo"] == "admin_2fa"

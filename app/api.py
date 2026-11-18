@@ -312,10 +312,15 @@ def criar_app(
             raise HTTPException(403, "Área exclusiva do contador.")
         return usuario
 
+    # Só para a fase de testes: EMITTA_ADMIN_2FA_OPCIONAL=1 deixa entrar na administração sem
+    # a verificação em duas etapas. Nunca vale no ambiente de produção do governo.
+    admin_2fa_opcional = (os.getenv("EMITTA_ADMIN_2FA_OPCIONAL", "").strip().lower() in ("1", "sim", "true")
+                          and servico.config.ambiente != "producao")
+
     def admin_atual(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
         if usuario.papel != "admin":
             raise HTTPException(404, "Não encontrado.")
-        if not usuario.totp_ativo:
+        if not usuario.totp_ativo and not admin_2fa_opcional:
             raise HTTPException(403, {"mensagem": "Ative a verificação em duas etapas para usar a administração.",
                                       "codigo": "admin_2fa"})
         return usuario
