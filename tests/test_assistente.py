@@ -148,3 +148,13 @@ def test_rota_assistente_api(ambiente_api, monkeypatch):
     assert rafa.post("/assistente", json={"mensagens": falar("oi"), "cliente_id": cid}).status_code == 200
     assert outro.post("/assistente", json={"mensagens": falar("oi"), "cliente_id": cid}).status_code == 404
     assert outro.post("/assistente", json={"mensagens": falar("oi")}).status_code == 200
+
+
+def test_resposta_com_rascunhos_colados_fica_limpa():
+    sujo = ("Qual o valor da nota (em reais, ex.: 150,00)?......Qual o valor da nota (em reais, por exemplo 150,00)?..."
+            "Preciso apenas do valor da nota para montar o rascunho. Por favor, informe o valor (ex.: 200,00)....Qual o valor da nota?")
+    assert assistente._limpar_resposta(sujo) == "Qual o valor da nota?"
+    assert assistente._limpar_resposta("Pronto! Confira. Pronto! Confira.") == "Pronto! Confira."
+    ia = ia_falsa("ok")
+    responder(ctx_empresa(), falar("oi"), ConfigIA(chave="x", modelo="openai/gpt-oss-120b"), chamar=ia)
+    assert ia.vistos[0]["include_reasoning"] is False and ia.vistos[0]["reasoning_effort"] == "low"

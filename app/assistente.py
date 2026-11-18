@@ -214,6 +214,7 @@ def _instrucoes(ctx: Contexto) -> str:
         "Você é a assistente do Emitta, um app brasileiro que emite NFS-e (nota fiscal de serviço, padrão nacional) direto para o governo.",
         "Seu papel: ajudar a pessoa a fazer as tarefas no app (emitir, cancelar, baixar, configurar) e, quando ela pedir, preparar a nota ou o cancelamento para ela só conferir e confirmar.",
         "ESTILO: português do Brasil, simples, gentil e curto (no máximo 4 frases, ou passos numerados curtos). "
+        "Escreva UMA resposta final só, sem rascunhos, sem repetir a pergunta e sem reticências. "
         "Escreva texto puro: sem markdown, sem asteriscos, sem emojis, sem títulos. Para passos, use linhas começando com 1. 2. 3. "
         "Use os nomes exatos dos botões entre aspas. Não fale de códigos técnicos (código municipal, cTribNac etc.) a não ser que a pessoa pergunte.",
         f"Hoje é {ctx.hoje.strftime('%d/%m/%Y')}. Ambiente do app: {amb}.",
@@ -283,12 +284,16 @@ def responder(ctx: Contexto, mensagens: list[dict], config: ConfigIA | None = No
     ferramentas = _ferramentas(ctx)
     try:
         for _ in range(MAX_RODADAS_FERRAMENTAS + 1):
-            resp = chamar({"model": config.modelo, "messages": conversa, "tools": ferramentas,
-                           "tool_choice": "auto", "temperature": 0.2, "max_tokens": 600})
+            corpo = {"model": config.modelo, "messages": conversa, "tools": ferramentas,
+                     "tool_choice": "auto", "temperature": 0.2, "max_tokens": 600}
+            if "gpt-oss" in config.modelo:
+                # o raciocínio interno fica fora da resposta (às vezes ele "vazava" para o texto)
+                corpo.update({"reasoning_effort": "low", "include_reasoning": False})
+            resp = chamar(corpo)
             msg = resp["choices"][0]["message"]
             pedidos = msg.get("tool_calls") or []
             if not pedidos:
-                texto = (msg.get("content") or "").strip() or "Pronto."
+                texto = _limpar_resposta(msg.get("content") or "") or "Pronto."
                 return {"resposta": texto, "acoes": acoes, "modo": "ia"}
             conversa.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": pedidos})
             for p in pedidos:
@@ -308,6 +313,24 @@ def responder(ctx: Contexto, mensagens: list[dict], config: ConfigIA | None = No
         r = ajuda_basica(ctx, historico[-1]["content"])
         r["resposta"] = "Não consegui falar com a IA agora, mas posso ajudar assim: " + r["resposta"]
         return r
+
+
+def _limpar_resposta(texto: str) -> str:
+    """Às vezes o modelo devolve rascunhos colados ("Qual o valor?......Qual o valor?...").
+    Fica só com a última versão e tira repetições de frases."""
+    texto = texto.strip()
+    partes = [p.strip() for p in re.split(r"\.{3,}|…{2,}", texto) if p.strip()]
+    if len(partes) > 1:
+        texto = partes[-1]
+        if not texto.endswith((".", "?", "!", ":")):
+            texto += "."
+    frases, vistas = [], set()
+    for f in re.split(r"(?<=[.?!])\s+", texto):
+        chave = re.sub(r"\W+", "", f.lower())
+        if chave and chave not in vistas:
+            vistas.add(chave)
+            frases.append(f)
+    return " ".join(frases).strip()
 
 
 class _Ocupada(Exception):
