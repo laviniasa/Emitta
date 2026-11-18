@@ -1,13 +1,13 @@
 // Service worker do Emitta: deixa o app instalável e abre rápido.
 // Segurança: só guarda arquivos visuais (estilos, scripts, ícones) e as telas
 // de abertura e "sem internet". Nunca guarda notas, logins nem dados de empresas.
-const VERSAO = "emitta-v34";
+const VERSAO = "emitta-v35";
 const ESSENCIAIS = [
   "/abrir",
   "/offline",
-  "/static/estilo.css?v=34",
-  "/static/abrir.js?v=34",
-  "/static/pwa.js?v=34",
+  "/static/estilo.css?v=35",
+  "/static/abrir.js?v=35",
+  "/static/pwa.js?v=35",
   "/static/icone.svg",
   "/static/icones/icone-192.png",
   "/static/icones/icone-512.png",

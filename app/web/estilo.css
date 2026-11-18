@@ -399,3 +399,13 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .rtc { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: #F7FBEE; border: 1px solid #E1EFC8; }
 .rtc-titulo { font-size: 13px; color: var(--verde-escuro); }
 .rtc select { width: 100%; font-size: 13px; }
+
+/* Serviços sugeridos pelo CNAE */
+.sugeridos { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: var(--raio); background: #F7FBEE; border: 1px solid #E1EFC8; }
+.sugeridos-topo h3 { font-family: var(--titulo); font-size: 15px; color: var(--verde-escuro); margin: 0 0 2px; }
+.sugerido-cnae { display: flex; flex-direction: column; gap: 6px; }
+.sugerido-cnae + .sugerido-cnae { border-top: 1px dashed #D5E6B5; padding-top: 10px; }
+.cnae-nome { font-size: 13px; font-weight: 600; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cnae-cod { font-variant-numeric: tabular-nums; color: var(--verde); }
+.sugerido-cnae .selo-mini { background: var(--verde-claro); color: var(--verde-escuro); }
+.sugerido-cnae .linha-catalogo { background: #fff; border-radius: 10px; }

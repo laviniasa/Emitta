@@ -49,7 +49,7 @@ from .autenticacao import (
 )
 from . import assistente
 from .assinatura import ErroCertificado
-from .catalogo import carregar_catalogo, ibscbs_sugerido, opcoes_ibscbs
+from .catalogo import carregar_catalogo, ibscbs_sugerido, opcoes_ibscbs, servicos_por_cnae
 from .certificados import ProvedorCertificados, preparar_certificado
 from .config import carregar_config
 from .consulta_cnpj import CnpjNaoEncontrado, ConsultaCnpj, ConsultaIndisponivel
@@ -781,6 +781,19 @@ def criar_app(
              **({k: liberados[s["codigo"]].get(k) for k in ("nbs", "cind_op", "cclass_trib")} if s["codigo"] in liberados else {})}
             for s in carregar_catalogo().values()
         ]
+
+    @app.get("/contador/clientes/{cliente_id}/servicos/sugeridos", tags=["contador"])
+    def servicos_sugeridos(cliente_id: int, usuario: Usuario = Depends(dono_do_cliente)):
+        """Serviços que combinam com as atividades (CNAE) da empresa na Receita."""
+        cliente = cliente_ou_404(cliente_id)
+        if not limitador_consultas.permitir(f"cnpj:{usuario.id}"):
+            raise HTTPException(429, "Muitas consultas seguidas. Aguarde um minuto.")
+        try:
+            dados = consulta_cnpj.consultar(cliente.cnpj)
+        except (CnpjNaoEncontrado, ConsultaIndisponivel) as e:
+            return {"cnaes": [], "erro": str(e)}
+        cnaes = [dados.get("cnae_principal") or {}] + list(dados.get("cnaes_secundarios") or [])
+        return {"cnaes": servicos_por_cnae([c for c in cnaes if c.get("codigo")])}
 
     @app.get("/catalogo/{codigo}/ibscbs", tags=["catálogo"])
     def opcoes_reforma_tributaria(codigo: str, _: Usuario = Depends(contador_atual)):

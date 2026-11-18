@@ -57,6 +57,34 @@ def ibscbs_sugerido(codigo: str) -> dict:
     return {"nbs": nbs["codigo"], "cind_op": nbs["cind_op"], "cclass_trib": cclass}
 
 
+ARQUIVO_CNAE = PASTA / "cnae_servicos.json"
+
+
+@lru_cache
+def carregar_cnae() -> dict[str, dict]:
+    """Tabela CNAE x Item da Lista de Serviços: CNAE (7 dígitos) -> itens da LC 116 ("06.01")."""
+    if not ARQUIVO_CNAE.exists():
+        return {}
+    return json.loads(ARQUIVO_CNAE.read_text(encoding="utf-8"))["cnaes"]
+
+
+def servicos_por_cnae(cnaes: list[dict]) -> list[dict]:
+    """Para cada CNAE da empresa (principal primeiro), os códigos de serviço nacionais que combinam.
+    Recebe [{"codigo": "9602501", "descricao": ...}] e devolve a mesma lista com "servicos"."""
+    tabela, catalogo = carregar_cnae(), carregar_catalogo()
+    saida, vistos = [], set()
+    for c in cnaes:
+        codigo = "".join(ch for ch in str(c.get("codigo") or "") if ch.isdigit()).zfill(7)
+        if codigo in vistos or codigo == "0000000":
+            continue
+        vistos.add(codigo)
+        itens = (tabela.get(codigo) or {}).get("itens", [])
+        servicos = [s["codigo"] for s in catalogo.values() if s.get("subitem") in itens]
+        saida.append({"codigo": codigo, "descricao": c.get("descricao") or (tabela.get(codigo) or {}).get("descricao", ""),
+                      "itens": itens, "servicos": servicos})
+    return saida
+
+
 def descricao_oficial(codigo: str) -> str | None:
     servico = carregar_catalogo().get(codigo)
     return servico["descricao"] if servico else None

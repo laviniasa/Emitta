@@ -85,6 +85,7 @@
     estado.aba = null;
     estado.buscaServico = "";
     estado.vistaServicos = null;
+    estado.sugeridos = null;
     guardar("emitta.painel.cliente", String(id));
     desenharLista();
     desenharPrincipal();
@@ -633,9 +634,9 @@
         : liberados.length ? liberados.map(cartaoServico)
         : [el("div", { class: "vazio-servicos" },
           el("p", {}, "Nenhum serviço liberado ainda."),
-          el("p", { class: "sub2" }, "Abra \"Todos os serviços\" e libere os que esta empresa presta."),
+          el("p", { class: "sub2" }, "Abra \"Todos os serviços\": o Emitta já sugere os que combinam com a atividade (CNAE) da empresa."),
           el("button", { class: "botao", type: "button", style: "align-self:center;margin-top:8px",
-            onclick: () => { estado.vistaServicos = "todos"; desenharPrincipal(); } }, "Ver todos os serviços"))]),
+            onclick: () => { estado.vistaServicos = "todos"; desenharPrincipal(); } }, "Ver serviços sugeridos"))]),
     );
 
     const previa = el("section", { class: "card previa", id: "previa" });
@@ -729,7 +730,44 @@
       oninput: (e) => { estado.buscaServico = e.target.value; desenhar(); },
     });
     desenhar();
-    return [el("div", { class: "busca-servico-campo" }, icone("busca", 18), $busca), $resultados];
+    return [blocoSugeridos(linha), el("div", { class: "busca-servico-campo" }, icone("busca", 18), $busca), $resultados];
+  }
+
+  // Serviços que combinam com as atividades (CNAE) da empresa na Receita.
+  function blocoSugeridos(linha) {
+    const caixa = el("section", { class: "sugeridos", "aria-live": "polite" });
+    const id = estado.selecionado;
+    const cnaeBonito = (c) => c.replace(/^(\d{2})(\d{2})(\d)(\d{2})$/, "$1.$2-$3-$4");
+    const desenhar = () => {
+      const r = estado.sugeridos;
+      if (!r) { caixa.replaceChildren(el("p", { class: "sub2" }, "Buscando as atividades (CNAE) da empresa na Receita...")); return; }
+      // cada serviço aparece uma vez só, no primeiro CNAE que o sugere (o principal vem antes)
+      const mostrados = new Set();
+      const comServico = (r.cnaes || []).map((c) => ({ ...c, servicos: c.servicos.filter((cod) => !mostrados.has(cod) && mostrados.add(cod)) }))
+        .filter((c) => c.servicos.length);
+      if (r.erro || !comServico.length) {
+        caixa.replaceChildren(el("p", { class: "sub2" }, r.erro
+          ? "Não deu para ver as atividades da empresa na Receita agora. Use a busca abaixo."
+          : "As atividades (CNAE) desta empresa não têm serviço na tabela. Use a busca abaixo."));
+        return;
+      }
+      const porCodigo = new Map(estado.servicos.map((s) => [s.codigo, s]));
+      caixa.replaceChildren(
+        el("div", { class: "sugeridos-topo" },
+          el("h3", {}, "Sugeridos pela atividade da empresa"),
+          el("p", { class: "sub2" }, "Pelos CNAEs do cartão CNPJ e pela tabela CNAE x Item da Lista de Serviços. Confira e libere os que ela realmente presta.")),
+        ...comServico.map((c, i) => el("div", { class: "sugerido-cnae" },
+          el("p", { class: "cnae-nome" }, el("span", { class: "cnae-cod" }, cnaeBonito(c.codigo)), " ", c.descricao,
+            r.cnaes[0] && r.cnaes[0].codigo === c.codigo ? el("span", { class: "selo-mini" }, "principal") : null),
+          ...c.servicos.map((cod) => porCodigo.get(cod)).filter(Boolean).map(linha))));
+    };
+    if (!estado.sugeridos) {
+      api("GET", `/contador/clientes/${id}/servicos/sugeridos`)
+        .then((r) => { if (estado.selecionado === id) { estado.sugeridos = r; desenhar(); } })
+        .catch(() => { if (estado.selecionado === id) { estado.sugeridos = { cnaes: [], erro: "indisponível" }; desenhar(); } });
+    }
+    desenhar();
+    return caixa;
   }
 
   // ------------------------------------------------------------ abas Notas e Dados

@@ -1,0 +1,3393 @@
+{
+"fonte": "1d3c9268-Tabela_CNAE_x_Atividade_x_Item_da_Lista_de_Servicos.pdf",
+"cnaes": {
+"6201501": {
+"descricao": "Desenvolvimento de programas de computador sob encomenda",
+"itens": [
+"01.01",
+"01.02",
+"01.04",
+"01.08"
+]
+},
+"1830003": {
+"descricao": "Reproducao de software em qualquer suporte",
+"itens": [
+"01.03"
+]
+},
+"6190601": {
+"descricao": "Provedores de acesso às redes de comunicações",
+"itens": [
+"01.03"
+]
+},
+"6311900": {
+"descricao": "Tratamento de dados, provedores de serviços de aplicação e serviços de hospedagem na internet",
+"itens": [
+"01.03"
+]
+},
+"6202300": {
+"descricao": "Desenvolvimento e licenciamento de programas de computador customizáveis",
+"itens": [
+"01.04",
+"01.05"
+]
+},
+"6203100": {
+"descricao": "Desenvolvimento e licenciamento de programas de computador nãocustomizáveis",
+"itens": [
+"01.04"
+]
+},
+"6204000": {
+"descricao": "Consultoria em tecnologia da informação",
+"itens": [
+"01.06"
+]
+},
+"6209100": {
+"descricao": "Suporte técnico, manutenção e outros serviços em tecnologia da informação",
+"itens": [
+"01.07"
+]
+},
+"6201502": {
+"descricao": "Web design",
+"itens": [
+"01.08"
+]
+},
+"6319400": {
+"descricao": "Portais, provedores de conteúdo e outros serviços de informação na internet",
+"itens": [
+"01.08",
+"01.09"
+]
+},
+"7210000": {
+"descricao": "Pesquisa e desenvolvimento experimental em ciências físicas e naturais",
+"itens": [
+"02.01",
+"30.01"
+]
+},
+"7220700": {
+"descricao": "Pesquisa e desenvolvimento experimental em ciências sociais e humanas",
+"itens": [
+"02.01"
+]
+},
+"7740300": {
+"descricao": "Gestão de ativos intangíveis não-financeiros",
+"itens": [
+"03.02",
+"17.09",
+"17.12"
+]
+},
+"8211300": {
+"descricao": "Serviços combinados de escritório e apoio administrativo",
+"itens": [
+"03.03",
+"17.02",
+"17.04"
+]
+},
+"8230002": {
+"descricao": "Casas de festas e eventos",
+"itens": [
+"03.03"
+]
+},
+"9003500": {
+"descricao": "Gestão de espaços para artes cênicas, espetáculos e outras atividades artísticas",
+"itens": [
+"03.03"
+]
+},
+"9311500": {
+"descricao": "Gestão de instalações de esportes",
+"itens": [
+"03.03"
+]
+},
+"3514000": {
+"descricao": "Distribuição de energia elétrica",
+"itens": [
+"03.04"
+]
+},
+"3520402": {
+"descricao": "Distribuição de combustíveis gasosos por redes urbanas",
+"itens": [
+"03.04"
+]
+},
+"4911600": {
+"descricao": "Transporte ferroviário de carga",
+"itens": [
+"03.04"
+]
+},
+"5221400": {
+"descricao": "Concessionárias de rodovias, pontes, túneis e serviços relacionados",
+"itens": [
+"03.04",
+"23.01"
+]
+},
+"4399102": {
+"descricao": "Montagem e desmontagem de andaimes e outras estruturas temporárias",
+"itens": [
+"03.05"
+]
+},
+"4399104": {
+"descricao": "Serviços de operação e fornecimento de equipamentos para transporte e elevação de cargas e pessoas para uso em obras",
+"itens": [
+"03.05"
+]
+},
+"7732202": {
+"descricao": "Aluguel de andaimes",
+"itens": [
+"03.05"
+]
+},
+"7739003": {
+"descricao": "Aluguel de palcos, coberturas e outras estruturas de uso temporário, exceto andaimes",
+"itens": [
+"03.05"
+]
+},
+"8630502": {
+"descricao": "Atividade médica ambulatorial com recursos para realização de exames complementares",
+"itens": [
+"04.01",
+"04.03"
+]
+},
+"8630503": {
+"descricao": "Atividade médica ambulatorial restrita a consultas",
+"itens": [
+"04.01"
+]
+},
+"8630599": {
+"descricao": "Atividades de atenção ambulatorial não especificadas anteriormente",
+"itens": [
+"04.01"
+]
+},
+"8640201": {
+"descricao": "Laboratórios de anatomia patológica e citológica",
+"itens": [
+"04.02",
+"04.03"
+]
+},
+"8640202": {
+"descricao": "Laboratórios clínicos",
+"itens": [
+"04.02",
+"04.03",
+"04.20",
+"31.01"
+]
+},
+"8640204": {
+"descricao": "Serviços de tomografia",
+"itens": [
+"04.02"
+]
+},
+"8640205": {
+"descricao": "Serviços de diagnóstico por imagem com uso de radiação ionizante, exceto tomografia",
+"itens": [
+"04.02"
+]
+},
+"8640206": {
+"descricao": "Serviços de ressonância magnética",
+"itens": [
+"04.02"
+]
+},
+"8640207": {
+"descricao": "Serviços de diagnóstico por imagem sem uso de radiação ionizante, exceto ressonância magnética",
+"itens": [
+"04.02"
+]
+},
+"8640208": {
+"descricao": "Serviços de diagnóstico por registro gráfico - ecg, eeg e outros exames análogos",
+"itens": [
+"04.02"
+]
+},
+"8640209": {
+"descricao": "Serviços de diagnóstico por métodos ópticos - endoscopia e outros exames análogos",
+"itens": [
+"04.02"
+]
+},
+"8640210": {
+"descricao": "Serviços de quimioterapia",
+"itens": [
+"04.02"
+]
+},
+"8640211": {
+"descricao": "Serviços de radioterapia",
+"itens": [
+"04.02"
+]
+},
+"8640299": {
+"descricao": "Atividades de serviços de complementação diagnóstica e terapêutica não especificadas anteriormente",
+"itens": [
+"04.02",
+"04.09"
+]
+},
+"8610101": {
+"descricao": "Atividades de atendimento hospitalar, exceto pronto-socorro e unidades para atendimento a urgências",
+"itens": [
+"04.03"
+]
+},
+"8610102": {
+"descricao": "Atividades de atendimento em pronto-socorro e unidades hospitalares para atendimento a urgências",
+"itens": [
+"04.03"
+]
+},
+"8630501": {
+"descricao": "Atividade médica ambulatorial com recursos para realização de procedimentos cirúrgicos",
+"itens": [
+"04.03"
+]
+},
+"8630506": {
+"descricao": "Serviços de vacinação e imunização humana",
+"itens": [
+"04.03"
+]
+},
+"8640203": {
+"descricao": "Serviços de diálise e nefrologia",
+"itens": [
+"04.03"
+]
+},
+"8640213": {
+"descricao": "Serviços de litotripsia",
+"itens": [
+"04.03"
+]
+},
+"8650099": {
+"descricao": "Atividades de profissionais da área de saúde não especificadas anteriormente",
+"itens": [
+"04.04",
+"04.13"
+]
+},
+"8690901": {
+"descricao": "Atividades de práticas integrativas e complementares em saúde humana",
+"itens": [
+"04.05",
+"04.09"
+]
+},
+"8690903": {
+"descricao": "Atividades de acumputura",
+"itens": [
+"04.05"
+]
+},
+"8650001": {
+"descricao": "Atividades de enfermagem",
+"itens": [
+"04.06"
+]
+},
+"4771702": {
+"descricao": "Comércio varejista de produtos farmacêuticos, com manipulação de fórmulas",
+"itens": [
+"04.07"
+]
+},
+"4771703": {
+"descricao": "Comércio varejista de produtos farmacêuticos homeopáticos",
+"itens": [
+"04.07"
+]
+},
+"8650004": {
+"descricao": "Atividades de fisioterapia",
+"itens": [
+"04.08"
+]
+},
+"8650005": {
+"descricao": "Atividades de terapia ocupacional",
+"itens": [
+"04.08"
+]
+},
+"8650006": {
+"descricao": "Atividades de fonoaudiologia",
+"itens": [
+"04.08"
+]
+},
+"8640212": {
+"descricao": "Serviços de hemoterapia",
+"itens": [
+"04.09",
+"04.19"
+]
+},
+"8650007": {
+"descricao": "Atividades de terapia de nutrição enteral e parenteral",
+"itens": [
+"04.09"
+]
+},
+"8690999": {
+"descricao": "Outras atividades de atenção à saúde humana não especificadas anteriormente",
+"itens": [
+"04.09",
+"04.11",
+"04.19"
+]
+},
+"8650002": {
+"descricao": "Atividades de profissionais da nutrição",
+"itens": [
+"04.10"
+]
+},
+"8630504": {
+"descricao": "Atividade odontológica",
+"itens": [
+"04.12"
+]
+},
+"3250703": {
+"descricao": "Fabricação de aparelhos e utensílios para correção de defeitos físicos e aparelhos ortopédicos em geral sob encomenda",
+"itens": [
+"04.14"
+]
+},
+"3250706": {
+"descricao": "Serviços de prótese dentária",
+"itens": [
+"04.14"
+]
+},
+"8650003": {
+"descricao": "Atividades de psicologia e psicanálise",
+"itens": [
+"04.15",
+"04.16"
+]
+},
+"8711501": {
+"descricao": "Clínicas e residências geriátricas",
+"itens": [
+"04.17"
+]
+},
+"8711502": {
+"descricao": "Instituições de longa permanência para idosos",
+"itens": [
+"04.17"
+]
+},
+"8711503": {
+"descricao": "Atividades de assistência a deficientes físicos, imunodeprimidos e convalescentes",
+"itens": [
+"04.17"
+]
+},
+"8711504": {
+"descricao": "Centros de apoio a pacientes com câncer e com aids",
+"itens": [
+"04.17"
+]
+},
+"8711505": {
+"descricao": "Condomínios residenciais para idosos",
+"itens": [
+"04.17"
+]
+},
+"8720401": {
+"descricao": "Atividades de centros de assistência psicossocial",
+"itens": [
+"04.17"
+]
+},
+"8720499": {
+"descricao": "Atividades de assistência psicossocial e à saúde a portadores de distúrbios psíquicos, deficiência mental e dependência química não especificadas anteriormente",
+"itens": [
+"04.17"
+]
+},
+"8730101": {
+"descricao": "Orfanatos",
+"itens": [
+"04.17"
+]
+},
+"8730102": {
+"descricao": "Albergues assistencias",
+"itens": [
+"04.17"
+]
+},
+"8730199": {
+"descricao": "Atividades de assistência social prestadas em residências coletivas e particulares não especificadas anteriormente",
+"itens": [
+"04.17"
+]
+},
+"8630507": {
+"descricao": "Atividades de reprodução humana assistida",
+"itens": [
+"04.18",
+"04.19"
+]
+},
+"8640214": {
+"descricao": "Serviços de bancos de células e tecidos humanos",
+"itens": [
+"04.19"
+]
+},
+"8690902": {
+"descricao": "Atividades de bancos de leite humano",
+"itens": [
+"04.19"
+]
+},
+"8621601": {
+"descricao": "Uti móvel",
+"itens": [
+"04.21"
+]
+},
+"8621602": {
+"descricao": "Serviços móveis de atendimento a urgências, exceto por uti móvel",
+"itens": [
+"04.21"
+]
+},
+"8622400": {
+"descricao": "Serviços de remoção de pacientes, exceto os serviços móveis de atendimento a urgências",
+"itens": [
+"04.21"
+]
+},
+"8712300": {
+"descricao": "Atividades de fornecimento de infra-estrutura de apoio e assistência a paciente no domicílio",
+"itens": [
+"04.21"
+]
+},
+"6550200": {
+"descricao": "Planos de saúde",
+"itens": [
+"04.22",
+"04.23",
+"05.09"
+]
+},
+"7500100": {
+"descricao": "Atividades veterinárias",
+"itens": [
+"05.01",
+"05.02",
+"05.03",
+"05.05",
+"05.06",
+"05.07"
+]
+},
+"0162801": {
+"descricao": "Serviço de inseminação artificial em animais",
+"itens": [
+"05.04"
+]
+},
+"9609203": {
+"descricao": "Alojamento, higiene e embelezamento de animais",
+"itens": [
+"05.08"
+]
+},
+"0162802": {
+"descricao": "Servico de tosquiamento de ovinos",
+"itens": [
+"05.08"
+]
+},
+"0162803": {
+"descricao": "Servico de manejo de animais",
+"itens": [
+"05.08"
+]
+},
+"8011102": {
+"descricao": "Serviços de adestramento de cães de guarda",
+"itens": [
+"05.08"
+]
+},
+"9609207": {
+"descricao": "Alojamento de animais domésticos",
+"itens": [
+"05.08"
+]
+},
+"9609208": {
+"descricao": "Higiene e embelezamento de animais domésticos",
+"itens": [
+"05.08"
+]
+},
+"9602501": {
+"descricao": "Cabeleireiros",
+"itens": [
+"06.01"
+]
+},
+"8690904": {
+"descricao": "Atividades de podologia",
+"itens": [
+"06.01"
+]
+},
+"9602502": {
+"descricao": "Outras atividades de tratamento de beleza",
+"itens": [
+"06.01",
+"06.02"
+]
+},
+"9609201": {
+"descricao": "Clínicas de estética e similares",
+"itens": [
+"06.02",
+"06.03",
+"06.05"
+]
+},
+"9609206": {
+"descricao": "Serviços de tatuagem e colocação de piercing",
+"itens": [
+"06.02",
+"06.06"
+]
+},
+"9609299": {
+"descricao": "Outras atividades de serviços pessoais não especificadas anteriormente",
+"itens": [
+"06.02",
+"14.02",
+"14.06",
+"17.02",
+"17.13"
+]
+},
+"9609205": {
+"descricao": "Atividades de sauna e banhos",
+"itens": [
+"06.03"
+]
+},
+"8591100": {
+"descricao": "Ensino de esportes",
+"itens": [
+"06.04"
+]
+},
+"8592901": {
+"descricao": "Ensino de dança",
+"itens": [
+"06.04"
+]
+},
+"9313100": {
+"descricao": "Atividades de condicionamento físico",
+"itens": [
+"06.04"
+]
+},
+"2391501": {
+"descricao": "Britamento de pedras, exceto associado à extração",
+"itens": [
+"07.01",
+"14.05"
+]
+},
+"7111100": {
+"descricao": "Serviços de arquitetura",
+"itens": [
+"07.01"
+]
+},
+"7112000": {
+"descricao": "Serviços de engenharia",
+"itens": [
+"07.01",
+"07.03",
+"07.20",
+"17.09",
+"28.01"
+]
+},
+"7119701": {
+"descricao": "Serviços de cartografia, topografia e geodésia",
+"itens": [
+"07.01",
+"07.20"
+]
+},
+"7119702": {
+"descricao": "Atividades de estudos geológicos",
+"itens": [
+"07.01",
+"07.20"
+]
+},
+"2330305": {
+"descricao": "Preparação de massa de concreto e agamassa para construção",
+"itens": [
+"07.02"
+]
+},
+"3321000": {
+"descricao": "Instalação de máquinas e equipamentos industriais",
+"itens": [
+"07.02",
+"14.06"
+]
+},
+"4120400": {
+"descricao": "Construção de edifícios",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4211101": {
+"descricao": "Construção de rodovias e ferrovias",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4211102": {
+"descricao": "Pintura para sinalização em pistas rodoviárias e aeroportos",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4212000": {
+"descricao": "Construção de obras-de-arte especiais",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4213800": {
+"descricao": "Obras de urbanização - ruas, praças e calçadas",
+"itens": [
+"07.02"
+]
+},
+"4221901": {
+"descricao": "Construção de barragens e represas para geração de energia elétrica",
+"itens": [
+"07.02"
+]
+},
+"4221902": {
+"descricao": "Construção de estações e redes de distribuição de energia elétrica",
+"itens": [
+"07.02"
+]
+},
+"4221904": {
+"descricao": "Construção de estações e redes de telecomunicações",
+"itens": [
+"07.02"
+]
+},
+"4222701": {
+"descricao": "Construção de redes de abastecimento de água, coleta de esgoto e construções correlatas, exceto obras de irrigação",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4222702": {
+"descricao": "Obras de irrigação",
+"itens": [
+"07.02"
+]
+},
+"4223500": {
+"descricao": "Construção de redes de transportes por dutos, exceto para água e esgoto",
+"itens": [
+"07.02"
+]
+},
+"4292801": {
+"descricao": "Montagem de estruturas metálicas",
+"itens": [
+"07.02"
+]
+},
+"4292802": {
+"descricao": "Obras de montagem industrial",
+"itens": [
+"07.02"
+]
+},
+"4299501": {
+"descricao": "Construção de instalações esportivas e recreativas",
+"itens": [
+"07.02"
+]
+},
+"4299599": {
+"descricao": "Outras obras de engenharia civil não especificadas anteriormente",
+"itens": [
+"07.02",
+"07.18"
+]
+},
+"4313400": {
+"descricao": "Obras de terraplenagem",
+"itens": [
+"07.02"
+]
+},
+"4319300": {
+"descricao": "Serviços de preparação do terreno não especificados anteriormente",
+"itens": [
+"07.02"
+]
+},
+"4321500": {
+"descricao": "Instalação e manutenção elétrica",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4322301": {
+"descricao": "Instalações hidráulicas, sanitárias e de gás",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4322302": {
+"descricao": "Instalação e manutenção de sistemas centrais de ar condicionado, de ventilação e refrigeração",
+"itens": [
+"07.02",
+"14.01"
+]
+},
+"4322303": {
+"descricao": "Instalações de sistema de prevenção contra incêndio",
+"itens": [
+"07.02",
+"14.01",
+"14.06"
+]
+},
+"4329103": {
+"descricao": "Instalação, manutenção e reparação de elevadores, escadas e esteiras rolantes, exceto de fabricação própria",
+"itens": [
+"07.02",
+"14.01"
+]
+},
+"4329199": {
+"descricao": "Outras obras de instalações em construções não especificadas anteriormente",
+"itens": [
+"07.02"
+]
+},
+"4330401": {
+"descricao": "Impermeabilização em obras de engenharia civil",
+"itens": [
+"07.02"
+]
+},
+"4330403": {
+"descricao": "Obras de acabamento em gesso e estuque",
+"itens": [
+"07.02",
+"07.05",
+"07.06",
+"14.08"
+]
+},
+"4330404": {
+"descricao": "Serviços de pintura de edifícios em geral",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4330405": {
+"descricao": "Aplicação de revestimentos e de resinas em interiores e exteriores",
+"itens": [
+"07.02",
+"07.05",
+"07.06",
+"07.07",
+"07.08"
+]
+},
+"4330499": {
+"descricao": "Outras obras de acabamento da construção",
+"itens": [
+"07.02",
+"07.05",
+"07.06"
+]
+},
+"4391600": {
+"descricao": "Obras de fundações",
+"itens": [
+"07.02"
+]
+},
+"4399101": {
+"descricao": "Administração de obras",
+"itens": [
+"07.02"
+]
+},
+"4399103": {
+"descricao": "Obras de alvenaria",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4399105": {
+"descricao": "Perfuração e construção de poços de água",
+"itens": [
+"07.02"
+]
+},
+"4399199": {
+"descricao": "Serviços especializados para construção não especificados anteriormente",
+"itens": [
+"07.02",
+"07.05"
+]
+},
+"4311801": {
+"descricao": "Demolição de edifícios e outras estruturas",
+"itens": [
+"07.04"
+]
+},
+"4221903": {
+"descricao": "Manutenção de redes de distribuição de energia elétrica",
+"itens": [
+"07.05"
+]
+},
+"4221905": {
+"descricao": "Manutenção de estações e redes de telecomunicações",
+"itens": [
+"07.05"
+]
+},
+"9102302": {
+"descricao": "Restauração e conservação de lugares e prédios históricos",
+"itens": [
+"07.05"
+]
+},
+"4330402": {
+"descricao": "Instalação de portas, janelas, tetos, divisórias e armários embutidos de qualquer material",
+"itens": [
+"07.06",
+"14.14"
+]
+},
+"4329105": {
+"descricao": "Tratamentos térmicos, acústicos ou de vibração",
+"itens": [
+"07.08",
+"14.01"
+]
+},
+"3811400": {
+"descricao": "Coleta de resíduos não-perigosos",
+"itens": [
+"07.09"
+]
+},
+"3812200": {
+"descricao": "Coleta de resíduos perigosos",
+"itens": [
+"07.09"
+]
+},
+"3821100": {
+"descricao": "Tratamento e disposição de resíduos não-perigosos",
+"itens": [
+"07.09"
+]
+},
+"3822000": {
+"descricao": "Tratamento e disposição de resíduos perigosos",
+"itens": [
+"07.09",
+"07.13"
+]
+},
+"3832700": {
+"descricao": "Recuperação de materiais plásticos",
+"itens": [
+"07.09"
+]
+},
+"3839401": {
+"descricao": "Usinas de compostagem",
+"itens": [
+"07.09"
+]
+},
+"3839499": {
+"descricao": "Recuperação de materiais não especificados anteriormente",
+"itens": [
+"07.09"
+]
+},
+"8129000": {
+"descricao": "Atividades de limpeza não especificadas anteriormente",
+"itens": [
+"07.09",
+"07.10"
+]
+},
+"3701100": {
+"descricao": "Gestão de redes de esgoto",
+"itens": [
+"07.10"
+]
+},
+"3702900": {
+"descricao": "Atividades relacionadas a esgoto, exceto a gestão de redes",
+"itens": [
+"07.10"
+]
+},
+"8121400": {
+"descricao": "Limpeza em prédios e em domicílios",
+"itens": [
+"07.10"
+]
+},
+"9700500": {
+"descricao": "Serviços domésticos",
+"itens": [
+"07.11"
+]
+},
+"7410202": {
+"descricao": "Decoração de interiores",
+"itens": [
+"07.11"
+]
+},
+"0161001": {
+"descricao": "Serviço de pulverização e controle de pragas agrícolas",
+"itens": [
+"07.13"
+]
+},
+"0162899": {
+"descricao": "Atividades de apoio a pecuaria nao especificadas anteriormente",
+"itens": [
+"07.13",
+"17.01"
+]
+},
+"8122200": {
+"descricao": "Imunização e controle de pragas urbanas",
+"itens": [
+"07.16"
+]
+},
+"0161003": {
+"descricao": "Servico de preparacao de terreno, cultivo e colheita",
+"itens": [
+"07.16"
+]
+},
+"0220906": {
+"descricao": "Conservação de florestas nativas",
+"itens": [
+"07.16"
+]
+},
+"0230600": {
+"descricao": "Atividades de apoio à produção florestal",
+"itens": [
+"07.17"
+]
+},
+"3900500": {
+"descricao": "Descontaminação e outros serviços de gestão de resíduos",
+"itens": [
+"07.18"
+]
+},
+"4291000": {
+"descricao": "Obras portuárias, marítimas e fluviais",
+"itens": [
+"07.19"
+]
+},
+"7119799": {
+"descricao": "Atividades técnicas relacionadas à engenharia e arquitetura não especificadas anteriormente",
+"itens": [
+"07.21",
+"32.01"
+]
+},
+"0910600": {
+"descricao": "Atividades de apoio à extração de petróleo e gás natural",
+"itens": [
+"07.21"
+]
+},
+"0990401": {
+"descricao": "Atividades de apoio a extracao de minerio de ferro",
+"itens": [
+"07.21"
+]
+},
+"0990402": {
+"descricao": "Atividades de apoio a extracao de minerais metálicos não-ferrosos",
+"itens": [
+"07.21"
+]
+},
+"0990403": {
+"descricao": "Atividades de apoio à extração de minerais não-metálicos",
+"itens": [
+"07.21"
+]
+},
+"7490102": {
+"descricao": "Escafandria e mergulho",
+"itens": [
+"07.22",
+"14.01"
+]
+},
+"7490199": {
+"descricao": "Outras atividades profissionais, científicas e técnicas não especificadas anteriormente",
+"itens": [
+"08.01",
+"17.01",
+"17.02",
+"17.22",
+"24.01",
+"29.01",
+"37.01"
+]
+},
+"8512100": {
+"descricao": "Educação infantil - pré-escola",
+"itens": [
+"08.01"
+]
+},
+"8511200": {
+"descricao": "Educação infantil – creche",
+"itens": [
+"08.01"
+]
+},
+"8513900": {
+"descricao": "Ensino fundamental",
+"itens": [
+"08.01"
+]
+},
+"8520100": {
+"descricao": "Ensino médio",
+"itens": [
+"08.01"
+]
+},
+"8531700": {
+"descricao": "Educação superior – graduação",
+"itens": [
+"08.01"
+]
+},
+"8532500": {
+"descricao": "Educação superior - graduação e pós-graduação",
+"itens": [
+"08.01"
+]
+},
+"8533300": {
+"descricao": "Educação superior - pós-graduação e extensão",
+"itens": [
+"08.01"
+]
+},
+"8541400": {
+"descricao": "Educação profissional de nível técnico",
+"itens": [
+"08.01"
+]
+},
+"8542200": {
+"descricao": "Educação profissional de nível tecnológico",
+"itens": [
+"08.02"
+]
+},
+"8550302": {
+"descricao": "Atividades de apoio à educação, exceto caixas escolares",
+"itens": [
+"08.02"
+]
+},
+"8592902": {
+"descricao": "Ensino de artes cênicas, exceto dança",
+"itens": [
+"08.02"
+]
+},
+"8592903": {
+"descricao": "Ensino de música",
+"itens": [
+"08.02"
+]
+},
+"8592999": {
+"descricao": "Ensino de arte e cultura não especificado anteriormente",
+"itens": [
+"08.02"
+]
+},
+"8593700": {
+"descricao": "Ensino de idiomas",
+"itens": [
+"08.02"
+]
+},
+"8599601": {
+"descricao": "Formação de condutores",
+"itens": [
+"08.02"
+]
+},
+"8599602": {
+"descricao": "Cursos de pilotagem",
+"itens": [
+"08.02"
+]
+},
+"8599603": {
+"descricao": "Treinamento em informática",
+"itens": [
+"08.02"
+]
+},
+"8599604": {
+"descricao": "Treinamento em desenvolvimento profissional e gerencial",
+"itens": [
+"08.02"
+]
+},
+"8599605": {
+"descricao": "Cursos preparatórios para concursos",
+"itens": [
+"08.02"
+]
+},
+"8599699": {
+"descricao": "Outras atividades de ensino não especificadas anteriormente",
+"itens": [
+"08.02",
+"17.25"
+]
+},
+"9312300": {
+"descricao": "Clubes sociais, esportivos e similares",
+"itens": [
+"09.01"
+]
+},
+"5510801": {
+"descricao": "Hotéis",
+"itens": [
+"09.01"
+]
+},
+"5510802": {
+"descricao": "Apart-hotéis",
+"itens": [
+"09.01"
+]
+},
+"5510803": {
+"descricao": "Motéis",
+"itens": [
+"09.01"
+]
+},
+"5590601": {
+"descricao": "Albergues, exceto assistenciais",
+"itens": [
+"09.01"
+]
+},
+"5590602": {
+"descricao": "Campings",
+"itens": [
+"09.01"
+]
+},
+"5590603": {
+"descricao": "Pensões (alojamento)",
+"itens": [
+"09.01"
+]
+},
+"5590699": {
+"descricao": "Outros alojamentos não especificados anteriormente",
+"itens": [
+"09.02"
+]
+},
+"4929903": {
+"descricao": "Organização de excursões em veículos rodoviários próprios, municipal",
+"itens": [
+"09.02"
+]
+},
+"4929904": {
+"descricao": "Organização de excursões em veículos rodoviários próprios, intermunicipal, interestadual e internacional",
+"itens": [
+"09.02"
+]
+},
+"7911200": {
+"descricao": "Agências de viagens",
+"itens": [
+"09.02"
+]
+},
+"7912100": {
+"descricao": "Operadores turísticos",
+"itens": [
+"09.02"
+]
+},
+"7990200": {
+"descricao": "Serviços de reservas e outros serviços de turismo não especificados anteriormente",
+"itens": [
+"09.03"
+]
+},
+"6622300": {
+"descricao": "Corretores e agentes de seguros, de planos de previdência complementar e de saúde",
+"itens": [
+"10.02"
+]
+},
+"6612601": {
+"descricao": "Corretoras de títulos e valores mobiliários",
+"itens": [
+"10.02"
+]
+},
+"6612602": {
+"descricao": "Distribuidoras de títulos e valores mobiliários",
+"itens": [
+"10.02"
+]
+},
+"6612604": {
+"descricao": "Corretoras de contratos de mercadorias",
+"itens": [
+"10.02"
+]
+},
+"7490104": {
+"descricao": "Atividades de intermediação e agenciamento de serviços e negócios em geral, exceto imobiliários",
+"itens": [
+"10.02",
+"10.05",
+"10.09"
+]
+},
+"7490105": {
+"descricao": "Agenciamento de profissionais para atividades esportivas, culturais e artísticas",
+"itens": [
+"10.02",
+"10.04",
+"38.01"
+]
+},
+"8299705": {
+"descricao": "Serviços de levantamento de fundos sob contrato",
+"itens": [
+"10.02"
+]
+},
+"9609202": {
+"descricao": "Agências matrimoniais",
+"itens": [
+"10.03"
+]
+},
+"6911703": {
+"descricao": "Agente de propriedade industrial",
+"itens": [
+"10.03"
+]
+},
+"4512902": {
+"descricao": "Comércio sob consignação de veículos automotores",
+"itens": [
+"10.05",
+"10.09"
+]
+},
+"5250803": {
+"descricao": "Agenciamento de cargas, exceto para o transporte marítimo",
+"itens": [
+"10.05"
+]
+},
+"6612605": {
+"descricao": "Agentes de investimentos em aplicações financeiras",
+"itens": [
+"10.05",
+"17.20"
+]
+},
+"6821801": {
+"descricao": "Corretagem na compra e venda e avaliação de imóveis",
+"itens": [
+"10.05"
+]
+},
+"6821802": {
+"descricao": "Corretagem no aluguel de imóveis",
+"itens": [
+"10.05"
+]
+},
+"8299702": {
+"descricao": "Emissão de vales-alimentação, vales-transporte e similares",
+"itens": [
+"10.06"
+]
+},
+"5232000": {
+"descricao": "Atividades de agenciamento marítimo",
+"itens": [
+"10.07"
+]
+},
+"6391700": {
+"descricao": "Agências de notícias",
+"itens": [
+"10.08"
+]
+},
+"7312200": {
+"descricao": "Agenciamento de espaços para publicidade, exceto em veículos de comunicação",
+"itens": [
+"10.08"
+]
+},
+"4512901": {
+"descricao": "Representantes comerciais e agentes do comércio de veículos automotores",
+"itens": [
+"10.09"
+]
+},
+"4530706": {
+"descricao": "Representantes comerciais e agentes do comércio de peças e acessórios novos e usados para veículos automotores",
+"itens": [
+"10.09"
+]
+},
+"4542101": {
+"descricao": "Representantes comerciais e agentes do comércio de motocicletas e motonetas, peças e acessórios",
+"itens": [
+"10.09"
+]
+},
+"4611700": {
+"descricao": "Representantes comerciais e agentes do comércio de matérias-primas agrícolas e animais vivos",
+"itens": [
+"10.09"
+]
+},
+"4612500": {
+"descricao": "Representantes comerciais e agentes do comércio de combustíveis, minerais, produtos siderúrgicos e químicos",
+"itens": [
+"10.09"
+]
+},
+"4613300": {
+"descricao": "Representantes comerciais e agentes do comércio de madeira, material de construção e ferragens",
+"itens": [
+"10.09"
+]
+},
+"4614100": {
+"descricao": "Representantes comerciais e agentes do comércio de máquinas, equipamentos, embarcações e aeronaves",
+"itens": [
+"10.09"
+]
+},
+"4615000": {
+"descricao": "Representantes comerciais e agentes do comércio de eletrodomésticos, móveis e artigos de uso doméstico",
+"itens": [
+"10.09"
+]
+},
+"4616800": {
+"descricao": "Representantes comerciais e agentes do comércio de têxteis, vestuário, calçados e artigos de viagem",
+"itens": [
+"10.09"
+]
+},
+"4617600": {
+"descricao": "Representantes comerciais e agentes do comércio de produtos alimentícios, bebidas e fumo",
+"itens": [
+"10.09"
+]
+},
+"4618401": {
+"descricao": "Representantes comerciais e agentes do comércio de medicamentos, cosméticos e produtos de perfumaria",
+"itens": [
+"10.09"
+]
+},
+"4618402": {
+"descricao": "Representantes comerciais e agentes do comércio de instrumentos e materiais odonto- médico-hospitalares",
+"itens": [
+"10.09"
+]
+},
+"4618403": {
+"descricao": "Representantes comerciais e agentes do comércio de jornais, revistas e outras publicações",
+"itens": [
+"10.09"
+]
+},
+"4618499": {
+"descricao": "Outros representantes comerciais e agentes do comércio especializado em produtos não especificados anteriormente",
+"itens": [
+"10.09"
+]
+},
+"4619200": {
+"descricao": "Representantes comerciais e agentes do comércio de mercadorias em geral não especializado",
+"itens": [
+"10.09"
+]
+},
+"6619303": {
+"descricao": "Representacoes de bancos estrangeiros",
+"itens": [
+"10.10"
+]
+},
+"5913800": {
+"descricao": "Distribuição cinematográfica, de vídeo e de programas de televisão",
+"itens": [
+"11.01"
+]
+},
+"5223100": {
+"descricao": "E s t a c i o n a m e n to d e v e íc u l o s",
+"itens": [
+"11.01"
+]
+},
+"5240199": {
+"descricao": "A ti v i d a d e s a u x ili a r e s d o s t ransportes aéreos, exceto operação dos aeroportos e campos de aterrissagem",
+"itens": [
+"11.01",
+"20.02"
+]
+},
+"9329899": {
+"descricao": "Outras atividades de recreação e lazer não especificadas anteriormente",
+"itens": [
+"11.02",
+"13.02"
+]
+},
+"8011101": {
+"descricao": "Atividades de vigilância e segurança privada",
+"itens": [
+"11.02"
+]
+},
+"8020000": {
+"descricao": "Atividades de monitoramento de sistemas de segurança",
+"itens": [
+"11.02"
+]
+},
+"8020001": {
+"descricao": "Atividades de monitoramento de sistemas de segurança eletrônico",
+"itens": [
+"11.02"
+]
+},
+"8020002": {
+"descricao": "Outras atividades de serviços de segurança",
+"itens": [
+"11.03"
+]
+},
+"5229099": {
+"descricao": "Outras atividades auxiliares dos transportes terrestres não especificadas anteriormente",
+"itens": [
+"11.04"
+]
+},
+"4930204": {
+"descricao": "Transporte rodoviário de mudanças",
+"itens": [
+"11.04",
+"16.02"
+]
+},
+"5211701": {
+"descricao": "Armazéns gerais - emissão de warrant",
+"itens": [
+"11.04"
+]
+},
+"5211702": {
+"descricao": "Guarda-móveis",
+"itens": [
+"11.04"
+]
+},
+"5211799": {
+"descricao": "Depósitos de mercadorias para terceiros, exceto armazéns gerais e guardamóveis",
+"itens": [
+"11.04",
+"20.01"
+]
+},
+"5212500": {
+"descricao": "Carga e descarga",
+"itens": [
+"11.04",
+"20.01"
+]
+},
+"5231102": {
+"descricao": "Operações de terminais",
+"itens": [
+"11.04",
+"20.01"
+]
+},
+"5250804": {
+"descricao": "Organização logística do transporte de carga",
+"itens": [
+"12.01"
+]
+},
+"9001901": {
+"descricao": "Produção teatral",
+"itens": [
+"12.01",
+"12.13"
+]
+},
+"9001999": {
+"descricao": "Artes cênicas, espetáculos e atividades complementares não especificados anteriormente",
+"itens": [
+"12.02",
+"12.04",
+"12.05"
+]
+},
+"5914600": {
+"descricao": "Atividades de exibição cinematográfica",
+"itens": [
+"12.03"
+]
+},
+"9001904": {
+"descricao": "Produção de espetáculos circenses, de marionetes e similares",
+"itens": [
+"12.03",
+"12.13"
+]
+},
+"9103100": {
+"descricao": "Atividades de jardins botânicos, zoológicos, parques nacionais, reservas ecológicas e áreas de proteção ambiental",
+"itens": [
+"12.05"
+]
+},
+"9321200": {
+"descricao": "Parques de diversão e parques temáticos",
+"itens": [
+"12.06"
+]
+},
+"9001903": {
+"descricao": "Produção de espetáculos de dança",
+"itens": [
+"12.08",
+"12.13",
+"12.15"
+]
+},
+"8230001": {
+"descricao": "Serviços de organização de feiras, congressos, exposições e festas",
+"itens": [
+"12.09",
+"17.11"
+]
+},
+"9200399": {
+"descricao": "Exploração de jogos de azar e apostas não especificados anteriormente",
+"itens": [
+"12.09",
+"20.01"
+]
+},
+"9329802": {
+"descricao": "Exploração de boliches",
+"itens": [
+"12.09"
+]
+},
+"9329803": {
+"descricao": "Exploração de jogos de sinuca, bilhar e similares",
+"itens": [
+"12.09"
+]
+},
+"9329804": {
+"descricao": "Exploração de jogos eletrônicos recreativos",
+"itens": [
+"12.10"
+]
+},
+"9001905": {
+"descricao": "Produção de espetáculos de rodeios, vaquejadas e similares",
+"itens": [
+"12.10"
+]
+},
+"9319199": {
+"descricao": "Outras atividades esportivas não especificadas anteriormente",
+"itens": [
+"12.12"
+]
+},
+"9001902": {
+"descricao": "Produção musical",
+"itens": [
+"12.13",
+"12.15",
+"12.17"
+]
+},
+"5911199": {
+"descricao": "Atividades de produção cinematográfica, de vídeos e de programas de televisão não especificadas anteriormente",
+"itens": [
+"12.13"
+]
+},
+"9001906": {
+"descricao": "Atividades de sonorização e de iluminação",
+"itens": [
+"12.15"
+]
+},
+"5912002": {
+"descricao": "Serviços de mixagem sonora em produção audiovisual",
+"itens": [
+"13.02"
+]
+},
+"5920100": {
+"descricao": "Atividades de gravação de som e de edição de música",
+"itens": [
+"13.03"
+]
+},
+"1830002": {
+"descricao": "Reproducao de video em qualquer suporte",
+"itens": [
+"13.03"
+]
+},
+"5911101": {
+"descricao": "Estúdios cinematográficos",
+"itens": [
+"13.03"
+]
+},
+"5912099": {
+"descricao": "A es ti p v e id c a ifi d c e a s d a d s e a n p t ó e s r - i p o r r o m d e u n ç t ã e o cinematográfica, de vídeos e de programas de televisão não",
+"itens": [
+"13.03"
+]
+},
+"7420001": {
+"descricao": "Atividades de produção de fotografias, exceto aérea e submarina",
+"itens": [
+"13.03"
+]
+},
+"7420002": {
+"descricao": "Atividades de produção de fotografias aéreas e submarinas",
+"itens": [
+"13.03"
+]
+},
+"7420003": {
+"descricao": "Laboratórios fotográficos",
+"itens": [
+"13.03"
+]
+},
+"7420004": {
+"descricao": "Filmagem de festas e eventos",
+"itens": [
+"13.03"
+]
+},
+"9609204": {
+"descricao": "Exploração de máquinas de serviços pessoais acionados po moeda",
+"itens": [
+"13.04"
+]
+},
+"7420005": {
+"descricao": "Serviços de microfilmagem",
+"itens": [
+"13.04"
+]
+},
+"8219901": {
+"descricao": "Fotocópias",
+"itens": [
+"13.05"
+]
+},
+"1741901": {
+"descricao": "Fabricação de formulários contínuos",
+"itens": [
+"13.05"
+]
+},
+"1811301": {
+"descricao": "Impressão de jornais",
+"itens": [
+"13.05"
+]
+},
+"1813001": {
+"descricao": "Impressão de material para uso publicitário",
+"itens": [
+"13.05"
+]
+},
+"1813099": {
+"descricao": "Impressão de material para outros usos",
+"itens": [
+"13.05"
+]
+},
+"1821100": {
+"descricao": "Serviços de pré-impressão",
+"itens": [
+"13.05"
+]
+},
+"1822901": {
+"descricao": "Serviços de encadernação e plastificação",
+"itens": [
+"14.01"
+]
+},
+"2930103": {
+"descricao": "Fabricação de cabines, carrocerias e reboques para outros veículos automotores, exceto caminhões e ônibus",
+"itens": [
+"14.01"
+]
+},
+"3311200": {
+"descricao": "Manutenção e reparação de tanques, reservatórios metálicos e caldeiras, exceto para veículos",
+"itens": [
+"14.01"
+]
+},
+"3312102": {
+"descricao": "Manutenção e reparação de aparelhos e instrumentos de medida, teste e controle",
+"itens": [
+"14.01"
+]
+},
+"3312103": {
+"descricao": "Manutenção e reparação de aparelhos eletromédicos e eletroterapêuticos e equipamentos de irradiação",
+"itens": [
+"14.01"
+]
+},
+"3312104": {
+"descricao": "Manutenção e reparação de equipamentos e instrumentos ópticos",
+"itens": [
+"14.01"
+]
+},
+"3313901": {
+"descricao": "Manutenção e reparação de geradores, transformadores e motores elétricos",
+"itens": [
+"14.01"
+]
+},
+"3313902": {
+"descricao": "Manutenção e reparação de baterias e acumuladores elétricos, exceto para veículos",
+"itens": [
+"14.01"
+]
+},
+"3313999": {
+"descricao": "Manutenção e reparação de máquinas, aparelhos e materiais elétricos não especificados anteriormente",
+"itens": [
+"14.01"
+]
+},
+"3314701": {
+"descricao": "Manutenção e reparação de máquinas motrizes não-elétricas",
+"itens": [
+"14.01"
+]
+},
+"3314702": {
+"descricao": "Manutenção e reparação de equipamentos hidráulicos e pneumáticos, exceto válvulas",
+"itens": [
+"14.01"
+]
+},
+"3314703": {
+"descricao": "Manutenção e reparação de válvulas industriais",
+"itens": [
+"14.01"
+]
+},
+"3314704": {
+"descricao": "Manutenção e reparação de compressores",
+"itens": [
+"14.01"
+]
+},
+"3314705": {
+"descricao": "Manutenção e reparação de equipamentos de transmissão para fins industriais",
+"itens": [
+"14.01"
+]
+},
+"3314706": {
+"descricao": "Manutenção e reparação de máquinas, aparelhos e equipamentos para instalações térmicas",
+"itens": [
+"14.01"
+]
+},
+"3314707": {
+"descricao": "Manutenção e reparação de máquinas e aparelhos de refrigeração e ventilação para uso industrial e comercial",
+"itens": [
+"14.01"
+]
+},
+"3314708": {
+"descricao": "Manutenção e reparação de máquinas, equipamentos e aparelhos para transporte e elevação de cargas",
+"itens": [
+"14.01"
+]
+},
+"3314709": {
+"descricao": "Manutenção e reparação de máquinas de escrever, calcular e de outros equipamentos não- eletrônicos para escritório",
+"itens": [
+"14.01"
+]
+},
+"3314710": {
+"descricao": "Manutenção e reparação de máquinas e equipamentos para uso geral não especificados anteriormente",
+"itens": [
+"14.01"
+]
+},
+"3314711": {
+"descricao": "Manutenção e reparação de máquinas e equipamentos para agricultura e pecuária",
+"itens": [
+"14.01"
+]
+},
+"3314712": {
+"descricao": "Manutenção e reparação de tratores agrícolas",
+"itens": [
+"14.01"
+]
+},
+"3314713": {
+"descricao": "Manutenção e reparação de máquinas-ferramenta",
+"itens": [
+"14.01"
+]
+},
+"3314714": {
+"descricao": "Manutenção e reparação de máquinas e equipamentos para a prospecção e extração de petróleo",
+"itens": [
+"14.01"
+]
+},
+"3314715": {
+"descricao": "Manutenção e reparação de máquinas e equipamentos para uso na extração mineral, exceto na extração de petróleo",
+"itens": [
+"14.01"
+]
+},
+"3314716": {
+"descricao": "Manutenção e reparação de tratores, exceto agrícolas",
+"itens": [
+"14.01"
+]
+},
+"3314717": {
+"descricao": "Manutenção e reparação de máquinas e equipamentos de terraplenagem, pavimentação e construção, exceto tratores",
+"itens": [
+"14.01"
+]
+},
+"3314718": {
+"descricao": "M fer a r n a u m te e n n ç ta ão e reparação de máquinas para a indústria metalúrgica, exceto máquinas-",
+"itens": [
+"14.01"
+]
+},
+"3314719": {
+"descricao": "M be a b n id u a te s n e ç f ã u o m e o reparação de máquinas e equipamentos para as indústrias de alimentos,",
+"itens": [
+"14.01"
+]
+},
+"3314720": {
+"descricao": "Manutenção e reparação de máquinas e equipamentos para a indústria têxtil, do vestuário, do couro e calçados",
+"itens": [
+"14.01"
+]
+},
+"3314721": {
+"descricao": "Manutenção e reparação de máquinas e aparelhos para a indústria de celulose, papel e papelão e artefatos",
+"itens": [
+"14.01"
+]
+},
+"3314722": {
+"descricao": "Manutenção e reparação de máquinas e aparelhos para a indústria do plástico",
+"itens": [
+"14.01"
+]
+},
+"3314799": {
+"descricao": "Manutenção e reparação de outras máquinas e equipamentos para usos industriais não especificados anteriormente",
+"itens": [
+"14.01"
+]
+},
+"3315500": {
+"descricao": "Manutenção e reparação de veículos ferroviários",
+"itens": [
+"14.01"
+]
+},
+"3316301": {
+"descricao": "Manutenção e reparação de aeronaves, exceto a manutenção na pista",
+"itens": [
+"14.01"
+]
+},
+"3316302": {
+"descricao": "Manutenção de aeronaves na pista",
+"itens": [
+"14.01"
+]
+},
+"3317101": {
+"descricao": "Manutenção e reparação de embarcações e estruturas flutuantes",
+"itens": [
+"14.01"
+]
+},
+"3317102": {
+"descricao": "Manutenção e reparação de embarcações para esporte e lazer",
+"itens": [
+"14.01"
+]
+},
+"3319800": {
+"descricao": "Manutenção e reparação de equipamentos e produtos não especificados anteriormente",
+"itens": [
+"14.01"
+]
+},
+"4329104": {
+"descricao": "Montagem e instalação de sistemas e equipamentos de iluminação e sinalização em vias públicas, portos e aeroportos",
+"itens": [
+"14.01",
+"14.06"
+]
+},
+"4520001": {
+"descricao": "Serviços de manutenção e reparação mecânica de veículos automotores",
+"itens": [
+"14.01"
+]
+},
+"4520003": {
+"descricao": "Serviços de manutenção e reparação elétrica de veículos automotores",
+"itens": [
+"14.01"
+]
+},
+"4520004": {
+"descricao": "Serviços de alinhamento e balanceamento de veículos automotores",
+"itens": [
+"14.01"
+]
+},
+"4520005": {
+"descricao": "Serviços de lavagem, lubrificação e polimento de veículos automotores",
+"itens": [
+"14.01",
+"14.05"
+]
+},
+"4520007": {
+"descricao": "Serviços de instalação, manutenção e reparação de acessórios para veículos automotores",
+"itens": [
+"14.01"
+]
+},
+"4543900": {
+"descricao": "Manutenção e reparação de motocicletas e motonetas",
+"itens": [
+"14.01"
+]
+},
+"4751202": {
+"descricao": "Recarga de cartuchos para equipamentos de informática",
+"itens": [
+"14.01"
+]
+},
+"6190699": {
+"descricao": "Outras atividades de telecomunicações não especificadas anteriormente",
+"itens": [
+"14.01",
+"14.07"
+]
+},
+"9512600": {
+"descricao": "Reparação e manutenção de equipamentos de comunicação",
+"itens": [
+"14.01",
+"14.03"
+]
+},
+"9521500": {
+"descricao": "Reparação e manutenção de equipamentos eletroeletrônicos de uso pessoal e doméstico",
+"itens": [
+"14.01"
+]
+},
+"9529101": {
+"descricao": "Reparação de calçados, bolsas e artigos de viagem",
+"itens": [
+"14.01"
+]
+},
+"9529103": {
+"descricao": "Reparação de relógios",
+"itens": [
+"14.01"
+]
+},
+"9529104": {
+"descricao": "Reparação de bicicletas, triciclos e outros veículos não-motorizados",
+"itens": [
+"14.01"
+]
+},
+"9529105": {
+"descricao": "Reparação de artigos do mobiliário",
+"itens": [
+"14.01",
+"14.05",
+"14.12"
+]
+},
+"9529106": {
+"descricao": "Reparação de jóias",
+"itens": [
+"14.01"
+]
+},
+"9529199": {
+"descricao": "Reparação e manutenção de outros objetos e equipamentos pessoais e domésticos não especificados anteriormente",
+"itens": [
+"14.01",
+"14.10"
+]
+},
+"9511800": {
+"descricao": "Reparação e manutenção de computadores e de equipamentos periféricos",
+"itens": [
+"14.02"
+]
+},
+"2950600": {
+"descricao": "Recondicionamento e recuperação de motores para veículos automotores",
+"itens": [
+"14.04"
+]
+},
+"2212900": {
+"descricao": "Reforma de pneumáticos usados",
+"itens": [
+"14.04"
+]
+},
+"4520006": {
+"descricao": "Serviços de borracharia para veículos automotores",
+"itens": [
+"14.05"
+]
+},
+"1340501": {
+"descricao": "Estamparia e texturizacao em fios, tecidos, artefatos texteis e pecas do vestuario",
+"itens": [
+"14.05"
+]
+},
+"2391502": {
+"descricao": "Aparelhamento de pedras para construção, exceto associado à extração",
+"itens": [
+"14.05"
+]
+},
+"2391503": {
+"descricao": "Aparelhmanto de placas e execução de trabalhos em mármore, granito, ardósia e outras pedras",
+"itens": [
+"14.05"
+]
+},
+"2539001": {
+"descricao": "Serviços de usinagem, tornearia e solda",
+"itens": [
+"14.05"
+]
+},
+"2539002": {
+"descricao": "Serviços de tratamento e revestimento em metais",
+"itens": [
+"14.05"
+]
+},
+"2599302": {
+"descricao": "Serviços de corte e dobra de metais",
+"itens": [
+"14.05"
+]
+},
+"2722802": {
+"descricao": "Recondicionamento de baterias e acumuladores para veículos automotores",
+"itens": [
+"14.05"
+]
+},
+"3250709": {
+"descricao": "Serviços de laboratórios ópticos",
+"itens": [
+"14.05"
+]
+},
+"4520002": {
+"descricao": "Serviços de lanternagem ou funilaria e pintura de veículos automotores",
+"itens": [
+"14.05",
+"14.13"
+]
+},
+"8292000": {
+"descricao": "Envasamento e empacotamento sob contrato",
+"itens": [
+"14.05"
+]
+},
+"9002702": {
+"descricao": "Restauração de obras de arte",
+"itens": [
+"14.05"
+]
+},
+"3329599": {
+"descricao": "Instalação de outros equipamentos não especificados anteriormente",
+"itens": [
+"14.06"
+]
+},
+"4329102": {
+"descricao": "Instalação de equipamentos para orientação à navegação marítima, fluvial e lacustre",
+"itens": [
+"14.06"
+]
+},
+"1629301": {
+"descricao": "Fabricação de artefatos diversos de madeira, exceto móveis",
+"itens": [
+"14.07"
+]
+},
+"1822999": {
+"descricao": "Serviços de acabamentos gráficos, exceto encadernação e plastificação",
+"itens": [
+"14.09"
+]
+},
+"1340599": {
+"descricao": "Outros serviços de acabamento em fios, tecidos, artefatos têxteis e peças do vestuário",
+"itens": [
+"14.09",
+"14.10"
+]
+},
+"1411802": {
+"descricao": "Facção de roupas íntimas",
+"itens": [
+"14.09"
+]
+},
+"1412602": {
+"descricao": "Confecção, sob medida, de peças do vestuário, exceto roupas íntimas",
+"itens": [
+"14.09"
+]
+},
+"1412603": {
+"descricao": "Facção de peças do vestuário, exceto roupas íntimas",
+"itens": [
+"14.09"
+]
+},
+"1413401": {
+"descricao": "Confeccao de roupas profissionais, exceto sob medida",
+"itens": [
+"14.09"
+]
+},
+"1413402": {
+"descricao": "Confecção, sob medida, de roupas profissionais",
+"itens": [
+"14.09"
+]
+},
+"1413403": {
+"descricao": "Facção de roupas profissionais",
+"itens": [
+"14.09"
+]
+},
+"1531902": {
+"descricao": "Acabamento de calçados de couro sob contrato",
+"itens": [
+"14.09"
+]
+},
+"1340502": {
+"descricao": "Alvejamento, tingimento e torção em fios, tecidos, artefatos têxteis e peças do vestuário",
+"itens": [
+"14.10"
+]
+},
+"9601701": {
+"descricao": "Lavanderias",
+"itens": [
+"14.10"
+]
+},
+"9601702": {
+"descricao": "Tinturarias",
+"itens": [
+"14.10"
+]
+},
+"9601703": {
+"descricao": "Toalheiros",
+"itens": [
+"14.11"
+]
+},
+"4520008": {
+"descricao": "Serviços de capotaria",
+"itens": [
+"14.11"
+]
+},
+"1622699": {
+"descricao": "Fabricação de outros artigos de carpintaria para construção",
+"itens": [
+"14.13"
+]
+},
+"2399101": {
+"descricao": "Decoração, lapidação, gravação, vitrificação e outros trabalhos em cerâmica, louça, vidro e cristal",
+"itens": [
+"14.13"
+]
+},
+"2512800": {
+"descricao": "Fabricação de esquadrias de metal",
+"itens": [
+"14.13"
+]
+},
+"2542000": {
+"descricao": "Fabricação de artigos de serralheria, exceto esquadrias",
+"itens": [
+"14.13"
+]
+},
+"2599301": {
+"descricao": "Serviços de confecção de armações metálicas para a construção",
+"itens": [
+"14.13"
+]
+},
+"3329501": {
+"descricao": "Serviços de montagem de móveis de qualquer material",
+"itens": [
+"14.13"
+]
+},
+"5229002": {
+"descricao": "Serviços de reboque de veículos",
+"itens": [
+"15.01",
+"17.01"
+]
+},
+"6421200": {
+"descricao": "Bancos comerciais",
+"itens": [
+"15.01",
+"15.02",
+"15.03",
+"15.04",
+"15.05",
+"15.06",
+"15.07",
+"15.08",
+"15.09",
+"15.10",
+"15.11",
+"15.12",
+"15.13",
+"15.14",
+"15.15",
+"15.16",
+"15.17",
+"15.18"
+]
+},
+"6422100": {
+"descricao": "Bancos multiplos, com carteira comercial",
+"itens": [
+"15.01",
+"15.02",
+"15.05",
+"15.06",
+"15.07",
+"15.08",
+"15.09",
+"15.10",
+"15.12",
+"15.13",
+"15.15",
+"15.16",
+"15.18"
+]
+},
+"6423900": {
+"descricao": "Caixas economicas",
+"itens": [
+"15.01",
+"15.02",
+"15.05",
+"15.06",
+"15.07",
+"15.08",
+"15.09",
+"15.12",
+"15.15",
+"15.18"
+]
+},
+"6424701": {
+"descricao": "Bancos cooperativos",
+"itens": [
+"15.01",
+"15.02",
+"15.03",
+"15.04",
+"15.05",
+"15.06",
+"15.07",
+"15.08",
+"15.09",
+"15.11",
+"15.12",
+"15.14",
+"15.15",
+"15.17",
+"15.18"
+]
+},
+"6424702": {
+"descricao": "Cooperativas centrais de credito",
+"itens": [
+"15.01"
+]
+},
+"6424703": {
+"descricao": "Cooperativas de credito mutuo",
+"itens": [
+"15.01",
+"15.02",
+"15.03",
+"15.04",
+"15.05",
+"15.06",
+"15.07",
+"15.08",
+"15.09",
+"15.10",
+"15.11",
+"15.12",
+"15.13",
+"15.14",
+"15.15",
+"15.16",
+"15.17",
+"15.18"
+]
+},
+"6424704": {
+"descricao": "Cooperativas de credito rural",
+"itens": [
+"15.01",
+"15.02",
+"15.04",
+"15.05",
+"15.06",
+"15.07",
+"15.09",
+"15.10",
+"15.12",
+"15.13",
+"15.15",
+"15.16",
+"15.18"
+]
+},
+"6431000": {
+"descricao": "Bancos multiplos, sem carteira comercial",
+"itens": [
+"15.01",
+"15.07",
+"15.09",
+"15.12",
+"15.18"
+]
+},
+"6432800": {
+"descricao": "Bancos de investimento",
+"itens": [
+"15.01",
+"15.07",
+"15.08",
+"15.16"
+]
+},
+"6433600": {
+"descricao": "Bancos de desenvolvimento",
+"itens": [
+"15.01",
+"15.02",
+"15.07",
+"15.08",
+"15.17"
+]
+},
+"6434400": {
+"descricao": "Agencias de fomento",
+"itens": [
+"15.01"
+]
+},
+"6435203": {
+"descricao": "Companhias hipotecarias",
+"itens": [
+"15.01",
+"15.07",
+"15.08",
+"15.18"
+]
+},
+"6470101": {
+"descricao": "Fundos de investimento, exceto previdenciários e imobiliários",
+"itens": [
+"15.01"
+]
+},
+"6470102": {
+"descricao": "Fundos de investimento previdenciarios",
+"itens": [
+"15.01"
+]
+},
+"6470103": {
+"descricao": "Fundos de investimento imobiliarios",
+"itens": [
+"15.01"
+]
+},
+"6499901": {
+"descricao": "Clubes de investimento",
+"itens": [
+"15.01"
+]
+},
+"6499902": {
+"descricao": "Sociedades de investimento",
+"itens": [
+"15.01"
+]
+},
+"6613400": {
+"descricao": "Administração de cartões de crédito",
+"itens": [
+"15.01"
+]
+},
+"6619305": {
+"descricao": "Operadoras de cartoes de debito",
+"itens": [
+"15.02"
+]
+},
+"6435202": {
+"descricao": "Associacoes de poupanca e emprestimo",
+"itens": [
+"15.02",
+"15.08",
+"15.18"
+]
+},
+"6450600": {
+"descricao": "Sociedades de capitalizacao",
+"itens": [
+"15.03",
+"15.07"
+]
+},
+"6619304": {
+"descricao": "Caixas eletronicos",
+"itens": [
+"15.08"
+]
+},
+"6436100": {
+"descricao": "Sociedades de credito, financiamento e investimento - financeiras",
+"itens": [
+"15.08"
+]
+},
+"6437900": {
+"descricao": "Sociedades de credito ao microempreendedor",
+"itens": [
+"15.08"
+]
+},
+"6499905": {
+"descricao": "Concessao de credito pelas oscip",
+"itens": [
+"15.09"
+]
+},
+"6440900": {
+"descricao": "Arrendamento mercantil",
+"itens": [
+"15.10"
+]
+},
+"6619301": {
+"descricao": "Serviços de liquidação e custódia",
+"itens": [
+"15.10",
+"15.13"
+]
+},
+"6619302": {
+"descricao": "Correspondentes de instituicoes financeiras",
+"itens": [
+"15.11"
+]
+},
+"6499999": {
+"descricao": "Outras atividades de servicos financeiros nao especificadas anteriormente",
+"itens": [
+"15.12"
+]
+},
+"6438701": {
+"descricao": "Bancos de cambio",
+"itens": [
+"15.13"
+]
+},
+"6438799": {
+"descricao": "Outras instituicoes de intermediacao não-monetaria nao especifidas anteriormente",
+"itens": [
+"15.14"
+]
+},
+"6435201": {
+"descricao": "Sociedades de credito imobiliario",
+"itens": [
+"15.18"
+]
+},
+"6499904": {
+"descricao": "Caixas de financiamento de corporacoes",
+"itens": [
+"16.01"
+]
+},
+"4912402": {
+"descricao": "Transporte ferroviário de passageiros municipal e em região metropolitana",
+"itens": [
+"16.01"
+]
+},
+"4912403": {
+"descricao": "Transporte metroviário",
+"itens": [
+"16.01"
+]
+},
+"4921301": {
+"descricao": "Transporte rodoviário coletivo de passageiros, com itinerário fixo, municipal",
+"itens": [
+"16.02"
+]
+},
+"4923001": {
+"descricao": "Serviço de táxi",
+"itens": [
+"16.02"
+]
+},
+"4923002": {
+"descricao": "Serviço de transporte de passageiros - locação de automóveis com motorista",
+"itens": [
+"16.02"
+]
+},
+"4924800": {
+"descricao": "Transporte escolar",
+"itens": [
+"16.02"
+]
+},
+"4929901": {
+"descricao": "Transporte rodoviário coletivo de passageiros, sob regime de fretamento, municipal",
+"itens": [
+"16.02"
+]
+},
+"4929902": {
+"descricao": "Transporte rodoviário coletivo de passageiros, sob regime de fretamento, intermunicipal, interestadual e internacional",
+"itens": [
+"16.02"
+]
+},
+"4930201": {
+"descricao": "Transporte rodoviário de carga, exceto produtos perigosos e mudanças, municipal",
+"itens": [
+"16.02"
+]
+},
+"4930203": {
+"descricao": "Transporte rodoviário de produtos perigosos",
+"itens": [
+"16.02"
+]
+},
+"4940000": {
+"descricao": "Transporte dutoviário",
+"itens": [
+"16.02"
+]
+},
+"4950700": {
+"descricao": "Trens turísticos, teleféricos e similares",
+"itens": [
+"16.02"
+]
+},
+"5021101": {
+"descricao": "Transporte por navegação interior de carga, municipal, exceto travessia",
+"itens": [
+"16.02"
+]
+},
+"5022001": {
+"descricao": "Transporte por navegação interior de passageiros em linhas regulares, municipal, exceto travessia",
+"itens": [
+"16.02"
+]
+},
+"5091201": {
+"descricao": "Transporte por navegação de travessia, municipal",
+"itens": [
+"16.02"
+]
+},
+"5099801": {
+"descricao": "Transporte aquaviário para passeios turísticos",
+"itens": [
+"16.02"
+]
+},
+"5112999": {
+"descricao": "Outros serviços de transporte aéreo de passageiros não-regular",
+"itens": [
+"16.02"
+]
+},
+"0311604": {
+"descricao": "Atividades de apoio a pesca em agua salgada",
+"itens": [
+"17.01",
+"20.01"
+]
+},
+"0312404": {
+"descricao": "Atividades de apoio a pesca em agua doce",
+"itens": [
+"17.01",
+"20.01"
+]
+},
+"0321305": {
+"descricao": "Atividades de apoio a aquicultura em agua salgada e salobra",
+"itens": [
+"17.01",
+"20.01"
+]
+},
+"0322107": {
+"descricao": "Atividades de apoio à aquicultura em água doce",
+"itens": [
+"17.01"
+]
+},
+"6399200": {
+"descricao": "Outras atividades de prestação de serviços de informação não especificadas anteriormente",
+"itens": [
+"17.01",
+"31.01"
+]
+},
+"6920602": {
+"descricao": "Atividades de consultoria e auditoria contábil e tributária",
+"itens": [
+"17.01",
+"17.09",
+"17.16",
+"17.19"
+]
+},
+"7020400": {
+"descricao": "Atividades de consultoria em gestão empresarial, exceto consultoria técnica específica",
+"itens": [
+"17.01",
+"17.03",
+"17.17",
+"17.20",
+"35.01"
+]
+},
+"7319004": {
+"descricao": "Consultoria em publicidade",
+"itens": [
+"17.01"
+]
+},
+"7320300": {
+"descricao": "Pesquisas de mercado e de opinião pública",
+"itens": [
+"17.01",
+"17.21"
+]
+},
+"7490103": {
+"descricao": "Serviços de agronomia e de consultoria às atividades agrícolas e pecuárias",
+"itens": [
+"17.01"
+]
+},
+"8299701": {
+"descricao": "Medição de consumo de energia elétrica, gás e água",
+"itens": [
+"17.01"
+]
+},
+"9430800": {
+"descricao": "Atividades de associação de defesa de direitos sociais",
+"itens": [
+"17.01"
+]
+},
+"8220200": {
+"descricao": "Atividades de teleatendimento",
+"itens": [
+"17.02"
+]
+},
+"5229001": {
+"descricao": "Serviços de apoio ao transporte por táxi, inclusive centrais de chamada",
+"itens": [
+"17.02"
+]
+},
+"5811500": {
+"descricao": "Edição de livros",
+"itens": [
+"17.02"
+]
+},
+"5812300": {
+"descricao": "Edição de jornais",
+"itens": [
+"17.02"
+]
+},
+"5812301": {
+"descricao": "Edição de jornais diários",
+"itens": [
+"17.02"
+]
+},
+"5812302": {
+"descricao": "Edição de jornais não diários",
+"itens": [
+"17.02"
+]
+},
+"5813100": {
+"descricao": "Edição de revistas",
+"itens": [
+"17.02"
+]
+},
+"5819100": {
+"descricao": "Edição de cadastros, listas e outros produtos gráficos",
+"itens": [
+"17.02"
+]
+},
+"5821200": {
+"descricao": "Edição integrada à impressão de livros",
+"itens": [
+"17.02"
+]
+},
+"5822100": {
+"descricao": "Edição integrada à impressão de jornais",
+"itens": [
+"17.02"
+]
+},
+"5823900": {
+"descricao": "Edição integrada à impressão de revistas",
+"itens": [
+"17.02"
+]
+},
+"5829800": {
+"descricao": "Edição integrada à impressão de cadastros, listas e outros produtos gráficos",
+"itens": [
+"17.02"
+]
+},
+"7490101": {
+"descricao": "Serviços de tradução, interpretação e similares",
+"itens": [
+"17.02"
+]
+},
+"8219999": {
+"descricao": "Preparação de documentos e serviços especializados de apoio administrativo não especificados anteriormente",
+"itens": [
+"17.02"
+]
+},
+"8299799": {
+"descricao": "Outras atividades de serviços prestados principalmente às empresas não especificadas anteriormente",
+"itens": [
+"17.03"
+]
+},
+"7810800": {
+"descricao": "Seleção e agenciamento de mão-de-obra",
+"itens": [
+"17.05"
+]
+},
+"7820500": {
+"descricao": "Locação de mão-de-obra temporária",
+"itens": [
+"17.05"
+]
+},
+"7830200": {
+"descricao": "Fornecimento e gestão de recursos humanos para terceiros",
+"itens": [
+"17.05"
+]
+},
+"8111700": {
+"descricao": "Serviços combinados para apoio a edifícios, exceto condomínios prediais",
+"itens": [
+"17.06"
+]
+},
+"5911102": {
+"descricao": "Produção de filmes para publicidade",
+"itens": [
+"17.06"
+]
+},
+"7311400": {
+"descricao": "Agências de publicidade",
+"itens": [
+"17.06"
+]
+},
+"7319001": {
+"descricao": "Criação e montagem de estandes para feiras e exposições",
+"itens": [
+"17.06"
+]
+},
+"7319002": {
+"descricao": "Promoção de vendas",
+"itens": [
+"17.06"
+]
+},
+"7319003": {
+"descricao": "Marketing direto",
+"itens": [
+"17.06"
+]
+},
+"7319099": {
+"descricao": "Outras atividades de publicidade não especificadas anteriormente",
+"itens": [
+"17.08"
+]
+},
+"5310502": {
+"descricao": "Atividades de franqueadas do correio nacional",
+"itens": [
+"17.08",
+"26.01"
+]
+},
+"6621501": {
+"descricao": "Peritos e avaliadores de seguros",
+"itens": [
+"17.09",
+"17.16",
+"18.01"
+]
+},
+"6911702": {
+"descricao": "Atividades auxiliares da justiça",
+"itens": [
+"17.09",
+"17.16"
+]
+},
+"7119704": {
+"descricao": "Serviços de perícia técnica relacionados à segurança do trabalho",
+"itens": [
+"17.09"
+]
+},
+"7120100": {
+"descricao": "Testes e análises técnicas",
+"itens": [
+"17.10"
+]
+},
+"5620102": {
+"descricao": "Serviços de alimentação para eventos e recepções – bufê",
+"itens": [
+"17.11"
+]
+},
+"5620104": {
+"descricao": "Fornecimento de alimentos preparados preponderantemente para consumo domiciliar",
+"itens": [
+"17.12"
+]
+},
+"6493000": {
+"descricao": "Administração de consórcios para aquisição de bens e direitos",
+"itens": [
+"17.12"
+]
+},
+"6611801": {
+"descricao": "Bolsa de valores",
+"itens": [
+"17.12"
+]
+},
+"6611802": {
+"descricao": "Bolsa de mercadorias",
+"itens": [
+"17.12"
+]
+},
+"6611803": {
+"descricao": "Bolsa de mercadorias e futuros",
+"itens": [
+"17.12"
+]
+},
+"6611804": {
+"descricao": "Administração de mercados de balcão organizados",
+"itens": [
+"17.12"
+]
+},
+"6630400": {
+"descricao": "Atividades de administração de fundos por contrato ou comissão",
+"itens": [
+"17.12"
+]
+},
+"6822600": {
+"descricao": "Gestão e administração da propriedade imobiliária",
+"itens": [
+"17.12"
+]
+},
+"8423000": {
+"descricao": "Justiça",
+"itens": [
+"17.12"
+]
+},
+"8660700": {
+"descricao": "Atividades de apoio à gestão de saúde",
+"itens": [
+"17.12"
+]
+},
+"8299704": {
+"descricao": "Leiloeiros independentes",
+"itens": [
+"17.14"
+]
+},
+"6911701": {
+"descricao": "Serviços advocatícios",
+"itens": [
+"17.15"
+]
+},
+"6621502": {
+"descricao": "Auditoria e consultoria atuarial",
+"itens": [
+"17.16",
+"17.18"
+]
+},
+"6920601": {
+"descricao": "Atividades de contabilidade",
+"itens": [
+"17.19"
+]
+},
+"8291100": {
+"descricao": "Atividades de cobrança e informações cadastrais",
+"itens": [
+"17.23"
+]
+},
+"6491300": {
+"descricao": "Sociedades de fomento mercantil - factoring",
+"itens": [
+"17.24"
+]
+},
+"6629100": {
+"descricao": "Atividades auxiliares dos seguros, da previdência complementar e dos planos de saúde não especificadas anteriorme",
+"itens": [
+"19.01"
+]
+},
+"5030101": {
+"descricao": "Navegação de apoio marítimo",
+"itens": [
+"20.01"
+]
+},
+"5231101": {
+"descricao": "Administração da infra-estrutura portuária",
+"itens": [
+"20.01"
+]
+},
+"5239700": {
+"descricao": "Atividades auxiliares dos transportes aquaviários não especificadas anteriormente",
+"itens": [
+"20.01"
+]
+},
+"5250805": {
+"descricao": "Operador de transporte multimodal - otm",
+"itens": [
+"20.02",
+"21.01"
+]
+},
+"5240101": {
+"descricao": "O p e r a ç ã o d o s a e ro p o r t o s e c a m p o s d e a t e r ri s s a g e m",
+"itens": [
+"20.02"
+]
+},
+"6912500": {
+"descricao": "Cartórios",
+"itens": [
+"22.01"
+]
+},
+"7410203": {
+"descricao": "Design de produto",
+"itens": [
+"23.01",
+"32.01"
+]
+},
+"7410299": {
+"descricao": "Atividades de design não especificadas anteriormente",
+"itens": [
+"23.01",
+"33.01"
+]
+},
+"4329101": {
+"descricao": "Instalação de painéis publicitários",
+"itens": [
+"24.01"
+]
+},
+"8299703": {
+"descricao": "Serviços de gravação de carimbos, exceto confecção",
+"itens": [
+"24.01"
+]
+},
+"9529102": {
+"descricao": "Chaveiros",
+"itens": [
+"25.01"
+]
+},
+"9603305": {
+"descricao": "Serviços de somatoconservação",
+"itens": [
+"25.01"
+]
+},
+"9603399": {
+"descricao": "Atividades funerárias e serviços relacionados não especificados anteriormente",
+"itens": [
+"25.02",
+"26.01"
+]
+},
+"9603302": {
+"descricao": "Serviços de cremação",
+"itens": [
+"25.03"
+]
+},
+"6511102": {
+"descricao": "Planos de auxílio-funeral",
+"itens": [
+"25.04"
+]
+},
+"9603301": {
+"descricao": "Gestão e manutenção de cemitérios",
+"itens": [
+"25.05"
+]
+},
+"5310501": {
+"descricao": "Atividades do correio nacional",
+"itens": [
+"26.01"
+]
+},
+"5320201": {
+"descricao": "Serviços de malote não realizados pelo correio nacional",
+"itens": [
+"26.01"
+]
+},
+"5320202": {
+"descricao": "Serviços de entrega rápida",
+"itens": [
+"26.01"
+]
+},
+"8012900": {
+"descricao": "Atividades de transporte de valores",
+"itens": [
+"27.01"
+]
+},
+"8800600": {
+"descricao": "Serviços de assistência social sem alojamento",
+"itens": [
+"28.01"
+]
+},
+"9101500": {
+"descricao": "Atividades de bibliotecas e arquivos",
+"itens": [
+"30.01"
+]
+},
+"7119703": {
+"descricao": "Serviços de desenho técnico relacionados à arquitetura e engenharia",
+"itens": [
+"32.01"
+]
+},
+"5250801": {
+"descricao": "Comissaria de despachos",
+"itens": [
+"33.01"
+]
+},
+"5250802": {
+"descricao": "Atividades de despachantes aduaneiros",
+"itens": [
+"34.01"
+]
+},
+"8030700": {
+"descricao": "Atividades de investigação particular",
+"itens": [
+"35.01"
+]
+},
+"9002701": {
+"descricao": "Atividades de artistas plásticos, jornalistas independentes e escritores",
+"itens": [
+"36.01",
+"99.99"
+]
+},
+"7410201": {
+"descricao": "Design",
+"itens": [
+"40.01"
+]
+},
+"6010100": {
+"descricao": "Atividades de rádio",
+"itens": [
+"99.99"
+]
+},
+"6021700": {
+"descricao": "Atividades de televisão aberta",
+"itens": [
+"99.99"
+]
+},
+"6022501": {
+"descricao": "Programadoras",
+"itens": [
+"99.99"
+]
+},
+"6022502": {
+"descricao": "Atividades relacionadas à televisão por assinatura, exceto programadoras",
+"itens": [
+"99.99"
+]
+}
+}
+}

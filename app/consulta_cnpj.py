@@ -49,6 +49,10 @@ def _resumo(d: dict) -> dict:
         "codigo_municipio_ibge": str(d.get("codigo_municipio_ibge") or ""),
         "situacao": d.get("descricao_situacao_cadastral") or "",
         "cnae_principal": {"codigo": str(d.get("cnae_fiscal") or ""), "descricao": d.get("cnae_fiscal_descricao") or ""},
+        "cnaes_secundarios": [
+            {"codigo": str(c.get("codigo") or "").zfill(7), "descricao": c.get("descricao") or ""}
+            for c in (d.get("cnaes_secundarios") or []) if c.get("codigo")
+        ],
         "regime": "2" if mei else ("3" if simples else ("1" if simples is False else "")),
     }
 
