@@ -58,3 +58,15 @@ def test_regras_do_envio(app, auth):  # noqa: F811
     empresa2 = entrar_como_empresa(app, rafa, cid2, email="ze@outra.com")
     assert empresa2.get(f"/app/{cid}/documentos").status_code == 404
     assert empresa2.get(f"/app/{cid2}/documentos/{doc['id']}/arquivo").status_code == 404
+
+
+def test_resumo_do_escritorio(app, auth):  # noqa: F811
+    rafa = contador_aprovado(app, auth, "Rafa", "rafa@escritorio.com")
+    outro = contador_aprovado(app, auth, "Outro", "outro@escritorio.com")
+    cid = criar_empresa(rafa)
+    rafa.post(f"/contador/clientes/{cid}/documentos", json=guia(vencimento="2020-01-10"))
+    rafa.post(f"/contador/clientes/{cid}/documentos", json=guia(vencimento="2099-01-10"))
+    r = rafa.get("/contador/resumo").json()
+    assert r["guias"] == {"pendentes": 2, "vencidas": 1, "enviadas": 2}
+    assert r["empresas"]["total"] == 1 and len(r["serie"]) == 14
+    assert outro.get("/contador/resumo").json()["guias"]["enviadas"] == 0

@@ -1,6 +1,6 @@
 // Painel do contador: empresas, serviços liberados e notas.
 (() => {
-  const { api, el, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin } = Emitta;
+  const { api, el, zonaArquivo, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin } = Emitta;
 
   const estado = {
     clientes: [],
@@ -8,6 +8,7 @@
     servicos: [], // catálogo com "liberado" e "apelido"
     notas: [],
     documentos: [],
+    resumo: null, // números do mês do escritório (topo do painel)
     alterado: false,
     acessos: [],
     acessoCriado: null, // {email, senha_provisoria} mostrado uma única vez
@@ -94,6 +95,7 @@
         autonomo() ? [] : api("GET", `/contador/clientes/${id}/documentos`),
       ]);
       estado.documentos = documentos;
+      carregarResumo(true);
       estado.servicos = servicos.map((s) => ({ ...s, apelido: s.apelido || s.descricao }));
       estado.notas = notas;
       estado.acessos = acessos;
@@ -165,6 +167,124 @@
 
   // ------------------------------------------------------------ área principal
 
+  // ------------------------------------------------------------ resumo do escritório
+  // Cartões de números no topo (inspirados no KPI Tile do 21st.dev, no visual do Emitta):
+  // valor que sobe contando, variação contra o mês anterior e minigráfico dos últimos 14 dias.
+  const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const calmo = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reais = (c) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const reaisCurto = (c) => (c >= 1000000 ? "R$ " + (c / 100000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : reais(c));
+  let resumoPedido = null;
+  let resumoAnimado = false; // anima só na primeira vez que os números aparecem
+
+  async function carregarResumo(forcar = false) {
+    if (autonomo() || !estado.clientes.length) return;
+    if (resumoPedido && !forcar) return resumoPedido;
+    resumoPedido = api("GET", "/contador/resumo").then((r) => {
+      const mudou = JSON.stringify(r) !== JSON.stringify(estado.resumo);
+      estado.resumo = r;
+      if (mudou) { resumoAnimado = false; desenharPrincipal(); }
+    }).catch(() => {});
+    return resumoPedido;
+  }
+
+  function contar($n, alvo, formato) {
+    if (calmo || !alvo) { $n.textContent = formato(alvo); return; }
+    const t0 = performance.now();
+    const passo = (t) => {
+      const k = Math.min(1, (t - t0) / 900);
+      $n.textContent = formato(alvo * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+  }
+
+  function minigrafico(valores, rotulos, formato, $legenda, legendaPadrao) {
+    const W = 100, H = 36, P = 3;
+    const max = Math.max(...valores, 1);
+    const passo = (W - P * 2) / Math.max(valores.length - 1, 1);
+    const pts = valores.map((v, i) => [P + i * passo, H - P - (v / max) * (H - P * 2)]);
+    const linha = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`).join(" ");
+    const area = `${linha} L${pts[pts.length - 1][0]} ${H} L${P} ${H} Z`;
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("aria-hidden", "true");
+    const id = "g" + Math.random().toString(36).slice(2, 8);
+    svg.innerHTML = `<defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#C6F36B" stop-opacity=".35"/><stop offset="1" stop-color="#C6F36B" stop-opacity="0"/></linearGradient></defs>`
+      + `<path d="${area}" fill="url(#${id})" class="kpi-area"/>`
+      + `<path d="${linha}" fill="none" stroke="#C6F36B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="kpi-linha"/>`;
+    const $ponto = el("span", { class: "kpi-ponto", hidden: true });
+    const caixa = el("div", { class: "kpi-grafico" }, svg, $ponto);
+    const mostrar = (i) => {
+      if (i === null) { $ponto.hidden = true; $legenda.textContent = legendaPadrao; return; }
+      const [x, y] = pts[i];
+      $ponto.hidden = false; $ponto.style.left = `${x}%`; $ponto.style.top = `${(y / H) * 100}%`;
+      $legenda.textContent = `${rotulos[i]} · ${formato(valores[i])}`;
+    };
+    caixa.addEventListener("pointermove", (e) => {
+      const b = caixa.getBoundingClientRect();
+      const i = Math.round((((e.clientX - b.left) / b.width) * W - P) / passo);
+      mostrar(Math.min(Math.max(i, 0), valores.length - 1));
+    });
+    caixa.addEventListener("pointerleave", () => mostrar(null));
+    return caixa;
+  }
+
+  function variacao(atual, anterior) {
+    if (!atual && !anterior) return null;
+    if (!anterior) return el("span", { class: "kpi-pilula boa" }, "novo");
+    const pct = ((atual - anterior) / anterior) * 100;
+    const sobe = pct >= 0;
+    return el("span", { class: "kpi-pilula " + (sobe ? "boa" : "ruim"), "aria-label": `${sobe ? "Subiu" : "Caiu"} ${Math.abs(pct).toFixed(0)}%` },
+      el("span", { class: "kpi-seta" + (sobe ? "" : " desce"), "aria-hidden": "true" }, "↗"), `${Math.abs(pct).toFixed(0)}%`);
+  }
+
+  function cartaoKpi({ rotulo, valor, formato, delta, legenda, grafico, barra }) {
+    const $valor = el("span", { class: "kpi-valor" }, formato(0));
+    const $legenda = el("span", { class: "kpi-legenda" }, legenda);
+    const corpo = [
+      el("span", { class: "kpi-rotulo" }, rotulo),
+      el("div", { class: "kpi-linha-valor" }, $valor, delta || null),
+      $legenda,
+    ];
+    if (grafico) corpo.push(minigrafico(grafico.valores, grafico.rotulos, grafico.formato, $legenda, legenda));
+    if (barra) corpo.push(el("div", { class: "kpi-barra", role: "img", "aria-label": barra.texto },
+      el("span", { style: `width:${Math.round(barra.parte * 100)}%` + (barra.alerta ? ";background:#F59E8B" : "") })));
+    const cartao = el("article", { class: "kpi" }, ...corpo);
+    if (resumoAnimado) $valor.textContent = formato(valor);
+    else requestAnimationFrame(() => contar($valor, valor, formato));
+    return cartao;
+  }
+
+  function faixaResumo() {
+    const r = estado.resumo;
+    if (autonomo() || !estado.clientes.length) return null;
+    if (!r) { carregarResumo(); return el("section", { class: "resumo-escritorio carregando-resumo", "aria-busy": "true" }, el("div", { class: "kpi-esqueleto" })); }
+    const mesAnt = MESES[(r.mes + 10) % 12];
+    const rotulos = r.serie.map((d) => d.dia.slice(8, 10) + "/" + d.dia.slice(5, 7));
+    const inteiro = (v) => String(Math.round(v));
+    const comparar = `vs. mesmo período de ${mesAnt}`;
+    const primeira = !resumoAnimado;
+    requestAnimationFrame(() => { resumoAnimado = true; });
+    return el("section", { class: "resumo-escritorio" + (primeira ? " entrando" : ""), "aria-label": "Resumo do escritório" },
+      el("header", { class: "resumo-topo" },
+        el("h2", {}, `Seu escritório em ${MESES[r.mes - 1]}`),
+        el("button", { type: "button", class: "resumo-atualizar", "aria-label": "Atualizar números", onclick: () => carregarResumo(true) }, icone("trocar", 16))),
+      el("div", { class: "resumo-grade" },
+        cartaoKpi({ rotulo: "Notas emitidas", valor: r.notas.total, formato: inteiro, delta: variacao(r.notas.total, r.notas.anterior),
+          legenda: comparar, grafico: { valores: r.serie.map((d) => d.notas), rotulos, formato: (v) => `${v} nota${v === 1 ? "" : "s"}` } }),
+        cartaoKpi({ rotulo: "Valor emitido", valor: r.valor.total_centavos, formato: reaisCurto, delta: variacao(r.valor.total_centavos, r.valor.anterior_centavos),
+          legenda: comparar, grafico: { valores: r.serie.map((d) => d.valor_centavos), rotulos, formato: reais } }),
+        cartaoKpi({ rotulo: "Guias para pagar", valor: r.guias.pendentes, formato: inteiro,
+          delta: r.guias.vencidas ? el("span", { class: "kpi-pilula ruim" }, `${r.guias.vencidas} vencida${r.guias.vencidas > 1 ? "s" : ""}`) : null,
+          legenda: r.guias.enviadas ? `${r.guias.enviadas - r.guias.pendentes} de ${r.guias.enviadas} já pagas` : "Nenhuma guia enviada ainda",
+          barra: { parte: r.guias.enviadas ? (r.guias.enviadas - r.guias.pendentes) / r.guias.enviadas : 0, alerta: r.guias.vencidas > 0, texto: "Guias pagas" } }),
+        cartaoKpi({ rotulo: "Empresas prontas", valor: r.empresas.prontas, formato: (v) => `${Math.round(v)} de ${r.empresas.total}`,
+          legenda: r.empresas.sem_certificado ? `${r.empresas.sem_certificado} sem certificado` : "Todas com certificado",
+          barra: { parte: r.empresas.total ? r.empresas.prontas / r.empresas.total : 0, texto: "Empresas prontas para emitir" } }),
+      ));
+  }
+
   function desenharPrincipal() {
     $principal.replaceChildren();
     if (estado.modo === "carregando") {
@@ -173,10 +293,12 @@
     } else if (estado.modo === "nova") {
       $principal.append(formularioNovaEmpresa());
     } else if (estado.modo === "cliente") {
-      $principal.append(...telaCliente());
+      $principal.append(...[faixaResumo(), ...telaCliente()].filter(Boolean));
     } else if (estado.modo === "seguranca") {
       $principal.append(...telaSeguranca());
     } else {
+      const resumo = faixaResumo();
+      if (resumo) $principal.append(resumo);
       $principal.append(el("div", { class: "card", style: "padding:40px 24px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center" },
         el("h1", { style: "font-size:22px" }, "Bem-vindo ao Emitta"),
         el("p", { class: "sub2", style: "max-width:460px" },
@@ -532,8 +654,9 @@
         el("input", { name: "valor", inputmode: "decimal", placeholder: "350,00", autocomplete: "off" })),
       el("label", { class: "campo" }, "Vencimento",
         el("input", { type: "date", name: "vencimento" })),
-      el("label", { class: "campo campo-largo" }, "Arquivo da guia (PDF, até 5 MB)",
-        el("input", { type: "file", name: "arquivo", accept: "application/pdf,.pdf", required: true })),
+      el("div", { class: "campo campo-largo" }, "Arquivo da guia",
+        zonaArquivo({ accept: "application/pdf,.pdf", extensoes: ["pdf"], maxBytes: 5 * 1024 * 1024,
+          titulo: "Arraste o PDF da guia aqui", tipo: "PDF" })),
       el("button", { class: "botao campo-largo", type: "submit" }, icone("enviar", 18), "Enviar para a empresa"));
 
     form.addEventListener("submit", async (e) => {
@@ -559,6 +682,7 @@
           vencimento: v("vencimento") || null, arquivo_nome: arquivo.name, arquivo_base64: base64,
         });
         estado.documentos = [doc, ...estado.documentos];
+        carregarResumo(true);
         avisar("Guia enviada. A empresa já vê no app, em Impostos.");
         desenharPrincipal();
       } catch (falha) {
@@ -744,8 +868,9 @@
       ];
     } else {
       const form = el("form", { class: "form-grade", novalidate: true },
-        el("label", { class: "campo" }, "Arquivo do certificado (.pfx ou .p12)",
-          el("input", { type: "file", name: "arquivo", accept: ".pfx,.p12,application/x-pkcs12", required: true })),
+        el("div", { class: "campo campo-largo" }, "Arquivo do certificado (.pfx ou .p12)",
+          zonaArquivo({ accept: ".pfx,.p12,application/x-pkcs12", extensoes: ["pfx", "p12"], maxBytes: 50 * 1024,
+            titulo: "Arraste o certificado A1 aqui", tipo: "certificado", dica: "Arquivo .pfx ou .p12 · fica guardado cifrado" })),
         el("label", { class: "campo" }, "Senha do certificado",
           el("input", { type: "password", name: "senha", autocomplete: "off", required: true })),
         el("div", { style: "display:flex;align-items:flex-end" }, el("button", { class: "botao", type: "submit", style: "width:100%" }, "Enviar certificado")));

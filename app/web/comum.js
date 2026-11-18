@@ -165,6 +165,7 @@ const Emitta = (() => {
     olho: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
     usuario: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0",
     download: "M12 4v12M7 11l5 5 5-5M5 20h14",
+    subir: "M12 20V8M7 13l5-5 5 5M5 4h14",
     busca: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4",
     fechar: "M6 6l12 12M18 6L6 18",
     enviar: "M4 12l16-8-6 16-2.5-6.5L4 12z",
@@ -208,5 +209,58 @@ const Emitta = (() => {
     try { return localStorage.getItem(chave); } catch { return null; }
   }
 
-  return { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, guardar, ler, sair, exigirLogin };
+  // Área de "arraste o arquivo aqui" (inspirada no File Dropzone do 21st.dev, no visual do Emitta).
+  // Usa um <input type=file name=...> de verdade por dentro: os formulários continuam lendo .files.
+  function zonaArquivo({ nome = "arquivo", accept = "", extensoes = [], maxBytes = 5 * 1024 * 1024, titulo = "Arraste o arquivo aqui", dica = "", tipo = "PDF" } = {}) {
+    const $input = el("input", { type: "file", name: nome, accept, class: "visualmente-oculto", tabindex: "-1" });
+    const $erro = el("p", { class: "zona-erro", role: "alert", hidden: true });
+    const $caixa = el("div", { class: "zona-arquivo", tabindex: "0", role: "button", "aria-label": `${titulo}. Ou toque para escolher o arquivo.` });
+    const tamanho = (b) => (b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1).replace(".", ",")} MB`);
+    const limite = tamanho(maxBytes);
+
+    function vazio() {
+      $caixa.classList.remove("com-arquivo");
+      $caixa.replaceChildren(
+        el("span", { class: "zona-icone", "aria-hidden": "true" }, icone("subir", 24)),
+        el("strong", {}, titulo),
+        el("span", { class: "zona-dica" }, dica || `${tipo} · até ${limite}`),
+        el("span", { class: "botao botao-secundario zona-botao" }, "Escolher arquivo"));
+    }
+    function escolhido(f) {
+      $caixa.classList.add("com-arquivo");
+      $caixa.replaceChildren(
+        el("span", { class: "zona-selo", "aria-hidden": "true" }, (f.name.split(".").pop() || tipo).slice(0, 4).toUpperCase()),
+        el("span", { class: "zona-info" }, el("strong", {}, f.name), el("span", {}, `${tamanho(f.size)} · pronto para enviar`)),
+        el("button", {
+          type: "button", class: "zona-tirar", "aria-label": `Tirar ${f.name}`,
+          onclick: (e) => { e.stopPropagation(); limpar(); },
+        }, icone("fechar", 18)));
+    }
+    function erro(t) { $erro.textContent = t; $erro.hidden = !t; $caixa.classList.toggle("com-erro", !!t); }
+    function limpar() { $input.value = ""; erro(""); vazio(); }
+    function aceitar(arquivos) {
+      const f = arquivos && arquivos[0];
+      if (!f) return;
+      const ext = (f.name.split(".").pop() || "").toLowerCase();
+      if (extensoes.length && !extensoes.includes(ext)) { limpar(); return erro(`Esse arquivo não é ${tipo}. Escolha um arquivo ${extensoes.map((x) => "." + x).join(" ou ")}.`); }
+      if (f.size > maxBytes) { limpar(); return erro(`O arquivo tem ${tamanho(f.size)}. O limite é ${limite}.`); }
+      if ($input.files !== arquivos) {
+        try { const dt = new DataTransfer(); dt.items.add(f); $input.files = dt.files; } catch { return erro("Não deu para usar esse arquivo. Toque para escolher."); }
+      }
+      erro("");
+      escolhido(f);
+      $caixa.dispatchEvent(new CustomEvent("arquivo", { bubbles: true, detail: f }));
+    }
+
+    $input.addEventListener("change", () => aceitar($input.files));
+    $caixa.addEventListener("click", () => $input.click());
+    $caixa.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $input.click(); } });
+    ["dragenter", "dragover"].forEach((t) => $caixa.addEventListener(t, (e) => { e.preventDefault(); $caixa.classList.add("arrastando"); }));
+    ["dragleave", "dragend"].forEach((t) => $caixa.addEventListener(t, () => $caixa.classList.remove("arrastando")));
+    $caixa.addEventListener("drop", (e) => { e.preventDefault(); $caixa.classList.remove("arrastando"); aceitar(e.dataTransfer && e.dataTransfer.files); });
+    vazio();
+    return el("div", { class: "zona" }, $caixa, $input, $erro);
+  }
+
+  return { api, el, zonaArquivo, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, guardar, ler, sair, exigirLogin };
 })();

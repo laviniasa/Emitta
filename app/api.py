@@ -949,6 +949,46 @@ def criar_app(
             "X-Content-Type-Options": "nosniff",
         })
 
+    @app.get("/contador/resumo", tags=["contador"])
+    def resumo_do_escritorio(usuario: Usuario = Depends(contador_atual)):
+        """Números do mês para o topo do painel: notas, valor, guias e empresas prontas."""
+        from datetime import timedelta
+        hoje = datetime.now(timezone(timedelta(hours=-3))).date()
+        inicio_mes = hoje.replace(day=1)
+        inicio_ant = (inicio_mes - timedelta(days=1)).replace(day=1)
+        dia_ant = min(hoje.day, (inicio_mes - timedelta(days=1)).day)
+        fim_comparavel_ant = inicio_ant.replace(day=dia_ant)
+        desde = min(inicio_ant, hoje - timedelta(days=13)).isoformat()
+        notas = repo.notas_autorizadas_do_contador(usuario.id, desde)
+        dias = [(hoje - timedelta(days=13 - i)) for i in range(14)]
+        por_dia = {d.isoformat(): [0, 0] for d in dias}
+        mes, ant = [0, 0], [0, 0]
+        for n in notas:
+            d = n["emitida_em"][:10]
+            if d in por_dia:
+                por_dia[d][0] += 1
+                por_dia[d][1] += n["valor_centavos"]
+            if d >= inicio_mes.isoformat():
+                mes[0] += 1
+                mes[1] += n["valor_centavos"]
+            elif inicio_ant.isoformat() <= d <= fim_comparavel_ant.isoformat():
+                ant[0] += 1
+                ant[1] += n["valor_centavos"]
+        guias = repo.guias_do_contador(usuario.id)
+        pendentes = [g for g in guias if not g["pago_em"]]
+        vencidas = [g for g in pendentes if g["vencimento"] and g["vencimento"] < hoje.isoformat()]
+        clientes = repo.listar_clientes(usuario.id)
+        prontas = sum(1 for c in clientes if c.cert_pfx_cifrado and repo.servicos_liberados(c.id))
+        sem_cert = sum(1 for c in clientes if not c.cert_pfx_cifrado)
+        return {
+            "mes": hoje.month, "ano": hoje.year,
+            "notas": {"total": mes[0], "anterior": ant[0]},
+            "valor": {"total_centavos": mes[1], "anterior_centavos": ant[1]},
+            "serie": [{"dia": d.isoformat(), "notas": por_dia[d.isoformat()][0], "valor_centavos": por_dia[d.isoformat()][1]} for d in dias],
+            "guias": {"pendentes": len(pendentes), "vencidas": len(vencidas), "enviadas": len(guias)},
+            "empresas": {"total": len(clientes), "prontas": prontas, "sem_certificado": sem_cert},
+        }
+
     @app.get("/contador/clientes/{cliente_id}/documentos", tags=["contador"])
     def listar_documentos_contador(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):
         base = f"/contador/clientes/{cliente_id}/documentos"

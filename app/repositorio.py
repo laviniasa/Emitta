@@ -412,6 +412,19 @@ class Repositorio:
 
     # ------------------------------------------------------------ usuários
 
+    # ---------------------------------------------------------------- resumo do escritório
+    def notas_autorizadas_do_contador(self, contador_id: int, desde: str) -> list[dict]:
+        """Notas autorizadas (ou já canceladas depois) das empresas do contador, emitidas desde `desde`."""
+        return [dict(r) for r in self.con.execute(
+            "SELECT n.emitida_em, n.valor_centavos, n.situacao FROM notas n JOIN clientes c ON c.id = n.cliente_id"
+            " WHERE c.contador_id = ? AND n.situacao = 'autorizada' AND n.emitida_em >= ?",
+            (contador_id, desde))]
+
+    def guias_do_contador(self, contador_id: int) -> list[dict]:
+        return [dict(r) for r in self.con.execute(
+            "SELECT d.vencimento, d.pago_em, d.visto_em FROM documentos d JOIN clientes c ON c.id = d.cliente_id"
+            " WHERE c.contador_id = ?", (contador_id,))]
+
     # ---------------------------------------------------------------- documentos
     _CAMPOS_DOC = "id, cliente_id, tipo, titulo, competencia, valor_centavos, vencimento, arquivo_nome, tamanho, enviado_por, criado_em, visto_em, pago_em"
 
