@@ -153,6 +153,7 @@ class ServicoEmissao:
         regras.verificar_retencao(bool(iss_retido), tomador, cliente.opcao_simples)
         percentual_sn = self._percentual_simples(cliente)
         cert = self.certificados.para(cliente)
+        codigo_municipal = self._conferir_na_prefeitura(cliente, codigo_servico, codigo_municipal, cert)
 
         for tentativa in range(MAX_PULOS_NUMERO + 1):
             # 2. Monta e assina o XML
@@ -215,6 +216,29 @@ class ServicoEmissao:
                 self.repo.descartar_nota(nota.id)
                 continue
             return self._registrar_resposta(nota, resposta)
+
+    def _conferir_na_prefeitura(self, cliente, codigo_servico: str, codigo_municipal: str | None, cert) -> str | None:
+        """Antes de enviar: se o serviço ainda não foi conferido na prefeitura (sem complemento
+        municipal guardado), pergunta ao governo. Guarda o complemento que a prefeitura pede
+        (evita a recusa E0312) e, se a prefeitura não aceita o serviço, avisa sem enviar nada."""
+        if codigo_municipal or self.config.ambiente == "simulacao" or not hasattr(self.sefin, "consultar_servico_municipio"):
+            return codigo_municipal
+        try:
+            r = self.sefin.consultar_servico_municipio(cliente.municipio_ibge, codigo_servico, cert)
+        except Exception as erro:  # a conferência é uma ajuda: se falhar, segue como antes
+            print(f"[emissao] conferência na prefeitura falhou: {erro}", flush=True)
+            return codigo_municipal
+        print(f"[emissao] prefeitura {cliente.municipio_ibge} servico {codigo_servico}: administrado={r.administrado} "
+              f"codigos={r.codigos_municipais}", flush=True)
+        if r.codigos_municipais:
+            self.repo.definir_codigo_municipal(cliente.id, codigo_servico, r.codigos_municipais[0])
+            return r.codigos_municipais[0]
+        if r.administrado is False:
+            raise regras.ErroDeNegocio(
+                f"A prefeitura de {cliente.municipio_nome} não aceita este serviço (código "
+                f"{codigo_servico[:2]}.{codigo_servico[2:4]}.{codigo_servico[4:]}) pela nota nacional. Nada foi enviado. "
+                "Peça ao contador para liberar um serviço parecido que a prefeitura aceite.")
+        return codigo_municipal
 
     def _registrar_resposta(self, nota: Nota, resposta) -> Nota:
         if resposta.sucesso:

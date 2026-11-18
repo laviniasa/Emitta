@@ -118,3 +118,27 @@ def test_pula_numero_ja_usado_no_governo(servico, cliente, sefin):
     assert [n.numero_dps for n in servico.repo.listar_notas(cliente.id)] == [4]
     assert emitir(servico, cliente, chave_envio="abc-123").id == nota.id  # repetir o envio não duplica
     assert emitir(servico, cliente).numero_dps == 5
+
+
+def test_confere_na_prefeitura_antes_de_enviar(servico, cliente, sefin):
+    """Fora da simulação: sem complemento guardado, o Emitta pergunta à prefeitura antes de enviar."""
+    import dataclasses
+    from lxml import etree
+    from app.sefin import ServicoNaPrefeitura
+    servico.config = dataclasses.replace(servico.config, ambiente="homologacao", pasta_xsd=None)
+    respostas = {"010101": ServicoNaPrefeitura(administrado=True, codigos_municipais=["001", "002"]),
+                 "170101": ServicoNaPrefeitura(administrado=False)}
+    sefin.consultar_servico_municipio = lambda mun, cod, cert: respostas[cod]
+    with servico.repo.con:
+        servico.repo.con.execute("UPDATE clientes SET p_tot_trib_sn = '6.00' WHERE id = ?", (cliente.id,))
+    nota = emitir(servico, cliente)
+    assert nota.situacao == "autorizada"
+    assert b"cTribMun>001</" in sefin.enviados[-1]
+    assert {s["codigo"]: s["codigo_municipal"] for s in servico.repo.servicos_liberados(cliente.id)}["010101"] == "001"
+    # serviço que a prefeitura não aceita: avisa sem enviar
+    liberados = [(s["codigo"], s["apelido"], s["codigo_municipal"]) for s in servico.repo.servicos_liberados(cliente.id)]
+    servico.repo.definir_servicos_liberados(cliente.id, liberados + [("170101", "Contabilidade")])
+    antes = len(sefin.enviados)
+    with pytest.raises(regras.ErroDeNegocio, match="não aceita este serviço"):
+        emitir(servico, cliente, codigo_servico="170101")
+    assert len(sefin.enviados) == antes

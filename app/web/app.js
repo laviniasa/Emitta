@@ -322,7 +322,7 @@
               el("p", { class: "sub", style: "margin:0" }, "Guias enviadas pelo seu contador. Baixe, pague no banco e toque em \"Já paguei\"."),
               el("h2", { style: "font-size:15px;margin-top:4px" }, "Para pagar"),
               ...(pend.length ? pend.map(cartaoGuia) : [el("div", { class: "card vazio" }, "Tudo pago por aqui!")]),
-              pagas.length && el("h2", { style: "font-size:15px;margin-top:8px" }, "Pagas"),
+              pagas.length > 0 && el("h2", { style: "font-size:15px;margin-top:8px" }, "Pagas"),
               ...pagas.map(cartaoGuia),
             ]
             : el("div", { class: "card vazio" }, "Quando o seu contador enviar uma guia de imposto, ela aparece aqui.")),

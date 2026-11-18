@@ -345,6 +345,11 @@ class Repositorio:
                 linhas,
             )
 
+    def definir_codigo_municipal(self, cliente_id: int, codigo: str, codigo_municipal: str) -> None:
+        with self.con:
+            self.con.execute("UPDATE servicos_liberados SET codigo_municipal = ? WHERE cliente_id = ? AND codigo = ?",
+                             (codigo_municipal, cliente_id, codigo))
+
     def servicos_liberados(self, cliente_id: int) -> list[dict]:
         linhas = self.con.execute(
             "SELECT codigo, apelido, codigo_municipal FROM servicos_liberados WHERE cliente_id = ? ORDER BY apelido",
