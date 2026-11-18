@@ -192,12 +192,16 @@
     if (soCodigo && digitos) return lista.filter((s) => s.codigo.startsWith(digitos));
     const palavras = semAcento(termo).split(/\s+/).filter((p) => p.length > 1);
     if (!palavras.length) return [];
-    const texto = (s) => s._busca || (s._busca = semAcento(`${s.descricao} ${s.item_descricao || ""} ${(s.palavras || []).join(" ")}`));
-    const casa = (ps) => lista.filter((s) => ps.every((p) => texto(s).includes(p)));
+    // Compara pelo começo das palavras ("unha" não acha "testemunhagem").
+    const texto = (s) => s._busca || (s._busca = " " + semAcento(`${s.descricao} ${s.item_descricao || ""} ${(s.palavras || []).join(" ")}`).replace(/[^a-z0-9]+/g, " "));
+    const casa = (ps) => lista.filter((s) => ps.every((p) => texto(s).includes(" " + p)));
     let achados = casa(palavras);
     // "cabelo" acha "cabeleireiros", "contador" acha "contabilidade": tenta pelo começo da palavra
     if (!achados.length) achados = casa(palavras.map((p) => (p.length > 5 ? p.slice(0, p.length - 2) : p.length > 4 ? p.slice(0, 4) : p)));
-    const nota = (s) => (semAcento(s.descricao).startsWith(palavras[0]) ? 0 : semAcento(s.descricao).includes(palavras[0]) ? 1 : 2);
+    const termoTodo = semAcento(termo).trim();
+    const nota = (s) => ((s.palavras || []).some((w) => semAcento(w) === termoTodo) ? 0
+      : semAcento(s.descricao).startsWith(palavras[0]) ? 1
+      : (" " + semAcento(s.descricao).replace(/[^a-z0-9]+/g, " ")).includes(" " + palavras[0]) ? 2 : 3);
     return achados.sort((a, b) => nota(a) - nota(b) || a.codigo.localeCompare(b.codigo));
   }
 
@@ -278,38 +282,53 @@
   // ------------------------------------------------------------ aba Serviços
 
   function abaServicos(c, liberados) {
+    // Confere sozinho na prefeitura se ela aceita o serviço e já guarda o complemento
+    // de 3 números que algumas pedem. A pessoa só vê o resultado, em linguagem simples.
+    const conferir = async (s) => {
+      const chave = `${c.id}:${s.codigo}`;
+      estado.prefeitura[chave] = { carregando: true };
+      try {
+        const r = await api("GET", `/contador/clientes/${c.id}/servicos/${s.codigo}/prefeitura`);
+        estado.prefeitura[chave] = r;
+        const cods = r.codigos_municipais || [];
+        if (cods.length && !cods.includes(s.codigo_municipal || "")) { s.codigo_municipal = cods[0]; marcarAlterado(); }
+      } catch (erro) {
+        estado.prefeitura[chave] = { erro: erro.message };
+      }
+      desenharPrincipal();
+    };
+
     const cartaoServico = (s) => {
       const chave = `${c.id}:${s.codigo}`;
-      const conferido = estado.prefeitura[chave];
+      if (!estado.prefeitura[chave]) setTimeout(() => conferir(s), 0);
+      const conferido = estado.prefeitura[chave] || { carregando: true };
       const apelido = el("input", {
         class: "apelido", value: s.apelido, "aria-label": `Nome que o cliente vê para ${s.descricao}`,
         oninput: (e) => { s.apelido = e.target.value; marcarAlterado(); atualizarPrevia(); },
       });
-      const resultado = conferido && !conferido.carregando && el("span", {
-        class: "resultado-pref " + (conferido.erro || conferido.administrado === null ? "neutro" : conferido.administrado ? "ok" : "nao"),
-      }, conferido.erro ? conferido.erro
-        : conferido.administrado === true ? ((conferido.codigos_municipais || []).length
-            ? `✓ Aceita com o código municipal ${conferido.codigos_municipais.join(" ou ")}.`
-            : "✓ A prefeitura aceita este serviço")
-        : conferido.administrado === false ? (conferido.conveniado === false
-            ? "✗ O município ainda não usa o Emissor Nacional"
-            : "✗ A prefeitura não aceita este código. Tente um serviço parecido.")
-        : (conferido.mensagens || []).join(" ") || "Não deu para conferir agora.");
-      const precisaCodigo = !!s.codigo_municipal || (conferido && (conferido.codigos_municipais || []).length > 0);
-      const maisOpcoes = el("details", { class: "mais-opcoes", open: precisaCodigo },
-        el("summary", {}, s.codigo_municipal ? `Código municipal: ${s.codigo_municipal}` : "Mais opções"),
+      const cidade = c.municipio_nome ? `de ${c.municipio_nome}` : "";
+      let situacao;
+      if (conferido.carregando) {
+        situacao = el("span", { class: "resultado-pref neutro" }, `Conferindo com a prefeitura ${cidade}…`);
+      } else if (conferido.administrado === true) {
+        situacao = el("span", { class: "resultado-pref ok" }, "✓ Pronto para emitir");
+      } else if (conferido.administrado === false) {
+        situacao = el("span", { class: "resultado-pref nao" }, conferido.conveniado === false
+          ? `✗ A prefeitura ${cidade} ainda não usa a nota nacional.`
+          : `✗ A prefeitura ${cidade} não aceita este serviço. Tire da lista e escolha um parecido.`);
+      } else {
+        situacao = el("span", { class: "resultado-pref neutro" }, "Não deu para conferir agora. ",
+          el("button", { type: "button", class: "botao-link", onclick: () => conferir(s) }, "Tentar de novo"));
+      }
+      const avancado = el("details", { class: "mais-opcoes" },
+        el("summary", {}, "Ajuste avançado"),
         el("div", { class: "mais-opcoes-corpo" },
           el("label", { class: "cod-mun" }, "Código municipal",
             el("input", {
-              value: s.codigo_municipal || "", inputmode: "numeric", maxlength: 3, placeholder: "opcional",
+              value: s.codigo_municipal || "", inputmode: "numeric", maxlength: 3, placeholder: "automático",
               oninput: (e) => { s.codigo_municipal = e.target.value.replace(/\D/g, "").slice(0, 3); e.target.value = s.codigo_municipal; marcarAlterado(); },
             })),
-          conferido && (conferido.codigos_municipais || []).length > 1 && el("span", { class: "escolher-cod" },
-            ...conferido.codigos_municipais.map((cod) => el("button", {
-              type: "button", class: "botao-mini" + (s.codigo_municipal === cod ? " escolhido" : ""),
-              onclick: () => { s.codigo_municipal = cod; marcarAlterado(); desenharPrincipal(); },
-            }, `Usar ${cod}`))),
-          el("span", { class: "ajuda-pequena" }, "Algumas prefeituras pedem um complemento de 3 números. O \"Conferir na prefeitura\" preenche sozinho.")));
+          el("span", { class: "ajuda-pequena" }, "O Emitta preenche sozinho com o que a prefeitura pede. Só mude se a prefeitura ou o contador mandar.")));
       return el("article", { class: "cartao-servico" },
         el("div", { class: "cartao-topo" },
           el("div", { class: "textos" },
@@ -319,25 +338,8 @@
             type: "button", class: "botao-icone", "aria-label": `Tirar ${s.apelido || s.descricao} da lista`, title: "Tirar da lista",
             onclick: () => { s.liberado = false; marcarAlterado(); desenharPrincipal(); },
           }, icone("fechar", 18))),
-        el("div", { class: "cartao-acoes" },
-          el("button", {
-            class: "botao-mini", type: "button", disabled: conferido && conferido.carregando,
-            onclick: async () => {
-              estado.prefeitura[chave] = { carregando: true };
-              desenharPrincipal();
-              try {
-                const r = await api("GET", `/contador/clientes/${c.id}/servicos/${s.codigo}/prefeitura`);
-                estado.prefeitura[chave] = r;
-                const cods = r.codigos_municipais || [];
-                if (cods.length && !cods.includes(s.codigo_municipal || "")) { s.codigo_municipal = cods[0]; marcarAlterado(); }
-              } catch (erro) {
-                estado.prefeitura[chave] = { erro: erro.message };
-              }
-              desenharPrincipal();
-            },
-          }, conferido && conferido.carregando ? "Conferindo… (até 15 s)" : "Conferir na prefeitura"),
-          resultado || null),
-        maisOpcoes);
+        el("div", { class: "cartao-acoes" }, situacao),
+        avancado);
     };
 
     if (!estado.vistaServicos) estado.vistaServicos = liberados.length ? "liberados" : "todos";

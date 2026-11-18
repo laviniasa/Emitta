@@ -170,7 +170,7 @@ class SefinNacional:
             mensagens.append(" ".join(x for x in (codigo, descricao, complemento) if x).strip())
             if codigo == "E0312":
                 mensagens.append("Dica: a prefeitura da empresa não aceita este código de serviço. "
-                                 "No painel do contador, use \"Conferir na prefeitura\" para testar outro código.")
+                                 "No painel, veja no cartão do serviço se a prefeitura aceita; se não aceitar, escolha um serviço parecido.")
         return mensagens or [f"HTTP {resp.status_code}"]
 
     def enviar_dps(self, xml_assinado, cert):

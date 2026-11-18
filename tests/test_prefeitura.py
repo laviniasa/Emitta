@@ -63,4 +63,4 @@ def test_simulacao_sempre_aceita():
 
 def test_dica_no_erro_e0312():
     msgs = SefinNacional._mensagens(Resp(400, {"erros": [{"codigo": "E0312", "descricao": "não administrado"}]}))
-    assert any("Conferir na prefeitura" in m for m in msgs)
+    assert any("se a prefeitura aceita" in m for m in msgs)

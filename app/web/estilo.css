@@ -250,3 +250,4 @@ body.com-menu .assist-botao { bottom: calc(84px + env(safe-area-inset-bottom)); 
 .visualmente-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .voltar-app { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-weight: 600; font-size: 15px; color: var(--verde); text-decoration: none; padding: 4px 0; }
 body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
+.botao-link { background: none; border: 0; padding: 0; font: inherit; color: var(--verde); font-weight: 600; text-decoration: underline; cursor: pointer; }

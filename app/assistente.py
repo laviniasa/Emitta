@@ -332,7 +332,7 @@ def ajuda_basica(ctx: Contexto, pergunta: str) -> dict:
     elif tem("servico", "codigo") and ctx.papel in ("contador", "autonomo"):
         inicio = "Toque em \"Ajustes\", abra a aba Serviços" if ctx.papel == "autonomo" else "Na empresa, abra a aba Serviços"
         resposta = (inicio + " e toque em \"Todos os serviços\". Busque por palavra (ex.: cabelo) ou código, "
-                    "toque em \"Liberar\" e depois em \"Salvar e enviar para o app\". Use \"Conferir na prefeitura\" para ver se a cidade aceita.")
+                    "toque em \"Liberar\" e depois em \"Salvar e enviar para o app\". O Emitta confere sozinho se a prefeitura aceita e mostra \"Pronto para emitir\".")
     elif tem("servico", "codigo"):
         resposta = "Os serviços que aparecem são os que seu contador liberou. Se faltar algum, peça para ele liberar no painel."
     elif tem("certificado"):
@@ -343,7 +343,7 @@ def ajuda_basica(ctx: Contexto, pergunta: str) -> dict:
                     "Se esqueceu a senha, peça ao seu contador para gerar uma nova senha provisória na aba Acesso ao app.")
     elif tem("recus", "erro", "rejeit", "nao foi", "deu errado"):
         resposta = ("Quando a prefeitura recusa, nada é emitido. Leia a mensagem na tela, toque em \"Corrigir dados\" e envie de novo. "
-                    "Se o erro falar do código do serviço, o contador pode usar \"Conferir na prefeitura\".")
+                    "Se o erro falar do código do serviço, confira no cartão do serviço se aparece \"Pronto para emitir\".")
     else:
         resposta = ("Posso ajudar a emitir ou cancelar nota, baixar PDF e XML, liberar serviços e enviar o certificado. "
                     "Me diga o que você quer fazer.")
