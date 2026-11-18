@@ -130,6 +130,9 @@
     $lista.replaceChildren();
     // A busca só aparece quando já existem empresas (antes confundia com o cadastro).
     $busca.closest(".card").hidden = estado.clientes.length === 0;
+    // Sem empresas, o convite fica só no centro da tela ("Cadastrar empresa"): um botão só.
+    const vazio = estado.clientes.length === 0 && !autonomo();
+    $btnNova.closest(".lateral").hidden = vazio;
     const filtrados = estado.clientes.filter((c) => {
       if (!estado.busca) return true;
       const busca = estado.busca.replace(/\D/g, "");
