@@ -13,7 +13,7 @@
 <title>Emitta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=27">
+<link rel="stylesheet" href="/static/estilo.css?v=28">
 <style>
   /* no iPhone com o app instalado, a barra de cima e o cabeçalho descem abaixo do relógio */
   body.app-celular { padding-top: 0 !important; }
@@ -93,6 +93,38 @@
   .cg-valor { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
   .cg-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; align-items: center; }
   .cg-acoes .botao-link { justify-self: center; }
+
+  /* Computador: o app ganha espaço — menu na lateral e conteúdo mais largo. */
+  @media (min-width: 900px) {
+    .tela { max-width: 640px; box-shadow: 0 0 0 1px var(--borda); }
+    .tela:has(> .menu) {
+      max-width: 1100px; display: grid; grid-template-columns: 220px minmax(0, 1fr);
+      grid-template-rows: auto 1fr; column-gap: 0; box-shadow: none; background: transparent;
+    }
+    .tela:has(> .menu) > * { grid-column: 2; }
+    .tela:has(> .menu) > .heroi { margin: 24px 24px 0; border-radius: 28px; padding: 28px 32px 30px; max-width: 812px; }
+    .tela:has(> .menu) > .barra { margin: 24px 24px 0; border-radius: 20px; border: 1px solid var(--borda); top: 24px; max-width: 812px; }
+    .tela:has(> .menu) > .conteudo { padding: 24px; max-width: 860px; width: 100%; }
+    .tela:has(> .menu) > .menu {
+      grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 4px;
+      position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh;
+      padding: 24px 12px; border-top: 0; border-right: 1px solid var(--borda); background: #fff;
+    }
+    .tela:has(> .menu) > .menu::before {
+      content: "emitta"; display: flex; align-items: center; gap: 10px; padding: 0 14px 22px 52px; min-height: 36px;
+      font: 700 20px "Space Grotesk", Inter, sans-serif; color: var(--noite);
+      background: url(/static/icone.svg) 14px 0 / 30px 30px no-repeat;
+    }
+    .tela:has(> .menu) > .menu button {
+      flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 14px; min-height: 0;
+      font-size: 15px; width: 100%;
+    }
+    .tela:has(> .menu) > .menu button:hover { background: var(--fundo); color: var(--texto); }
+    .tela:has(> .menu) > .menu button[aria-current="page"] { background: var(--lima); color: var(--noite); }
+    .tela:has(> .menu) > .menu button[aria-current="page"] svg { background: none; padding: 0; width: 22px; height: 22px; margin: 0; animation: none; }
+    .tela:has(> .menu) > .menu .menu-bolinha { top: -6px; right: -8px; }
+    .heroi h1 { font-size: 24px; }
+  }
   .secao { display: flex; flex-direction: column; gap: 12px; }
   .secao-titulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .secao-titulo h2 { font-size: 15px; font-weight: 600; }
@@ -163,9 +195,9 @@
 </head>
 <body class="app-celular">
 <div class="tela" id="tela" aria-live="polite"></div>
-<script src="/static/comum.js?v=27"></script>
-<script src="/static/assistente.js?v=27"></script>
-<script src="/static/app.js?v=27"></script>
-<script src="/static/pwa.js?v=27"></script>
+<script src="/static/comum.js?v=28"></script>
+<script src="/static/assistente.js?v=28"></script>
+<script src="/static/app.js?v=28"></script>
+<script src="/static/pwa.js?v=28"></script>
 </body>
 </html>
