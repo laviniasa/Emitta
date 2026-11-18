@@ -177,6 +177,27 @@ class NovoAcesso(BaseModel):
     email: str
 
 
+TIPOS_DOCUMENTO = {
+    "darf": "DARF", "das": "DAS", "iss": "Guia do ISS", "inss": "INSS / GPS", "fgts": "FGTS",
+    "outro": "Documento",
+}
+LIMITE_DOCUMENTO = 5 * 1024 * 1024  # 5 MB por arquivo
+
+
+class NovoDocumento(BaseModel):
+    tipo: Literal["darf", "das", "iss", "inss", "fgts", "outro"]
+    titulo: str | None = Field(default=None, max_length=80)
+    competencia: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")
+    valor: str | None = Field(default=None, max_length=20)
+    vencimento: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    arquivo_nome: str = Field(max_length=120)
+    arquivo_base64: str = Field(max_length=LIMITE_DOCUMENTO * 4 // 3 + 8)
+
+
+class MarcarPago(BaseModel):
+    pago: bool
+
+
 class EnvioCertificado(BaseModel):
     arquivo_base64: str = Field(max_length=100_000)
     senha: str = Field(max_length=200)
@@ -890,6 +911,111 @@ def criar_app(
             "Content-Disposition": f'attachment; filename="{nome}"',
             "Cache-Control": "no-store",
         })
+
+    # ------------------------------------------------------------ documentos (guias de imposto)
+    MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
+             "setembro", "outubro", "novembro", "dezembro"]
+
+    def documento_json(d: dict, base: str) -> dict:
+        hoje = datetime.now(timezone.utc).astimezone().date().isoformat()
+        situacao = ("pago" if d["pago_em"] else
+                    "vencido" if d["vencimento"] and d["vencimento"] < hoje else "a_pagar")
+        return {
+            "id": d["id"], "tipo": d["tipo"], "tipo_nome": TIPOS_DOCUMENTO.get(d["tipo"], "Documento"),
+            "titulo": d["titulo"], "competencia": d["competencia"],
+            "valor": regras.centavos_para_texto(d["valor_centavos"]).replace(".", ",") if d["valor_centavos"] else None,
+            "vencimento": d["vencimento"], "arquivo_nome": d["arquivo_nome"], "tamanho": d["tamanho"],
+            "criado_em": d["criado_em"], "visto_em": d["visto_em"], "pago_em": d["pago_em"], "situacao": situacao,
+            "arquivo": f"{base}/{d['id']}/arquivo",
+        }
+
+    def documento_do_cliente(cliente_id: int, doc_id: int) -> dict:
+        d = repo.buscar_documento(doc_id)
+        if not d or d["cliente_id"] != cliente_id:
+            raise HTTPException(404, "Documento não encontrado.")
+        return d
+
+    def resposta_pdf(d: dict) -> RespostaBruta:
+        nome = "".join(ch for ch in d["arquivo_nome"] if ch.isalnum() or ch in "._- ")[:100] or "documento.pdf"
+        if not nome.lower().endswith(".pdf"):
+            nome += ".pdf"
+        return RespostaBruta(repo.arquivo_documento(d["id"]), media_type="application/pdf", headers={
+            "Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        })
+
+    @app.get("/contador/clientes/{cliente_id}/documentos", tags=["contador"])
+    def listar_documentos_contador(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):
+        base = f"/contador/clientes/{cliente_id}/documentos"
+        return [documento_json(d, base) for d in repo.listar_documentos(cliente_id)]
+
+    @app.post("/contador/clientes/{cliente_id}/documentos", status_code=201, tags=["contador"])
+    def enviar_documento(cliente_id: int, dados: NovoDocumento, request: Request,
+                         usuario: Usuario = Depends(dono_do_cliente)):
+        """Contador envia uma guia (PDF) para a empresa ver e pagar pelo app."""
+        if usuario.papel != "contador":
+            raise HTTPException(403, "Só o contador envia guias para a empresa.")
+        try:
+            arquivo = base64.b64decode(dados.arquivo_base64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, "Arquivo inválido. Envie um PDF.")
+        if not arquivo.startswith(b"%PDF"):
+            raise HTTPException(422, "Envie o arquivo em PDF.")
+        if len(arquivo) > LIMITE_DOCUMENTO:
+            raise HTTPException(413, "O PDF passa de 5 MB. Envie um arquivo menor.")
+        valor = None
+        if dados.valor and dados.valor.strip():
+            try:
+                valor = regras.valor_em_centavos(dados.valor)
+            except regras.ErroDeNegocio:
+                raise HTTPException(422, "Valor inválido. Use, por exemplo, 350,00.")
+        titulo = (dados.titulo or "").strip()
+        if not titulo:
+            titulo = TIPOS_DOCUMENTO[dados.tipo]
+            if dados.competencia:
+                ano, mes = dados.competencia.split("-")
+                titulo += f" de {MESES[int(mes) - 1]}/{ano}"
+        d = repo.criar_documento(cliente_id, dados.tipo, titulo, dados.competencia, valor, dados.vencimento,
+                                 dados.arquivo_nome, arquivo, usuario.id,
+                                 datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        evento("documento_enviado", request, usuario, detalhe=f"empresa {cliente_id}: {titulo}")
+        return documento_json(d, f"/contador/clientes/{cliente_id}/documentos")
+
+    @app.get("/contador/clientes/{cliente_id}/documentos/{doc_id}/arquivo", tags=["contador"])
+    def baixar_documento_contador(cliente_id: int, doc_id: int, _: Usuario = Depends(dono_do_cliente)):
+        return resposta_pdf(documento_do_cliente(cliente_id, doc_id))
+
+    @app.delete("/contador/clientes/{cliente_id}/documentos/{doc_id}", status_code=204, tags=["contador"])
+    def apagar_documento(cliente_id: int, doc_id: int, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
+        d = documento_do_cliente(cliente_id, doc_id)
+        repo.apagar_documento(doc_id)
+        evento("documento_apagado", request, usuario, detalhe=f"empresa {cliente_id}: {d['titulo']}")
+        return Response(status_code=204)
+
+    @app.get("/app/{cliente_id}/documentos", tags=["app da empresa"])
+    def listar_documentos_app(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
+        base = f"/app/{cliente_id}/documentos"
+        return [documento_json(d, base) for d in repo.listar_documentos(cliente_id)]
+
+    @app.get("/app/{cliente_id}/documentos/{doc_id}/arquivo", tags=["app da empresa"])
+    def baixar_documento_app(cliente_id: int, doc_id: int, usuario: Usuario = Depends(autorizar_empresa)):
+        d = documento_do_cliente(cliente_id, doc_id)
+        if usuario.papel == "empresa" and not d["visto_em"]:
+            d = repo.atualizar_documento(doc_id, visto_em=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        return resposta_pdf(d)
+
+    @app.post("/app/{cliente_id}/documentos/{doc_id}/pago", tags=["app da empresa"])
+    def marcar_documento_pago(cliente_id: int, doc_id: int, dados: MarcarPago, request: Request,
+                              usuario: Usuario = Depends(autorizar_empresa)):
+        d = documento_do_cliente(cliente_id, doc_id)
+        agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        campos = {"pago_em": agora if dados.pago else None}
+        if not d["visto_em"]:
+            campos["visto_em"] = agora
+        d = repo.atualizar_documento(doc_id, **campos)
+        evento("documento_pago" if dados.pago else "documento_nao_pago", request, usuario,
+               detalhe=f"empresa {cliente_id}: {d['titulo']}")
+        return documento_json(d, f"/app/{cliente_id}/documentos")
 
     limitador_assistente = LimitadorTentativas(limite=20, janela=60)
 

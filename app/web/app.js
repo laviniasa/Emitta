@@ -7,6 +7,7 @@
     empresa: null, // {id, razao_social, municipio_nome, aliquota_iss, prazo_cancelamento_dias}
     servicos: [],
     notas: [],
+    documentos: [], // guias de imposto enviadas pelo contador
     ambiente: "simulacao",
     tela: "carregando",
     form: { codigo: null, documento: "", nome: "", valor: "", descricao: "" },
@@ -25,7 +26,7 @@
   // ------------------------------------------------------------ movimento
   const calmo = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Ordem das telas: avançar desliza da direita, voltar desliza da esquerda.
-  const ORDEM = { carregando: 0, semAcesso: 1, inicio: 1, detalhe: 2, nova: 2, cancelar: 3, enviando: 3, erro: 4, processando: 4, sucesso: 4, cancelada: 4 };
+  const ORDEM = { carregando: 0, semAcesso: 1, inicio: 1, detalhe: 2, nova: 2, impostos: 2, cancelar: 3, enviando: 3, erro: 4, processando: 4, sucesso: 4, cancelada: 4 };
   let telaAnterior = null;
 
   function animarTroca() {
@@ -103,7 +104,8 @@
         api("GET", `/app/${id}/notas`),
       ]);
       Object.assign(estado, { empresa, servicos, notas });
-      ir("inicio");
+      estado.documentos = estado.eu.papel === "autonomo" ? [] : await api("GET", `/app/${id}/documentos`).catch(() => []);
+      ir(new URLSearchParams(location.search).get("tela") === "impostos" ? "impostos" : "inicio");
       const rascunho = rascunhoDoPainel();
       if (rascunho && rascunho.cliente_id === empresa.id) ajudaAgir(rascunho.acao);
       if (new URLSearchParams(location.search).get("nova") === "1" && servicos.length) novaNota();
@@ -143,6 +145,11 @@
     return el("nav", { class: "menu", "aria-label": "Menu" },
       item("inicio", "Início", "casa", () => ir("inicio")),
       item("nova", "Emitir", "mais", novaNota),
+      estado.eu.papel !== "autonomo" && el("button", {
+        type: "button", "aria-current": atual === "impostos" ? "page" : null, onclick: () => ir("impostos"),
+      }, el("span", { class: "menu-icone" }, icone("documento", 22),
+        guiasPendentes().length ? el("span", { class: "menu-bolinha", "aria-label": `${guiasPendentes().length} para pagar` }, String(guiasPendentes().length)) : null),
+      "Impostos"),
       item("ajuda", "Ajuda", "brilho", () => ajuda.abrir()),
       estado.eu.papel === "contador"
         ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/escritorio"; })
@@ -188,6 +195,62 @@
       })));
   }
 
+  // ------------------------------------------------------------ guias de imposto
+  const guiasPendentes = () => estado.documentos.filter((d) => d.situacao !== "pago");
+  const dataCurta = (iso) => (iso ? iso.slice(0, 10).split("-").reverse().slice(0, 2).join("/") : "");
+
+  function prazoGuia(d) {
+    if (d.situacao === "pago") return { texto: `Paga em ${new Date(d.pago_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`, classe: "ok" };
+    if (!d.vencimento) return { texto: "Sem vencimento informado", classe: "" };
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const [a, m, dia] = d.vencimento.split("-").map(Number);
+    const dias = Math.round((new Date(a, m - 1, dia) - hoje) / 86400000);
+    if (dias < 0) return { texto: `Venceu em ${dataCurta(d.vencimento)}`, classe: "atrasada" };
+    if (dias === 0) return { texto: "Vence hoje", classe: "urgente" };
+    if (dias <= 3) return { texto: `Vence em ${dias} dia${dias > 1 ? "s" : ""} (${dataCurta(d.vencimento)})`, classe: "urgente" };
+    return { texto: `Vence em ${dataCurta(d.vencimento)}`, classe: "" };
+  }
+
+  async function marcarPago(d, pago) {
+    try {
+      const novo = await api("POST", `/app/${estado.empresa.id}/documentos/${d.id}/pago`, { pago });
+      estado.documentos = estado.documentos.map((x) => (x.id === d.id ? novo : x));
+      if (pago) avisar("Pronto! Seu contador já vê que esta guia foi paga.");
+      desenhar();
+    } catch (erro) { avisar(erro.message); }
+  }
+
+  function cartaoGuia(d) {
+    const prazo = prazoGuia(d);
+    const nome = (d.arquivo_nome || "guia.pdf").replace(/[^\w.\- ]/g, "");
+    return el("article", { class: "cartao-guia" + (d.situacao === "pago" ? " paga" : "") },
+      el("div", { class: "cg-topo" },
+        el("span", { class: "cg-tipo" }, d.tipo_nome),
+        el("span", { class: "cg-prazo " + prazo.classe }, prazo.texto)),
+      el("strong", { class: "cg-titulo" }, d.titulo),
+      d.valor && el("span", { class: "cg-valor" }, `R$ ${d.valor}`),
+      el("div", { class: "cg-acoes" },
+        el("a", { class: "botao" + (d.situacao === "pago" ? " botao-secundario" : ""), href: d.arquivo, download: "", target: "_blank", rel: "noopener",
+          onclick: (e) => { d.visto_em = d.visto_em || new Date().toISOString(); baixarArquivo(e, d.arquivo, nome.endsWith(".pdf") ? nome : nome + ".pdf", "application/pdf"); } },
+          icone("download", 18), "Baixar guia"),
+        d.situacao === "pago"
+          ? el("button", { class: "botao-link", type: "button", onclick: () => marcarPago(d, false) }, "Desmarcar")
+          : el("button", { class: "botao botao-secundario", type: "button", onclick: () => marcarPago(d, true) }, icone("certo", 18), "Já paguei")));
+  }
+
+  function avisoGuias() {
+    const pend = guiasPendentes();
+    if (!pend.length) return null;
+    const primeira = pend.slice().sort((a, b) => String(a.vencimento || "9").localeCompare(String(b.vencimento || "9")))[0];
+    const prazo = prazoGuia(primeira);
+    return el("button", { type: "button", class: "aviso-guia " + prazo.classe, onclick: () => ir("impostos") },
+      icone("documento", 22),
+      el("span", { class: "ag-texto" },
+        el("strong", {}, pend.length === 1 ? "Você tem 1 imposto para pagar" : `Você tem ${pend.length} impostos para pagar`),
+        el("span", {}, [primeira.titulo, primeira.valor && `R$ ${primeira.valor}`, prazo.texto].filter(Boolean).join(" · "))),
+      icone("seta", 18));
+  }
+
   function nomeServico(codigo) {
     const s = estado.servicos.find((x) => x.codigo === codigo);
     return s ? s.apelido : codigo;
@@ -227,6 +290,7 @@
           estado.eu.papel === "contador" && el("div", { class: "aviso aviso-alerta" },
             icone("olho"), "Você está vendo o app como a empresa vê. As notas emitidas aqui ficam no nome dela."),
           passoAPasso(),
+          avisoGuias(),
           estado.servicos.length
             ? el("button", { class: "botao botao-grande", type: "button", style: "min-height:60px;font-size:17px", onclick: novaNota },
               icone("mais", 22), "Nova nota")
@@ -244,6 +308,25 @@
             : [el("div", { class: "card vazio" }, "Você ainda não emitiu nenhuma nota.")]),
         ),
         menu("inicio"),
+      ];
+    },
+
+    impostos: () => {
+      const pend = guiasPendentes().sort((a, b) => String(a.vencimento || "9").localeCompare(String(b.vencimento || "9")));
+      const pagas = estado.documentos.filter((d) => d.situacao === "pago");
+      return [
+        barra("Impostos", "inicio", estado.empresa.razao_social),
+        el("main", { class: "conteudo" },
+          estado.documentos.length
+            ? [
+              el("p", { class: "sub", style: "margin:0" }, "Guias enviadas pelo seu contador. Baixe, pague no banco e toque em \"Já paguei\"."),
+              el("h2", { style: "font-size:15px;margin-top:4px" }, "Para pagar"),
+              ...(pend.length ? pend.map(cartaoGuia) : [el("div", { class: "card vazio" }, "Tudo pago por aqui!")]),
+              pagas.length && el("h2", { style: "font-size:15px;margin-top:8px" }, "Pagas"),
+              ...pagas.map(cartaoGuia),
+            ]
+            : el("div", { class: "card vazio" }, "Quando o seu contador enviar uma guia de imposto, ela aparece aqui.")),
+        menu("impostos"),
       ];
     },
 

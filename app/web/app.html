@@ -13,7 +13,7 @@
 <title>Emitta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=24">
+<link rel="stylesheet" href="/static/estilo.css?v=25">
 <style>
   /* no iPhone com o app instalado, a barra de cima e o cabeçalho descem abaixo do relógio */
   body.app-celular { padding-top: 0 !important; }
@@ -62,7 +62,7 @@
   .nota-item .nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nota-item .det { font-size: 12px; color: var(--texto-2); }
   .menu {
-    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #fff;
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: #fff;
     border-top: 1px solid var(--borda); padding: 6px 8px calc(14px + env(safe-area-inset-bottom));
     position: sticky; bottom: 0;
   }
@@ -75,6 +75,24 @@
   .menu button svg { transition: transform .3s var(--mola); }
   .menu button[aria-current="page"] { color: var(--noite); font-weight: 700; }
   .menu button[aria-current="page"] svg { background: var(--lima); border-radius: 999px; padding: 4px; width: 32px; height: 32px; margin: -6px 0 -2px; animation: pop .4s var(--mola); }
+  .menu-icone { position: relative; display: inline-flex; }
+  .menu-bolinha { position: absolute; top: -6px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--vermelho); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; line-height: 1; }
+  .aviso-guia { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 1.5px solid var(--amarelo); background: var(--amarelo-claro); border-radius: 18px; color: var(--texto); text-align: left; font: inherit; cursor: pointer; }
+  .aviso-guia.atrasada { border-color: var(--vermelho); background: var(--vermelho-claro); }
+  .aviso-guia .ag-texto { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--texto-2); min-width: 0; }
+  .aviso-guia .ag-texto strong { font-size: 15px; color: var(--texto); }
+  .cartao-guia { background: #fff; border: 1px solid var(--borda); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .cartao-guia.paga { opacity: .8; }
+  .cg-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; }
+  .cg-tipo { font-weight: 700; color: var(--verde-escuro); background: var(--verde-claro); border-radius: 999px; padding: 3px 10px; }
+  .cg-prazo { color: var(--texto-2); font-weight: 600; text-align: right; }
+  .cg-prazo.urgente { color: var(--amarelo); }
+  .cg-prazo.atrasada { color: var(--vermelho); }
+  .cg-prazo.ok { color: var(--verde-escuro); }
+  .cg-titulo { font-size: 16px; }
+  .cg-valor { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+  .cg-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; align-items: center; }
+  .cg-acoes .botao-link { justify-self: center; }
   .secao { display: flex; flex-direction: column; gap: 12px; }
   .secao-titulo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .secao-titulo h2 { font-size: 15px; font-weight: 600; }
@@ -145,9 +163,9 @@
 </head>
 <body class="app-celular">
 <div class="tela" id="tela" aria-live="polite"></div>
-<script src="/static/comum.js?v=24"></script>
-<script src="/static/assistente.js?v=24"></script>
-<script src="/static/app.js?v=24"></script>
-<script src="/static/pwa.js?v=24"></script>
+<script src="/static/comum.js?v=25"></script>
+<script src="/static/assistente.js?v=25"></script>
+<script src="/static/app.js?v=25"></script>
+<script src="/static/pwa.js?v=25"></script>
 </body>
 </html>

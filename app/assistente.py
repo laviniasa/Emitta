@@ -229,6 +229,9 @@ def _instrucoes(ctx: Contexto) -> str:
         "Emitir: na tela inicial, tocar em 'Nova nota' (ou 'Emitir' no menu de baixo) > escolher o serviço > CPF ou CNPJ do cliente, nome, valor e descrição > 'Emitir nota'. A nota vai para o governo e aparece como autorizada.",
         "Cancelar: tocar na nota na lista > 'Cancelar esta nota' > escolher o motivo > confirmar.",
         "Baixar: abrir a nota > 'Baixar PDF' ou 'Baixar XML' (no celular abre a opção de salvar ou compartilhar).",
+        "Impostos (guias como DARF, DAS, ISS): o contador envia pelo painel, aba 'Impostos' (tipo, mês, valor, vencimento e o PDF). "
+        "A empresa vê no app em 'Impostos' (menu de baixo) e no aviso da tela inicial > 'Baixar guia' > paga no banco > 'Já paguei'. "
+        "O contador acompanha no painel se a empresa abriu ('Visto') e se pagou. O Emitta não paga a guia; o pagamento é no banco.",
         "Contador: painel > escolher a empresa > abas Serviços (chave 'Liberados | Todos os serviços' para liberar), Notas, Certificado, Acesso ao app, Dados da empresa.",
         "MEI/autônomo sem contador: a tela inicial mostra 'Seu passo a passo' (1. enviar o certificado, 2. escolher os serviços, 3. emitir a primeira nota) e os atalhos 'Meus serviços', 'Certificado' e 'Dados'. "
         "Também há 'Ajustes' no menu de baixo. Para escolher serviços: 'Meus serviços' > 'Todos os serviços' > buscar > 'Liberar' > 'Salvar e enviar para o app'.",
@@ -318,7 +321,13 @@ def ajuda_basica(ctx: Contexto, pergunta: str) -> dict:
     p = _sem_acento(pergunta)
     tem = lambda *ps: any(x in p for x in ps)  # noqa: E731
     acoes: list[dict] = []
-    if tem("cancel"):
+    if tem("imposto", "darf", "guia", " das", "das ", "boleto"):
+        resposta = ("As guias de imposto que o contador envia ficam em \"Impostos\", no menu de baixo. Toque em \"Baixar guia\", "
+                    "pague no app do seu banco e depois toque em \"Já paguei\" para o contador saber."
+                    if ctx.papel != "contador" else
+                    "Para enviar uma guia: abra a empresa no painel, aba \"Impostos\", escolha o tipo, o mês, o valor, o vencimento "
+                    "e o PDF, e toque em \"Enviar para a empresa\". Você vê ali quando ela abrir e quando marcar como paga.")
+    elif tem("cancel"):
         resposta = ("Para cancelar: toque na nota na tela inicial, depois em \"Cancelar esta nota\", escolha o motivo e confirme. "
                     "Só nota autorizada pode ser cancelada, dentro do prazo da prefeitura.")
     elif tem("emitir", "nota nova", "nova nota", "fazer nota", "fazer uma nota", "gerar nota"):

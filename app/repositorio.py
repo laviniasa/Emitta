@@ -105,6 +105,25 @@ CREATE TABLE IF NOT EXISTS sessoes (
     ultimo_uso TEXT NOT NULL
 );
 
+-- Guias e documentos que o contador manda para a empresa (DARF, DAS, ISS...)
+CREATE TABLE IF NOT EXISTS documentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    tipo TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    competencia TEXT,
+    valor_centavos INTEGER,
+    vencimento TEXT,
+    arquivo_nome TEXT NOT NULL,
+    arquivo BLOB NOT NULL,
+    tamanho INTEGER NOT NULL,
+    enviado_por INTEGER,
+    criado_em TEXT NOT NULL,
+    visto_em TEXT,
+    pago_em TEXT
+);
+CREATE INDEX IF NOT EXISTS documentos_cliente ON documentos (cliente_id, criado_em DESC);
+
 CREATE TABLE IF NOT EXISTS desafios_2fa (
     token_hash TEXT PRIMARY KEY,
     usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -387,6 +406,44 @@ class Repositorio:
         return self.buscar_nota(nota_id)
 
     # ------------------------------------------------------------ usuários
+
+    # ---------------------------------------------------------------- documentos
+    _CAMPOS_DOC = "id, cliente_id, tipo, titulo, competencia, valor_centavos, vencimento, arquivo_nome, tamanho, enviado_por, criado_em, visto_em, pago_em"
+
+    def criar_documento(self, cliente_id: int, tipo: str, titulo: str, competencia: str | None, valor_centavos: int | None,
+                        vencimento: str | None, arquivo_nome: str, arquivo: bytes, enviado_por: int | None, criado_em: str) -> dict:
+        with self.con:
+            cur = self.con.execute(
+                "INSERT INTO documentos (cliente_id, tipo, titulo, competencia, valor_centavos, vencimento, arquivo_nome,"
+                " arquivo, tamanho, enviado_por, criado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (cliente_id, tipo, titulo, competencia, valor_centavos, vencimento, arquivo_nome, arquivo, len(arquivo),
+                 enviado_por, criado_em))
+        return self.buscar_documento(cur.lastrowid)
+
+    def buscar_documento(self, doc_id: int) -> dict | None:
+        r = self.con.execute(f"SELECT {self._CAMPOS_DOC} FROM documentos WHERE id = ?", (doc_id,)).fetchone()
+        return dict(r) if r else None
+
+    def arquivo_documento(self, doc_id: int) -> bytes | None:
+        r = self.con.execute("SELECT arquivo FROM documentos WHERE id = ?", (doc_id,)).fetchone()
+        return bytes(r[0]) if r else None
+
+    def listar_documentos(self, cliente_id: int) -> list[dict]:
+        return [dict(r) for r in self.con.execute(
+            f"SELECT {self._CAMPOS_DOC} FROM documentos WHERE cliente_id = ? ORDER BY COALESCE(vencimento, '9999') DESC, id DESC",
+            (cliente_id,))]
+
+    def atualizar_documento(self, doc_id: int, **campos) -> dict:
+        permitidos = {"visto_em", "pago_em"}
+        assert set(campos) <= permitidos
+        with self.con:
+            self.con.execute(f"UPDATE documentos SET {', '.join(f'{k} = ?' for k in campos)} WHERE id = ?",
+                             (*campos.values(), doc_id))
+        return self.buscar_documento(doc_id)
+
+    def apagar_documento(self, doc_id: int) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM documentos WHERE id = ?", (doc_id,))
 
     def contar_usuarios(self) -> int:
         return int(self.con.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0])

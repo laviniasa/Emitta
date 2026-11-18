@@ -7,6 +7,7 @@
     selecionado: null, // id
     servicos: [], // catálogo com "liberado" e "apelido"
     notas: [],
+    documentos: [],
     alterado: false,
     acessos: [],
     acessoCriado: null, // {email, senha_provisoria} mostrado uma única vez
@@ -85,11 +86,13 @@
     desenharLista();
     desenharPrincipal();
     try {
-      const [servicos, notas, acessos] = await Promise.all([
+      const [servicos, notas, acessos, documentos] = await Promise.all([
         api("GET", `/contador/clientes/${id}/servicos`),
         api("GET", `/contador/clientes/${id}/notas`),
         api("GET", `/contador/clientes/${id}/acessos`),
+        autonomo() ? [] : api("GET", `/contador/clientes/${id}/documentos`),
       ]);
+      estado.documentos = documentos;
       estado.servicos = servicos.map((s) => ({ ...s, apelido: s.apelido || s.descricao }));
       estado.notas = notas;
       estado.acessos = acessos;
@@ -210,6 +213,7 @@
   const ABAS = [
     { id: "servicos", nome: "Serviços" },
     { id: "notas", nome: "Notas" },
+    { id: "impostos", nome: "Impostos" },
     { id: "certificado", nome: "Certificado" },
     { id: "acesso", nome: "Acesso ao app" },
     { id: "dados", nome: "Dados da empresa" },
@@ -257,17 +261,19 @@
           el("span", {}, e.nome, el("span", { class: "visualmente-oculto" }, e.feito ? " (feito)" : " (pendente)")))))));
 
     const abas = el("div", { class: "abas-empresa", role: "tablist", "aria-label": "Seções da empresa" },
-      ...ABAS.filter((a) => !(autonomo() && a.id === "acesso")).map((a) => el("button", {
+      ...ABAS.filter((a) => !(autonomo() && (a.id === "acesso" || a.id === "impostos"))).map((a) => el("button", {
         type: "button", role: "tab", class: "aba-empresa", id: `aba-${a.id}`,
         "aria-selected": estado.aba === a.id ? "true" : "false",
         onclick: () => { if (a.id !== estado.aba) irParaAba(a.id); },
       }, a.nome,
         a.id === "servicos" && el("span", { class: "aba-qtd" }, String(liberados.length)),
-        a.id === "notas" && estado.notas.length > 0 && el("span", { class: "aba-qtd" }, String(estado.notas.length)))));
+        a.id === "notas" && estado.notas.length > 0 && el("span", { class: "aba-qtd" }, String(estado.notas.length)),
+        a.id === "impostos" && estado.documentos.length > 0 && el("span", { class: "aba-qtd" }, String(estado.documentos.length)))));
 
     let conteudo;
-    if (autonomo() && estado.aba === "acesso") estado.aba = "servicos";
+    if (autonomo() && (estado.aba === "acesso" || estado.aba === "impostos")) estado.aba = "servicos";
     if (estado.aba === "notas") conteudo = [secaoNotas()];
+    else if (estado.aba === "impostos") conteudo = secaoImpostos(c);
     else if (estado.aba === "certificado") conteudo = [secaoCertificado(c)];
     else if (estado.aba === "acesso") conteudo = [secaoAcessos(c)];
     else if (estado.aba === "dados") conteudo = [secaoDados(c)];
@@ -492,6 +498,104 @@
                   : "—"),
             )))))
         : el("p", { class: "vazio" }, "Esta empresa ainda não emitiu notas."));
+  }
+
+  // ------------------------------------------------------------ aba Impostos (guias para a empresa)
+
+  const dataCurta = (iso) => (iso ? iso.slice(0, 10).split("-").reverse().join("/") : "");
+  const quando = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "");
+
+  function seloDocumento(d) {
+    if (d.situacao === "pago") return el("span", { class: "selo selo-verde" }, `Pago · ${quando(d.pago_em)}`);
+    if (d.situacao === "vencido") return el("span", { class: "selo selo-vermelho" }, "Vencido");
+    if (d.visto_em) return el("span", { class: "selo selo-amarelo" }, `Visto · ${quando(d.visto_em)}`);
+    return el("span", { class: "selo selo-cinza" }, "Ainda não abriu");
+  }
+
+  function secaoImpostos(c) {
+    const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+    const hoje = new Date();
+    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    const competencia = `${mesPassado.getFullYear()}-${String(mesPassado.getMonth() + 1).padStart(2, "0")}`;
+    const form = el("form", { class: "form-guia", novalidate: true },
+      el("label", { class: "campo" }, "Tipo de guia",
+        el("select", { name: "tipo" },
+          ...[["darf", "DARF"], ["das", "DAS (Simples / MEI)"], ["iss", "Guia do ISS"], ["inss", "INSS / GPS"], ["fgts", "FGTS"], ["outro", "Outro documento"]]
+            .map(([v, t]) => el("option", { value: v }, t)))),
+      el("label", { class: "campo" }, "Mês de referência",
+        el("input", { type: "month", name: "competencia", value: competencia })),
+      el("label", { class: "campo" }, "Valor (R$)",
+        el("input", { name: "valor", inputmode: "decimal", placeholder: "350,00", autocomplete: "off" })),
+      el("label", { class: "campo" }, "Vencimento",
+        el("input", { type: "date", name: "vencimento" })),
+      el("label", { class: "campo campo-largo" }, "Arquivo da guia (PDF, até 5 MB)",
+        el("input", { type: "file", name: "arquivo", accept: "application/pdf,.pdf", required: true })),
+      el("button", { class: "botao campo-largo", type: "submit" }, icone("enviar", 18), "Enviar para a empresa"));
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const v = (n) => form.querySelector(`[name=${n}]`).value.trim();
+      const arquivo = form.querySelector("[name=arquivo]").files[0];
+      const erro = (t) => { $erro.textContent = t; $erro.hidden = false; };
+      if (!arquivo) return erro("Escolha o PDF da guia.");
+      if (arquivo.size > 5 * 1024 * 1024) return erro("O PDF passa de 5 MB. Envie um arquivo menor.");
+      if (!/\.pdf$/i.test(arquivo.name) && arquivo.type !== "application/pdf") return erro("Envie o arquivo em PDF.");
+      const botao = form.querySelector("button[type=submit]");
+      botao.disabled = true;
+      $erro.hidden = true;
+      try {
+        const base64 = await new Promise((ok, falha) => {
+          const leitor = new FileReader();
+          leitor.onload = () => ok(String(leitor.result).split(",")[1] || "");
+          leitor.onerror = () => falha(new Error("Não consegui ler o arquivo."));
+          leitor.readAsDataURL(arquivo);
+        });
+        const doc = await api("POST", `/contador/clientes/${c.id}/documentos`, {
+          tipo: v("tipo"), competencia: v("competencia") || null, valor: v("valor") || null,
+          vencimento: v("vencimento") || null, arquivo_nome: arquivo.name, arquivo_base64: base64,
+        });
+        estado.documentos = [doc, ...estado.documentos];
+        avisar("Guia enviada. A empresa já vê no app, em Impostos.");
+        desenharPrincipal();
+      } catch (falha) {
+        erro(falha.message);
+        botao.disabled = false;
+      }
+    });
+
+    const apagar = async (d) => {
+      if (!confirm(`Apagar "${d.titulo}"? A empresa deixa de ver esta guia.`)) return;
+      try {
+        await api("DELETE", `/contador/clientes/${c.id}/documentos/${d.id}`);
+        estado.documentos = estado.documentos.filter((x) => x.id !== d.id);
+        desenharPrincipal();
+      } catch (falha) { avisar(falha.message); }
+    };
+
+    const semAcesso = !estado.acessos.length && el("div", { class: "aviso aviso-alerta" },
+      el("span", {}, "Esta empresa ainda não tem acesso ao app. Crie o acesso para ela ver as guias. ",
+        el("button", { type: "button", class: "botao-link", onclick: () => irParaAba("acesso") }, "Criar acesso")));
+
+    const lista = estado.documentos.length
+      ? el("ul", { class: "lista-guias" }, ...estado.documentos.map((d) => el("li", { class: "guia" },
+        el("div", { class: "guia-textos" },
+          el("strong", {}, d.titulo),
+          el("span", { class: "sub2" }, [d.valor && `R$ ${d.valor}`, d.vencimento && `vence ${dataCurta(d.vencimento)}`].filter(Boolean).join(" · ") || d.arquivo_nome)),
+        seloDocumento(d),
+        el("div", { class: "guia-acoes" },
+          el("a", { class: "botao-mini", href: d.arquivo, target: "_blank", rel: "noopener" }, "PDF"),
+          el("button", { type: "button", class: "botao-mini botao-texto-perigo", onclick: () => apagar(d) }, "Apagar")))))
+      : el("p", { class: "vazio" }, "Nenhuma guia enviada ainda.");
+
+    return [
+      el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
+        el("div", {},
+          el("h2", { class: "titulo" }, "Enviar guia para a empresa"),
+          el("p", { class: "sub" }, "A empresa recebe no app, em Impostos, baixa e marca quando pagar. Você acompanha tudo aqui.")),
+        semAcesso || null, form, $erro),
+      el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:12px" },
+        el("h2", { class: "titulo" }, "Guias enviadas"), lista),
+    ].filter(Boolean);
   }
 
   function secaoDados(c) {
