@@ -666,6 +666,7 @@
   const ajuda = EmittaAssistente.montar({
     botao: false,
     clienteId: () => (estado.empresa ? estado.empresa.id : null),
+    conta: () => (estado.eu ? estado.eu.id : null),
     sugestoes: ["Quero emitir uma nota", "Como cancelo uma nota?", "Como baixo o PDF?"],
     aoAgir: (acao) => ajudaAgir(acao),
   });

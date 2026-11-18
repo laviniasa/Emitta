@@ -1,5 +1,8 @@
 // Tela de entrar: login, verificação em duas etapas, primeiro acesso e troca de senha.
 (() => {
+  // Tela de entrar: nada da conta anterior (conversa com a assistente, rascunhos) fica para a próxima.
+  try { Object.keys(sessionStorage).filter((k) => k.startsWith("emitta.")).forEach((k) => sessionStorage.removeItem(k)); } catch {}
+
   const { api, el, icone } = Emitta;
   const $caixa = document.getElementById("caixa");
   document.getElementById("rodape").append(icone("cadeado", 16), "Conexão protegida. Sua senha nunca é guardada em texto puro.");

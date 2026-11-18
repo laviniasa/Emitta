@@ -58,6 +58,7 @@
   // o rascunho abre no app da empresa para ele conferir e emitir.
   EmittaAssistente.montar({
     clienteId: () => (estado.modo === "cliente" ? estado.selecionado : null),
+    conta: () => (estado.eu ? estado.eu.id : null),
     sugestoes: ["Qual código uso para cabeleireiro?", "Como libero um serviço?", "Como envio o certificado?"],
     aoAgir: (acao) => {
       const id = estado.selecionado;

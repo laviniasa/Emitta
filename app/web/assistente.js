@@ -3,13 +3,22 @@
 window.EmittaAssistente = (() => {
   const { api, el, icone, formatarDocumento } = Emitta;
 
-  function montar({ clienteId = () => null, aoAgir = () => {}, sugestoes = [], botao = true } = {}) {
+  function montar({ clienteId = () => null, conta = () => null, aoAgir = () => {}, sugestoes = [], botao = true } = {}) {
+    // A conversa é guardada por conta e por empresa: quem entra com outra conta
+    // (ou abre outra empresa) começa uma conversa nova e nunca vê a de outra pessoa.
     let mensagens = [];
-    try { mensagens = JSON.parse(sessionStorage.getItem("emitta.assistente") || "[]"); } catch { mensagens = []; }
+    let chaveAtual = null;
     let aberto = false;
     let pensando = false;
 
-    const guardar = () => { try { sessionStorage.setItem("emitta.assistente", JSON.stringify(mensagens.slice(-20))); } catch {} };
+    const chave = () => `emitta.assistente.${conta() || "anon"}.${clienteId() || 0}`;
+    function carregar() {
+      const k = chave();
+      if (k === chaveAtual) return;
+      chaveAtual = k;
+      try { mensagens = JSON.parse(sessionStorage.getItem(k) || "[]"); } catch { mensagens = []; }
+    }
+    const guardar = () => { try { sessionStorage.setItem(chaveAtual, JSON.stringify(mensagens.slice(-20))); } catch {} };
 
     const $lista = el("div", { class: "assist-lista", "aria-live": "polite" });
     const $campo = el("textarea", {
@@ -35,7 +44,7 @@ window.EmittaAssistente = (() => {
       $painel.hidden = !aberto;
       $botao.classList.toggle("oculto", aberto);
       document.body.classList.toggle("assist-aberto", aberto);
-      if (aberto) { desenhar(); setTimeout(() => $campo.focus(), 50); }
+      if (aberto) { carregar(); desenhar(); setTimeout(() => $campo.focus(), 50); }
     }
 
     function cartao(acao) {
@@ -95,6 +104,7 @@ window.EmittaAssistente = (() => {
     async function enviar(texto) {
       texto = (texto ?? $campo.value).trim();
       if (!texto || pensando) return;
+      carregar();
       $campo.value = "";
       $campo.style.height = "auto";
       mensagens.push({ de: "pessoa", texto });

@@ -38,6 +38,8 @@ const Emitta = (() => {
   }
 
   async function sair() {
+    // Apaga conversas e rascunhos guardados neste aparelho antes de sair.
+    try { Object.keys(sessionStorage).filter((k) => k.startsWith("emitta.")).forEach((k) => sessionStorage.removeItem(k)); } catch {}
     try { await api("POST", "/auth/sair", null, { semRedirecionar: true }); } catch {}
     location.href = "/entrar";
   }
