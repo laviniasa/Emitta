@@ -53,6 +53,14 @@ def _resumo(d: dict) -> dict:
             {"codigo": str(c.get("codigo") or "").zfill(7), "descricao": c.get("descricao") or ""}
             for c in (d.get("cnaes_secundarios") or []) if c.get("codigo")
         ],
+        "endereco": {
+            "cmun": str(d.get("codigo_municipio_ibge") or ""),
+            "cep": "".join(ch for ch in str(d.get("cep") or "") if ch.isdigit()).zfill(8) if d.get("cep") else "",
+            "logradouro": " ".join(x for x in ((d.get("descricao_tipo_de_logradouro") or "").strip(), (d.get("logradouro") or "").strip()) if x),
+            "numero": (str(d.get("numero") or "")).strip(),
+            "complemento": (d.get("complemento") or "").strip(),
+            "bairro": (d.get("bairro") or "").strip(),
+        },
         "regime": "2" if mei else ("3" if simples else ("1" if simples is False else "")),
     }
 

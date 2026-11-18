@@ -124,6 +124,8 @@ def test_ibscbs_e_informacoes_complementares_passam_no_xsd():
 
     sug = ibscbs_sugerido("060201")
     from app import regras
+    END = {"cmun": "3550308", "cep": "01310100", "logradouro": "Avenida Paulista", "numero": "1000",
+           "complemento": "Conj. 12", "bairro": "Bela Vista"}
     INFO = regras.info_complementar_com_tributos(regras.texto_tributos(1080, 0, 360), "Pagamento via Pix. Pedido 123.")
     assert sug == {"nbs": "126022000", "cind_op": "030101", "cclass_trib": "000001"}
     N = "{http://www.sped.fazenda.gov.br/nfse}"
@@ -133,7 +135,7 @@ def test_ibscbs_e_informacoes_complementares_passam_no_xsd():
                          serie="1", numero=7, municipio_ibge="3550308", prestador_cnpj="27384956000190",
                          opcao_simples=opcao, tomador_tipo=tipo, tomador_documento=doc, tomador_nome="Carla",
                          codigo_servico="060201", descricao="Limpeza de pele", valor="180.00", aliquota_iss="2",
-                         info_compl=INFO, **sug)
+                         info_compl=INFO, tomador_end=END, **sug)
         xml = dps.montar_dps(d)
         assinar(xml, "infDPS", certificado_de_teste())
         assert dps.validar_xsd(xml, Path(__file__).parent.parent / "app" / "xsd" / "DPS_v1.01.xsd") == []
@@ -163,3 +165,27 @@ def test_texto_livre_e_ajustado_ao_leiaute():
     xml = dps.montar_dps(d)
     assinar(xml, "infDPS", certificado_de_teste())
     assert dps.validar_xsd(xml, Path(__file__).parent.parent / "app" / "xsd" / "DPS_v1.01.xsd") == []
+
+
+def test_sem_endereco_do_tomador_o_grupo_ibscbs_nao_vai():
+    """E0239: com IBS/CBS, o tomador precisa de endereço nacional. Sem endereço, o grupo
+    (opcional em 2026) fica de fora e a nota passa."""
+    from pathlib import Path
+    from app import dps
+    from app.catalogo import ibscbs_sugerido
+    N = "{http://www.sped.fazenda.gov.br/nfse}"
+    base = dict(tp_amb="2", versao_aplicativo="Emitta-0.1",
+                emitida_em=datetime(2026, 11, 18, 14, 0, tzinfo=timezone(timedelta(hours=-3))),
+                serie="1", numero=8, municipio_ibge="3550308", prestador_cnpj="27384956000190",
+                opcao_simples="3", tomador_tipo="CPF", tomador_documento="52998224725", tomador_nome="Carla",
+                codigo_servico="060201", descricao="Limpeza de pele", valor="180.00", aliquota_iss="2",
+                **ibscbs_sugerido("060201"))
+    xml = dps.montar_dps(dps.DadosDPS(**base))
+    assert xml.find(f".//{N}IBSCBS") is None and xml.find(f".//{N}toma/{N}end") is None
+    assert xml.find(f".//{N}cNBS").text == "126022000"
+    xml = dps.montar_dps(dps.DadosDPS(**base, tomador_end={"cmun": "3550308", "cep": "01310100", "logradouro": "Av. Paulista", "numero": "", "bairro": ""}))
+    assinar(xml, "infDPS", certificado_de_teste())
+    assert dps.validar_xsd(xml, Path(__file__).parent.parent / "app" / "xsd" / "DPS_v1.01.xsd") == []
+    assert xml.find(f".//{N}toma/{N}end/{N}endNac/{N}CEP").text == "01310100"
+    assert xml.find(f".//{N}toma/{N}end/{N}nro").text == "S/N"
+    assert xml.find(f".//{N}IBSCBS") is not None

@@ -894,6 +894,15 @@ def criar_app(
 
     @app.post("/app/{cliente_id}/notas", status_code=201, tags=["app da empresa"])
     def emitir_nota(cliente_id: int, dados: NovaNota, request: Request, usuario: Usuario = Depends(autorizar_empresa)):
+        # Tomador com CNPJ: o endereço vem da Receita. Ele é exigido para o grupo IBS/CBS ir
+        # na nota (E0239). Se a consulta falhar, a nota sai sem esse grupo (opcional em 2026).
+        tomador_endereco = None
+        doc_tomador = regras.somente_digitos(dados.tomador_documento) if dados.tomador_documento else ""
+        if len(doc_tomador) == 14:
+            try:
+                tomador_endereco = consulta_cnpj.consultar(doc_tomador).get("endereco")
+            except Exception as erro:  # consulta é ajuda, nunca impede a emissão
+                print(f"[emissao] endereço do tomador indisponível: {erro}", flush=True)
         try:
             nota = servico.emitir(
                 cliente_id,
@@ -906,6 +915,7 @@ def criar_app(
                 iss_retido=dados.iss_retido,
                 chave_envio=dados.chave_envio,
                 info_compl=dados.informacoes_complementares,
+                tomador_endereco=tomador_endereco,
             )
         except NotaEmProcessamento as erro:
             return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)

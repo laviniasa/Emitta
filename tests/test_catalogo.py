@@ -31,7 +31,11 @@ def test_servicos_sugeridos_pelo_cnae():
 def test_consulta_cnpj_traz_cnaes_secundarios():
     from app.consulta_cnpj import ConsultaCnpj
     c = ConsultaCnpj(buscar=lambda cnpj: {"razao_social": "X", "cnae_fiscal": 9602502, "cnae_fiscal_descricao": "Estética",
-                                          "cnaes_secundarios": [{"codigo": 9602501, "descricao": "Cabeleireiros"}, {"codigo": 0, "descricao": ""}]})
+                                          "cnaes_secundarios": [{"codigo": 9602501, "descricao": "Cabeleireiros"}, {"codigo": 0, "descricao": ""}],
+                                          "codigo_municipio_ibge": 3550308, "cep": "01310-100", "descricao_tipo_de_logradouro": "AVENIDA",
+                                          "logradouro": "PAULISTA", "numero": "1000", "complemento": "", "bairro": "BELA VISTA"})
     r = c.consultar("27384956000190")
     assert r["cnae_principal"]["codigo"] == "9602502"
     assert r["cnaes_secundarios"] == [{"codigo": "9602501", "descricao": "Cabeleireiros"}]
+    assert r["endereco"] == {"cmun": "3550308", "cep": "01310100", "logradouro": "AVENIDA PAULISTA", "numero": "1000",
+                             "complemento": "", "bairro": "BELA VISTA"}

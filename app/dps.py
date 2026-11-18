@@ -46,6 +46,8 @@ class DadosDPS:
     cind_op: str | None = None  # 6 dígitos
     cclass_trib: str | None = None  # 6 dígitos (os 3 primeiros são o CST)
     info_compl: str | None = None  # informações complementares (até 2000 caracteres)
+    # endereço do tomador: {"cmun", "cep", "logradouro", "numero", "complemento", "bairro"}
+    tomador_end: dict | None = None
 
 
 _TROCAS = {"\u2013": "-", "\u2014": "-", "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
@@ -102,6 +104,17 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     toma = _sub(inf, "toma")
     _sub(toma, d.tomador_tipo, d.tomador_documento)
     _sub(toma, "xNome", texto_leiaute(d.tomador_nome)[:300])
+    if endereco_valido(d.tomador_end):
+        e = d.tomador_end
+        end = _sub(toma, "end")
+        nac = _sub(end, "endNac")
+        _sub(nac, "cMun", e["cmun"])
+        _sub(nac, "CEP", e["cep"])
+        _sub(end, "xLgr", texto_leiaute(e["logradouro"])[:255])
+        _sub(end, "nro", (texto_leiaute(e.get("numero")) or "S/N")[:60])
+        if texto_leiaute(e.get("complemento")):
+            _sub(end, "xCpl", texto_leiaute(e["complemento"])[:156])
+        _sub(end, "xBairro", (texto_leiaute(e.get("bairro")) or "Centro")[:60])
 
     serv = _sub(inf, "serv")
     loc = _sub(serv, "locPrest")
@@ -150,8 +163,19 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     return raiz
 
 
+def endereco_valido(e: dict | None) -> bool:
+    """Endereço nacional mínimo: município IBGE (7), CEP (8) e logradouro."""
+    if not e:
+        return False
+    return (str(e.get("cmun") or "").isdigit() and len(str(e["cmun"])) == 7
+            and str(e.get("cep") or "").isdigit() and len(str(e["cep"])) == 8
+            and bool(texto_leiaute(e.get("logradouro"))))
+
+
 def ibscbs_vai_no_xml(d: "DadosDPS") -> bool:
-    return bool(d.nbs and d.cind_op and d.cclass_trib)
+    """O grupo IBS/CBS (opcional em 2026) só vai com o endereço do tomador: sem ele o
+    Emissor Nacional recusa com E0239."""
+    return bool(d.nbs and d.cind_op and d.cclass_trib) and endereco_valido(d.tomador_end)
 
 
 @dataclass(frozen=True)

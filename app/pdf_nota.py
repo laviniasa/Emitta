@@ -185,6 +185,10 @@ def gerar_pdf(nota, cliente, ambiente: str) -> bytes:
                 par = achados[i:i + 2]
                 linhas.append([_campo(r, v.replace(".", ",")) for r, v in par] + ([""] if len(par) == 1 else []))
         partes += _bloco("TRIBUTAÇÃO IBS / CBS · REFORMA TRIBUTÁRIA", linhas, [meia, meia])
+    else:
+        partes += _bloco("TRIBUTAÇÃO IBS / CBS · REFORMA TRIBUTÁRIA", [[_campo(
+            "CST / cClassTrib", "Não informados nesta nota (grupo opcional em 2026). "
+            "Para informar, o tomador precisa ter CNPJ com endereço na Receita.")]], [largura])
 
     if getattr(nota, "info_compl", None):
         partes += _bloco("INFORMAÇÕES COMPLEMENTARES", [[Paragraph(_info_pdf(nota.info_compl), _E["valor"])]], [largura])

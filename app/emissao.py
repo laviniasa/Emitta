@@ -20,6 +20,7 @@ from .catalogo import descricao_oficial
 from .certificados import ProvedorCertificados
 from .config import Config
 from .dps import (
+    endereco_valido,
     texto_leiaute,
     DadosCancelamento,
     DadosDPS,
@@ -130,6 +131,7 @@ class ServicoEmissao:
         iss_retido: bool = False,
         chave_envio: str | None = None,
         info_compl: str | None = None,
+        tomador_endereco: dict | None = None,
     ) -> Nota:
         cliente = self._cliente(cliente_id)
 
@@ -192,6 +194,7 @@ class ServicoEmissao:
                 codigo_municipal=codigo_municipal,
                 nbs=rtc.get("nbs"), cind_op=rtc.get("cind_op"), cclass_trib=rtc.get("cclass_trib"),
                 info_compl=info_compl,
+                tomador_end=tomador_endereco,
             ))
             assinar(xml, "infDPS", cert)
             self._validar_xsd(xml, "DPS_v1.01.xsd")
@@ -217,7 +220,7 @@ class ServicoEmissao:
                 chave_envio=chave_envio,
                 info_compl=info_compl,
                 ibscbs=json.dumps({"nbs": rtc.get("nbs"), "cind_op": rtc.get("cind_op"), "cclass_trib": rtc.get("cclass_trib")})
-                if rtc.get("nbs") and rtc.get("cind_op") and rtc.get("cclass_trib") else None,
+                if rtc.get("nbs") and rtc.get("cind_op") and rtc.get("cclass_trib") and endereco_valido(tomador_endereco) else None,
             )
 
             # 4. Envia
