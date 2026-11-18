@@ -376,7 +376,7 @@ class Repositorio:
 
     def listar_notas(self, cliente_id: int) -> list[Nota]:
         linhas = self.con.execute(
-            "SELECT * FROM notas WHERE cliente_id = ? ORDER BY id DESC", (cliente_id,)
+            "SELECT * FROM notas WHERE cliente_id = ? AND situacao != 'descartada' ORDER BY id DESC", (cliente_id,)
         ).fetchall()
         return [Nota(**dict(l)) for l in linhas]
 
@@ -387,6 +387,11 @@ class Repositorio:
         return Nota(**dict(linha)) if linha else None
 
     _CAMPOS_NOTA = {"situacao", "chave_acesso", "xml_nfse", "mensagem"}
+
+    def descartar_nota(self, nota_id: int) -> None:
+        """Número recusado por já existir no governo (E0014): some das listas e libera a chave de envio."""
+        with self.con:
+            self.con.execute("UPDATE notas SET situacao = 'descartada', chave_envio = NULL WHERE id = ?", (nota_id,))
 
     def atualizar_nota(self, nota_id: int, **campos) -> Nota:
         invalidos = set(campos) - self._CAMPOS_NOTA

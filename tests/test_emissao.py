@@ -105,3 +105,16 @@ def test_banco_aguenta_requisicoes_simultaneas(servico, cliente):
 
     with ThreadPoolExecutor(max_workers=16) as pool:
         assert all(pool.map(trabalho, range(600)))
+
+
+def test_pula_numero_ja_usado_no_governo(servico, cliente, sefin):
+    """Banco zerado (ou outro sistema já emitiu): o governo recusa o número com E0014
+    e o Emitta passa sozinho para o próximo, sem deixar lixo na lista de notas."""
+    from app.emissao import id_dps
+    for n in (1, 2, 3):
+        sefin.autorizadas[id_dps(cliente.municipio_ibge, cliente.cnpj, cliente.serie_dps, n)] = "x" * 50
+    nota = emitir(servico, cliente, chave_envio="abc-123")
+    assert nota.situacao == "autorizada" and nota.numero_dps == 4
+    assert [n.numero_dps for n in servico.repo.listar_notas(cliente.id)] == [4]
+    assert emitir(servico, cliente, chave_envio="abc-123").id == nota.id  # repetir o envio não duplica
+    assert emitir(servico, cliente).numero_dps == 5

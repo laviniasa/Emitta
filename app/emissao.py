@@ -39,6 +39,9 @@ class NotaNaoEncontrada(regras.ErroDeNegocio):
     pass
 
 
+MAX_PULOS_NUMERO = 50  # números já usados no governo que o Emitta pula sozinho (E0014)
+
+
 class RejeitadaPelaPrefeitura(regras.ErroDeNegocio):
     def __init__(self, mensagens: list[str], nota: Nota | None = None):
         self.mensagens = mensagens
@@ -151,60 +154,67 @@ class ServicoEmissao:
         percentual_sn = self._percentual_simples(cliente)
         cert = self.certificados.para(cliente)
 
-        # 2. Monta e assina o XML
-        numero = self.repo.proximo_numero_dps(cliente_id)
-        xml = montar_dps(DadosDPS(
-            tp_amb=self.config.tp_amb,
-            versao_aplicativo=self.config.versao_aplicativo,
-            emitida_em=agora,
-            serie=cliente.serie_dps,
-            numero=numero,
-            municipio_ibge=cliente.municipio_ibge,
-            prestador_cnpj=cliente.cnpj,
-            opcao_simples=cliente.opcao_simples,
-            tomador_tipo=tomador.tipo,
-            tomador_documento=tomador.numero,
-            tomador_nome=tomador_nome,
-            codigo_servico=codigo_servico,
-            descricao=descricao,
-            valor=regras.centavos_para_texto(valor_centavos),
-            competencia=data_servico,
-            iss_retido=bool(iss_retido),
-            aliquota_iss=cliente.aliquota_iss,
-            reg_ap_trib_sn=cliente.reg_ap_trib_sn or "1",
-            p_tot_trib_sn=percentual_sn,
-            codigo_municipal=codigo_municipal,
-        ))
-        assinar(xml, "infDPS", cert)
-        self._validar_xsd(xml, "DPS_v1.01.xsd")
-        xml_bytes = para_bytes(xml)
+        for tentativa in range(MAX_PULOS_NUMERO + 1):
+            # 2. Monta e assina o XML
+            numero = self.repo.proximo_numero_dps(cliente_id)
+            xml = montar_dps(DadosDPS(
+                tp_amb=self.config.tp_amb,
+                versao_aplicativo=self.config.versao_aplicativo,
+                emitida_em=agora,
+                serie=cliente.serie_dps,
+                numero=numero,
+                municipio_ibge=cliente.municipio_ibge,
+                prestador_cnpj=cliente.cnpj,
+                opcao_simples=cliente.opcao_simples,
+                tomador_tipo=tomador.tipo,
+                tomador_documento=tomador.numero,
+                tomador_nome=tomador_nome,
+                codigo_servico=codigo_servico,
+                descricao=descricao,
+                valor=regras.centavos_para_texto(valor_centavos),
+                competencia=data_servico,
+                iss_retido=bool(iss_retido),
+                aliquota_iss=cliente.aliquota_iss,
+                reg_ap_trib_sn=cliente.reg_ap_trib_sn or "1",
+                p_tot_trib_sn=percentual_sn,
+                codigo_municipal=codigo_municipal,
+            ))
+            assinar(xml, "infDPS", cert)
+            self._validar_xsd(xml, "DPS_v1.01.xsd")
+            xml_bytes = para_bytes(xml)
 
-        # 3. Grava ANTES de enviar (se a resposta se perder, sabemos o que conferir)
-        nota = self.repo.salvar_nota(
-            cliente_id=cliente_id,
-            numero_dps=numero,
-            codigo_servico=codigo_servico,
-            tomador_tipo=tomador.tipo,
-            tomador_documento=tomador.numero,
-            tomador_nome=tomador_nome,
-            descricao=descricao,
-            valor_centavos=valor_centavos,
-            iss_centavos=iss,
-            situacao="processando",
-            emitida_em=agora.isoformat(),
-            competencia=data_servico.isoformat(),
-            iss_retido=int(bool(iss_retido)),
-            id_dps=id_dps(cliente.municipio_ibge, cliente.cnpj, cliente.serie_dps, numero),
-            xml_dps=xml_bytes.decode("utf-8"),
-            chave_envio=chave_envio,
-        )
+            # 3. Grava ANTES de enviar (se a resposta se perder, sabemos o que conferir)
+            nota = self.repo.salvar_nota(
+                cliente_id=cliente_id,
+                numero_dps=numero,
+                codigo_servico=codigo_servico,
+                tomador_tipo=tomador.tipo,
+                tomador_documento=tomador.numero,
+                tomador_nome=tomador_nome,
+                descricao=descricao,
+                valor_centavos=valor_centavos,
+                iss_centavos=iss,
+                situacao="processando",
+                emitida_em=agora.isoformat(),
+                competencia=data_servico.isoformat(),
+                iss_retido=int(bool(iss_retido)),
+                id_dps=id_dps(cliente.municipio_ibge, cliente.cnpj, cliente.serie_dps, numero),
+                xml_dps=xml_bytes.decode("utf-8"),
+                chave_envio=chave_envio,
+            )
 
-        # 4. Envia
-        try:
-            resposta = self.sefin.enviar_dps(xml_bytes, cert)
-        except SemResposta:
-            raise NotaEmProcessamento(nota) from None
-        return self._registrar_resposta(nota, resposta)
+            # 4. Envia
+            try:
+                resposta = self.sefin.enviar_dps(xml_bytes, cert)
+            except SemResposta:
+                raise NotaEmProcessamento(nota) from None
+            # E0014 = o governo já tem uma nota com este número para este CNPJ (por exemplo,
+            # emitida antes de o banco do Emitta ser zerado). Pula para o próximo número.
+            if not resposta.sucesso and tentativa < MAX_PULOS_NUMERO and any("E0014" in m for m in resposta.mensagens):
+                print(f"[emissao] cliente {cliente_id}: número {numero} já usado no governo (E0014), tentando o próximo", flush=True)
+                self.repo.descartar_nota(nota.id)
+                continue
+            return self._registrar_resposta(nota, resposta)
 
     def _registrar_resposta(self, nota: Nota, resposta) -> Nota:
         if resposta.sucesso:
