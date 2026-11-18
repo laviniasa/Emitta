@@ -220,3 +220,38 @@ def verificar_situacao_cancelavel(situacao: str) -> None:
         raise NotaNaoCancelavel("Esta nota já está cancelada.")
     if situacao != "autorizada":
         raise NotaNaoCancelavel("Só é possível cancelar notas autorizadas.")
+
+
+# ---------------------------------------------------------------- Lei 12.741/2012
+
+PREFIXO_TRIBUTOS = "Totais aproximados dos Tributos cfe. Lei n° 12.741/2012:"
+
+
+def _reais(centavos: int) -> str:
+    inteiro = f"{centavos // 100:,}".replace(",", ".")
+    return f"R$ {inteiro},{centavos % 100:02d}"
+
+
+def tributos_aproximados(valor_centavos: int, opcao_simples: str, p_tot_trib_sn, iss_centavos: int) -> tuple[int, int, int]:
+    """(federais, estaduais, municipais) em centavos, coerentes com o totTrib do XML.
+    ME/EPP do Simples: o % do Simples sobre o valor; o ISS fica como municipal e o resto
+    como federal (serviço não tem tributo estadual). MEI e fora do Simples: zero."""
+    if opcao_simples != "3":
+        return 0, 0, 0
+    total = int((Decimal(valor_centavos) * Decimal(str(p_tot_trib_sn or "0")) / 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    municipais = min(max(iss_centavos, 0), total)
+    return total - municipais, 0, municipais
+
+
+def texto_tributos(federais: int, estaduais: int, municipais: int) -> str:
+    return (f"{PREFIXO_TRIBUTOS} Federais: {_reais(federais)}; Estaduais: {_reais(estaduais)}; "
+            f"Municipais: {_reais(municipais)};")
+
+
+def info_complementar_com_tributos(texto_tributos_: str, info: str | None) -> str:
+    """Soma dos tributos + o que a empresa escreveu (sem repetir a soma de uma nota corrigida)."""
+    info = (info or "").strip()
+    if info.startswith(PREFIXO_TRIBUTOS):
+        resto = info.split(";", 3)[-1] if info.count(";") >= 3 else ""
+        info = resto.lstrip(" /").strip()
+    return (texto_tributos_ + (" / " + info if info else ""))[:2000]

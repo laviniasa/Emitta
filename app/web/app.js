@@ -17,6 +17,14 @@
     textoMotivo: "",
   };
 
+  // a soma dos tributos (Lei 12.741) é refeita pelo servidor a cada emissão
+  function semTributos(t) {
+    t = (t || "").trim();
+    if (!t.startsWith("Totais aproximados dos Tributos")) return t;
+    const partes = t.split(";");
+    return partes.length > 3 ? partes.slice(3).join(";").replace(/^[\s/]+/, "").trim() : "";
+  }
+
   function ir(tela) {
     estado.tela = tela;
     desenhar();
@@ -421,7 +429,7 @@
             el("label", { class: "campo" }, el("span", {}, "Informações complementares ", el("span", { class: "ajuda-pequena" }, "(opcional)")),
               el("textarea", { rows: 2, maxlength: 2000, placeholder: "Ex.: Pagamento via Pix. Pedido nº 123.",
                 oninput: (e) => { f.info_compl = e.target.value; } }, f.info_compl || "")),
-            el("span", { class: "ajuda-pequena" }, "Aparece na nota, no campo de informações complementares.")),
+            el("span", { class: "ajuda-pequena" }, "Aparece na nota logo depois da soma aproximada dos tributos (Lei 12.741), que o Emitta coloca sozinho.")),
         ),
         el("footer", { class: "rodape" },
           $totais,
@@ -729,7 +737,7 @@
     estado.form = {
       codigo: estado.servicos.some((s) => s.codigo === n.servico) ? n.servico : null,
       documento: formatarDocumento(n.tomador.documento), nome: n.tomador.nome,
-      valor: String(n.valor).replace(".", ","), descricao: n.descricao, info_compl: n.informacoes_complementares || "",
+      valor: String(n.valor).replace(".", ","), descricao: n.descricao, info_compl: semTributos(n.informacoes_complementares),
       competencia: n.competencia || hojeIsoLocal(), iss_retido: !!n.iss_retido, chave_envio: novaChaveEnvio(),
     };
     avisar("Ajuste os dados e emita. Depois, cancele a nota antiga com o motivo \"Emiti por engano\".");

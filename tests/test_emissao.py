@@ -142,3 +142,28 @@ def test_confere_na_prefeitura_antes_de_enviar(servico, cliente, sefin):
     with pytest.raises(regras.ErroDeNegocio, match="não aceita este serviço"):
         emitir(servico, cliente, codigo_servico="170101")
     assert len(sefin.enviados) == antes
+
+
+def test_soma_dos_tributos_lei_12741():
+    from app import regras
+    assert regras.tributos_aproximados(52400, "1", "0", 0) == (0, 0, 0)
+    f, e, m = regras.tributos_aproximados(100000, "3", "6.00", 2000)
+    assert (f, e, m) == (4000, 0, 2000)
+    t = regras.texto_tributos(f, e, m)
+    assert t == ("Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: Federais: R$ 40,00; "
+                 "Estaduais: R$ 0,00; Municipais: R$ 20,00;")
+    assert regras.info_complementar_com_tributos(t, None) == t
+    junto = regras.info_complementar_com_tributos(t, "Pagamento via Pix")
+    assert junto == t + " / Pagamento via Pix"
+    # nota corrigida: não repete a soma antiga
+    assert regras.info_complementar_com_tributos(t, junto) == junto
+
+
+def test_nota_leva_soma_dos_tributos_nas_informacoes(servico, cliente, sefin):
+    from app.dps import texto_leiaute
+    nota = emitir(servico, cliente, info_compl="Pagamento via Pix")
+    assert nota.info_compl.startswith("Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: Federais: R$")
+    assert nota.info_compl.endswith(" / Pagamento via Pix")
+    assert "<xInfComp>" + nota.info_compl.replace("&", "&amp;") in nota.xml_dps
+    sem = emitir(servico, cliente)
+    assert sem.info_compl.endswith("Municipais: R$ 0,00;") or "Municipais: R$" in sem.info_compl

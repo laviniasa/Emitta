@@ -92,6 +92,15 @@ def _valores_ibscbs(xml_nfse: str | None) -> dict:
     return achados
 
 
+def _info_pdf(texto: str) -> str:
+    """Soma dos tributos (Lei 12.741) numa linha e o texto da empresa na linha de baixo;
+    "R$ 3,60" nunca quebra no meio."""
+    t = escape(texto).replace("\n", "<br/>")
+    if t.startswith("Totais aproximados") and "; / " in t:
+        t = t.replace("; / ", ";<br/>", 1)
+    return t.replace("R$ ", "R$\u00a0")
+
+
 def gerar_pdf(nota, cliente, ambiente: str) -> bytes:
     buffer = BytesIO()
     largura = A4[0] - 30 * mm
@@ -178,7 +187,7 @@ def gerar_pdf(nota, cliente, ambiente: str) -> bytes:
         partes += _bloco("TRIBUTAÇÃO IBS / CBS · REFORMA TRIBUTÁRIA", linhas, [meia, meia])
 
     if getattr(nota, "info_compl", None):
-        partes += _bloco("INFORMAÇÕES COMPLEMENTARES", [[Paragraph(escape(nota.info_compl).replace("\n", "<br/>"), _E["valor"])]], [largura])
+        partes += _bloco("INFORMAÇÕES COMPLEMENTARES", [[Paragraph(_info_pdf(nota.info_compl), _E["valor"])]], [largura])
 
     if nota.chave_acesso:
         caixa = Table([[Paragraph("Chave de acesso", _E["rotulo"])], [Paragraph(nota.chave_acesso, _E["chave"])],

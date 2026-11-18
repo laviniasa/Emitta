@@ -159,6 +159,10 @@ class ServicoEmissao:
         data_servico = regras.validar_competencia(competencia, agora.date())
         regras.verificar_retencao(bool(iss_retido), tomador, cliente.opcao_simples)
         percentual_sn = self._percentual_simples(cliente)
+        federais, estaduais, municipais = regras.tributos_aproximados(
+            valor_centavos, cliente.opcao_simples, percentual_sn, iss)
+        info_compl = regras.info_complementar_com_tributos(
+            regras.texto_tributos(federais, estaduais, municipais), info_compl)
         cert = self.certificados.para(cliente)
         codigo_municipal = self._conferir_na_prefeitura(cliente, codigo_servico, codigo_municipal, cert)
 

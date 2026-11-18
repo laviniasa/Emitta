@@ -123,6 +123,8 @@ def test_ibscbs_e_informacoes_complementares_passam_no_xsd():
     from app.certificados import certificado_de_teste
 
     sug = ibscbs_sugerido("060201")
+    from app import regras
+    INFO = regras.info_complementar_com_tributos(regras.texto_tributos(1080, 0, 360), "Pagamento via Pix. Pedido 123.")
     assert sug == {"nbs": "126022000", "cind_op": "030101", "cclass_trib": "000001"}
     N = "{http://www.sped.fazenda.gov.br/nfse}"
     for opcao, tipo, doc in (("1", "CNPJ", "11444777000161"), ("3", "CPF", "52998224725"), ("2", "CPF", "52998224725")):
@@ -131,7 +133,7 @@ def test_ibscbs_e_informacoes_complementares_passam_no_xsd():
                          serie="1", numero=7, municipio_ibge="3550308", prestador_cnpj="27384956000190",
                          opcao_simples=opcao, tomador_tipo=tipo, tomador_documento=doc, tomador_nome="Carla",
                          codigo_servico="060201", descricao="Limpeza de pele", valor="180.00", aliquota_iss="2",
-                         info_compl="Pagamento via Pix. Pedido 123.", **sug)
+                         info_compl=INFO, **sug)
         xml = dps.montar_dps(d)
         assinar(xml, "infDPS", certificado_de_teste())
         assert dps.validar_xsd(xml, Path(__file__).parent.parent / "app" / "xsd" / "DPS_v1.01.xsd") == []
@@ -139,7 +141,7 @@ def test_ibscbs_e_informacoes_complementares_passam_no_xsd():
         assert xml.find(f".//{N}IBSCBS/{N}cIndOp").text == "030101"
         assert xml.find(f".//{N}IBSCBS/{N}indFinal").text == ("1" if tipo == "CPF" else "0")
         assert xml.find(f".//{N}trib/{N}CST").text == "000"
-        assert xml.find(f".//{N}xInfComp").text == "Pagamento via Pix. Pedido 123."
+        assert xml.find(f".//{N}xInfComp").text == INFO
 
 
 def test_texto_livre_e_ajustado_ao_leiaute():
