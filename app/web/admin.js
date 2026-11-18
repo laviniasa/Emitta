@@ -380,7 +380,7 @@
           } }, icone("sair", 18), "Sair e entrar com outra conta")));
         return;
       }
-      if (!estado.eu.dois_fatores) return telaDuasEtapas();
+      // Se a verificação em duas etapas for obrigatória, o servidor responde "admin_2fa" e tratarErro mostra a tela.
       vigiarInatividade();
       await carregar();
       desenhar();
