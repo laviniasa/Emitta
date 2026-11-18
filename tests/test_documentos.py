@@ -96,3 +96,24 @@ def test_notas_do_escritorio_e_zip(app, auth):  # noqa: F811
     assert len(nomes) == 4 and all(n.startswith("Minha Empresa ME/") for n in nomes)
     assert outro.get("/contador/notas/arquivos.zip").status_code == 404
     assert rafa.get("/contador/clientes").json()[0]["guias_vencidas"] == 0
+
+
+def test_nota_com_ibscbs_e_informacoes_complementares(app, auth):  # noqa: F811
+    from .test_api import entrar_como_empresa as entrar
+    rafa = contador_aprovado(app, auth, "Rafa", "rafa@escritorio.com")
+    cid = criar_empresa(rafa)
+    r = rafa.put(f"/contador/clientes/{cid}/servicos", json={"servicos": [{"codigo": "060201", "apelido": "Limpeza de pele"}]})
+    assert r.json()[0]["nbs"] == "126022000" and r.json()[0]["cclass_trib"] == "000001"  # sugestão do Anexo VIII
+    op = rafa.get("/catalogo/171901/ibscbs").json()
+    assert op["sugerido"]["cind_op"] == "100301" and any(c["codigo"] == "200052" for c in op["cclass"])
+    assert rafa.put(f"/contador/clientes/{cid}/servicos", json={"servicos": [
+        {"codigo": "060201", "nbs": "123"}]}).status_code == 422
+    empresa = entrar(app, rafa, cid)
+    r = empresa.post(f"/app/{cid}/notas", json={"codigo_servico": "060201", "tomador_documento": "52998224725",
+                                                "tomador_nome": "Carla", "valor": "180,00",
+                                                "informacoes_complementares": "Pagamento via Pix."})
+    nota = r.json()
+    assert nota["informacoes_complementares"] == "Pagamento via Pix."
+    assert nota["ibscbs"] == {"nbs": "126022000", "cind_op": "030101", "cclass_trib": "000001"}
+    pdf = empresa.get(nota["pdf"])
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")

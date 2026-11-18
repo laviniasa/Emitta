@@ -396,3 +396,6 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
   .ne-filtros .filtro-busca { grid-column: 1 / -1; }
   .notas-escritorio { padding: 18px 16px; }
 }
+.rtc { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: #F7FBEE; border: 1px solid #E1EFC8; }
+.rtc-titulo { font-size: 13px; color: var(--verde-escuro); }
+.rtc select { width: 100%; font-size: 13px; }

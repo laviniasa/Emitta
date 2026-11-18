@@ -7,6 +7,8 @@ nacional). Fora da produção, o PDF leva a marca "SEM VALOR FISCAL".
 
 from __future__ import annotations
 
+import json
+
 from datetime import date, datetime
 from io import BytesIO
 from xml.sax.saxutils import escape
@@ -18,7 +20,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from .catalogo import carregar_catalogo
+from .catalogo import carregar_catalogo, opcoes_ibscbs
 from .regras import centavos_para_texto
 
 VERDE = colors.HexColor("#0E7C66")
@@ -68,6 +70,26 @@ def _bloco(titulo: str, linhas: list[list], larguras: list[float]) -> list:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
     return [Paragraph(titulo, _E["secao"]), Spacer(1, 2), tabela, Spacer(1, 8)]
+
+
+def _valores_ibscbs(xml_nfse: str | None) -> dict:
+    """Valores de IBS/CBS calculados pelo governo, lidos do XML da NFS-e autorizada (quando existem)."""
+    if not xml_nfse:
+        return {}
+    try:
+        from lxml import etree
+        raiz = etree.fromstring(xml_nfse.encode("utf-8"))
+    except Exception:
+        return {}
+    achados = {}
+    for el in raiz.iter():
+        if not isinstance(el.tag, str):
+            continue
+        nome = etree.QName(el).localname
+        if nome in ("vBC", "pCBS", "vCBS", "pIBSUF", "pIBSMun", "vIBSTot") and el.text and nome not in achados:
+            if any(etree.QName(a).localname == "IBSCBS" for a in el.iterancestors()):
+                achados[nome] = el.text.strip()
+    return achados
 
 
 def gerar_pdf(nota, cliente, ambiente: str) -> bytes:
@@ -132,6 +154,31 @@ def gerar_pdf(nota, cliente, ambiente: str) -> bytes:
          Paragraph(_dinheiro(nota.valor_centavos - (nota.iss_centavos if nota.iss_retido else 0)), _E["total"])],
     ]
     partes += _bloco("VALORES", linhas_valores, [largura * 0.7, largura * 0.3])
+
+    rtc = json.loads(nota.ibscbs) if getattr(nota, "ibscbs", None) else None
+    if rtc:
+        op = opcoes_ibscbs(nota.codigo_servico)
+        nbs_desc = next((n["descricao"] for n in op["nbs"] if n["codigo"] == rtc["nbs"]), "")
+        cc_nome = next((c["nome"] for c in op["cclass"] if c["codigo"] == rtc["cclass_trib"]), "")
+        nbs_fmt = f"{rtc['nbs'][0]}.{rtc['nbs'][1:5]}.{rtc['nbs'][5:7]}.{rtc['nbs'][7:]}"
+        linhas = [
+            [_campo("NBS", f"{nbs_fmt} · {nbs_desc}" if nbs_desc else nbs_fmt),
+             _campo("Indicador da operação (cIndOp)", rtc["cind_op"])],
+            [_campo("CST", rtc["cclass_trib"][:3]),
+             _campo("Classificação tributária (cClassTrib)", f"{rtc['cclass_trib']} · {cc_nome}" if cc_nome else rtc["cclass_trib"])],
+        ]
+        valores_rtc = _valores_ibscbs(nota.xml_nfse)
+        if valores_rtc:
+            rotulos = [("vBC", "Base de cálculo"), ("pCBS", "Alíquota CBS (%)"), ("vCBS", "Valor CBS"),
+                       ("pIBSUF", "Alíquota IBS estadual (%)"), ("pIBSMun", "Alíquota IBS municipal (%)"), ("vIBSTot", "Valor IBS")]
+            achados = [(r, valores_rtc[k]) for k, r in rotulos if k in valores_rtc]
+            for i in range(0, len(achados), 2):
+                par = achados[i:i + 2]
+                linhas.append([_campo(r, v.replace(".", ",")) for r, v in par] + ([""] if len(par) == 1 else []))
+        partes += _bloco("TRIBUTAÇÃO IBS / CBS · REFORMA TRIBUTÁRIA", linhas, [meia, meia])
+
+    if getattr(nota, "info_compl", None):
+        partes += _bloco("INFORMAÇÕES COMPLEMENTARES", [[Paragraph(escape(nota.info_compl).replace("\n", "<br/>"), _E["valor"])]], [largura])
 
     if nota.chave_acesso:
         caixa = Table([[Paragraph("Chave de acesso", _E["rotulo"])], [Paragraph(nota.chave_acesso, _E["chave"])],

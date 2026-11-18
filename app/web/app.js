@@ -417,7 +417,11 @@
                 el("input", { type: "date", value: f.competencia, max: hojeIso, "aria-describedby": "ajuda-competencia",
                   onchange: (e) => { f.competencia = e.target.value; } })),
               el("span", { class: "ajuda", id: "ajuda-competencia" }, "Quando o serviço foi feito. Se foi no mês passado, mude aqui.")),
-            entrada("Descrição do serviço", "descricao", { placeholder: "Ex.: Manutenção do computador de outubro" })),
+            entrada("Descrição do serviço", "descricao", { placeholder: "Ex.: Manutenção do computador de outubro" }),
+            el("label", { class: "campo" }, el("span", {}, "Informações complementares ", el("span", { class: "ajuda-pequena" }, "(opcional)")),
+              el("textarea", { rows: 2, maxlength: 2000, placeholder: "Ex.: Pagamento via Pix. Pedido nº 123.",
+                oninput: (e) => { f.info_compl = e.target.value; } }, f.info_compl || "")),
+            el("span", { class: "ajuda-pequena" }, "Aparece na nota, no campo de informações complementares.")),
         ),
         el("footer", { class: "rodape" },
           $totais,
@@ -598,6 +602,10 @@
       el("div", { class: "linha" }, el("span", {}, n.iss_retido ? "ISS (retido pelo cliente)" : "ISS"), el("span", {}, dinheiro(n.iss))),
       el("div", { style: "height:1px;background:var(--borda)" }),
       el("div", { class: "linha", style: "font-size:17px;font-weight:700" }, el("span", { style: "color:var(--texto)" }, "Total"), el("span", {}, dinheiro(n.valor))),
+      n.ibscbs && el("div", { class: "linha" }, el("span", {}, "IBS/CBS"),
+        el("span", { style: "text-align:right" }, `CST ${n.ibscbs.cclass_trib.slice(0, 3)} · cClassTrib ${n.ibscbs.cclass_trib}`)),
+      n.informacoes_complementares && el("div", { style: "display:flex;flex-direction:column;gap:4px" },
+        el("span", { class: "ajuda-pequena" }, "Informações complementares"), el("span", { style: "white-space:pre-wrap" }, n.informacoes_complementares)),
       n.chave_acesso && el("div", { style: "display:flex;flex-direction:column;gap:4px" },
         el("span", { class: "ajuda-pequena" }, "Chave de acesso"), el("span", { class: "chave" }, n.chave_acesso)));
   }
@@ -711,7 +719,7 @@
       avisar("Nenhum serviço liberado. Fale com o seu contador."); return;
     }
     estado.form = {
-      codigo: estado.servicos.length === 1 ? estado.servicos[0].codigo : null, documento: "", nome: "", valor: "", descricao: "",
+      codigo: estado.servicos.length === 1 ? estado.servicos[0].codigo : null, documento: "", nome: "", valor: "", descricao: "", info_compl: "",
       competencia: hojeIsoLocal(), iss_retido: false, chave_envio: novaChaveEnvio(),
     };
     ir("nova");
@@ -721,7 +729,7 @@
     estado.form = {
       codigo: estado.servicos.some((s) => s.codigo === n.servico) ? n.servico : null,
       documento: formatarDocumento(n.tomador.documento), nome: n.tomador.nome,
-      valor: String(n.valor).replace(".", ","), descricao: n.descricao,
+      valor: String(n.valor).replace(".", ","), descricao: n.descricao, info_compl: n.informacoes_complementares || "",
       competencia: n.competencia || hojeIsoLocal(), iss_retido: !!n.iss_retido, chave_envio: novaChaveEnvio(),
     };
     avisar("Ajuste os dados e emita. Depois, cancele a nota antiga com o motivo \"Emiti por engano\".");
@@ -760,6 +768,7 @@
       const resposta = await api("POST", `/app/${estado.empresa.id}/notas`, {
         codigo_servico: f.codigo, tomador_documento: f.documento, tomador_nome: f.nome,
         valor: f.valor, descricao: f.descricao || null, competencia: f.competencia || null,
+        informacoes_complementares: (f.info_compl || "").trim() || null,
         iss_retido: !!f.iss_retido, chave_envio: f.chave_envio,
       });
       await esperarMinimo(inicio, 2100);

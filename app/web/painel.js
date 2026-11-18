@@ -16,6 +16,7 @@
     busca: "",
     buscaServico: "",
     prefeitura: {},
+    rtcOpcoes: {}, // opções de IBS/CBS (Anexo VIII) por código de serviço
     aba: null, // servicos | notas | certificado | acesso | dados
     vistaServicos: "liberados", // liberados | todos
     eu: null,
@@ -112,7 +113,8 @@
     const servicos = estado.servicos
       .filter((s) => s.liberado)
       .map((s) => ({ codigo: s.codigo, apelido: (s.apelido || "").trim() || s.descricao,
-        codigo_municipal: (s.codigo_municipal || "").trim() || null }));
+        codigo_municipal: (s.codigo_municipal || "").trim() || null,
+        nbs: s.nbs || null, cind_op: s.cind_op || null, cclass_trib: s.cclass_trib || null }));
     botao.disabled = true;
     try {
       await api("PUT", `/contador/clientes/${estado.selecionado}/servicos`, { servicos });
@@ -563,9 +565,35 @@
         situacao = el("span", { class: "resultado-pref neutro" }, "Não deu para conferir agora. ",
           el("button", { type: "button", class: "botao-link", onclick: () => conferir(s) }, "Tentar de novo"));
       }
-      const avancado = el("details", { class: "mais-opcoes" },
+      // Reforma Tributária: NBS e classificação do IBS/CBS (sugestão do Anexo VIII, o contador pode trocar)
+      const $rtc = el("div", { class: "rtc" });
+      const desenharRtc = () => {
+        const op = estado.rtcOpcoes[s.codigo];
+        if (!op) { $rtc.replaceChildren(el("span", { class: "ajuda-pequena" }, "Carregando opções da Reforma Tributária…")); return; }
+        if (!op.nbs.length) { $rtc.replaceChildren(el("span", { class: "ajuda-pequena" }, "Este serviço não tem IBS/CBS na tabela oficial.")); return; }
+        if (!s.nbs) Object.assign(s, { nbs: op.sugerido.nbs, cind_op: op.sugerido.cind_op, cclass_trib: op.sugerido.cclass_trib });
+        const fmt = (n) => `${n[0]}.${n.slice(1, 5)}.${n.slice(5, 7)}.${n.slice(7)}`;
+        $rtc.replaceChildren(
+          el("strong", { class: "rtc-titulo" }, "IBS e CBS (Reforma Tributária)"),
+          el("label", { class: "campo" }, "NBS (classificação do serviço)",
+            el("select", { onchange: (e) => { const n = op.nbs.find((x) => x.codigo === e.target.value); s.nbs = n.codigo; s.cind_op = n.cind_op; marcarAlterado(); desenharRtc(); } },
+              ...op.nbs.map((n) => el("option", { value: n.codigo, selected: n.codigo === s.nbs }, `${fmt(n.codigo)} · ${n.descricao}`)))),
+          el("label", { class: "campo" }, "Classificação tributária (cClassTrib)",
+            el("select", { onchange: (e) => { s.cclass_trib = e.target.value; marcarAlterado(); } },
+              ...op.cclass.map((c) => el("option", { value: c.codigo, selected: c.codigo === s.cclass_trib }, `${c.codigo} · ${c.nome}`)))),
+          el("span", { class: "ajuda-pequena" }, `Indicador da operação (cIndOp): ${s.cind_op || "—"} · CST ${(s.cclass_trib || "").slice(0, 3) || "—"}. Preenchido pela tabela oficial (Anexo VIII); confira se combina com o serviço.`));
+      };
+      if (estado.rtcOpcoes[s.codigo]) desenharRtc();
+      else $rtc.replaceChildren(el("span", { class: "ajuda-pequena" }, s.nbs ? `IBS/CBS: NBS ${s.nbs} · cClassTrib ${s.cclass_trib}` : "IBS/CBS: preenchido automaticamente ao salvar."));
+      const avancado = el("details", { class: "mais-opcoes", ontoggle: async (e) => {
+        if (!e.target.open || estado.rtcOpcoes[s.codigo]) return;
+        desenharRtc();
+        try { estado.rtcOpcoes[s.codigo] = await api("GET", `/catalogo/${s.codigo}/ibscbs`); } catch { estado.rtcOpcoes[s.codigo] = { nbs: [], cclass: [] }; }
+        desenharRtc();
+      } },
         el("summary", {}, "Ajuste avançado"),
         el("div", { class: "mais-opcoes-corpo" },
+          $rtc,
           el("label", { class: "cod-mun" }, "Código municipal",
             el("input", {
               value: s.codigo_municipal || "", inputmode: "numeric", maxlength: 3, placeholder: "automático",

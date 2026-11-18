@@ -11,6 +11,7 @@ Proteção contra nota duplicada:
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 
 from . import regras
@@ -19,6 +20,7 @@ from .catalogo import descricao_oficial
 from .certificados import ProvedorCertificados
 from .config import Config
 from .dps import (
+    texto_leiaute,
     DadosCancelamento,
     DadosDPS,
     id_dps,
@@ -127,6 +129,7 @@ class ServicoEmissao:
         competencia=None,
         iss_retido: bool = False,
         chave_envio: str | None = None,
+        info_compl: str | None = None,
     ) -> Nota:
         cliente = self._cliente(cliente_id)
 
@@ -140,6 +143,8 @@ class ServicoEmissao:
         servicos = {s["codigo"]: s for s in self.repo.servicos_liberados(cliente_id)}
         regras.verificar_servico_liberado(set(servicos), codigo_servico)
         codigo_municipal = (servicos.get(codigo_servico) or {}).get("codigo_municipal")
+        rtc = servicos.get(codigo_servico) or {}
+        info_compl = texto_leiaute(info_compl, " / ")[:2000] or None
         print(f"[emissao] cliente {cliente_id} servico {codigo_servico} codigo_municipal {codigo_municipal or '-'}", flush=True)
         tomador = regras.validar_documento(tomador_documento)
         tomador_nome = (tomador_nome or "").strip()
@@ -148,6 +153,8 @@ class ServicoEmissao:
         valor_centavos = regras.valor_em_centavos(valor)
         iss = regras.calcular_iss(valor_centavos, cliente.aliquota_iss)
         descricao = (descricao or "").strip() or descricao_oficial(codigo_servico) or "Prestação de serviço"
+        descricao = texto_leiaute(descricao)[:2000] or "Prestação de serviço"
+        tomador_nome = texto_leiaute(tomador_nome)[:300]
         agora = self.agora()
         data_servico = regras.validar_competencia(competencia, agora.date())
         regras.verificar_retencao(bool(iss_retido), tomador, cliente.opcao_simples)
@@ -179,6 +186,8 @@ class ServicoEmissao:
                 reg_ap_trib_sn=cliente.reg_ap_trib_sn or "1",
                 p_tot_trib_sn=percentual_sn,
                 codigo_municipal=codigo_municipal,
+                nbs=rtc.get("nbs"), cind_op=rtc.get("cind_op"), cclass_trib=rtc.get("cclass_trib"),
+                info_compl=info_compl,
             ))
             assinar(xml, "infDPS", cert)
             self._validar_xsd(xml, "DPS_v1.01.xsd")
@@ -202,6 +211,9 @@ class ServicoEmissao:
                 id_dps=id_dps(cliente.municipio_ibge, cliente.cnpj, cliente.serie_dps, numero),
                 xml_dps=xml_bytes.decode("utf-8"),
                 chave_envio=chave_envio,
+                info_compl=info_compl,
+                ibscbs=json.dumps({"nbs": rtc.get("nbs"), "cind_op": rtc.get("cind_op"), "cclass_trib": rtc.get("cclass_trib")})
+                if rtc.get("nbs") and rtc.get("cind_op") and rtc.get("cclass_trib") else None,
             )
 
             # 4. Envia

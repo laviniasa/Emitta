@@ -41,6 +41,26 @@ class DadosDPS:
     reg_ap_trib_sn: str = "1"  # regime de apuração do Simples (só ME/EPP)
     p_tot_trib_sn: str = "0.00"  # % aproximado de tributos do Simples (ME/EPP)
     codigo_municipal: str | None = None  # cTribMun: complemento exigido por algumas prefeituras
+    # Reforma Tributária (IBS/CBS) — Anexo VIII: NBS, indicador da operação e classificação tributária
+    nbs: str | None = None  # 9 dígitos, sem pontos
+    cind_op: str | None = None  # 6 dígitos
+    cclass_trib: str | None = None  # 6 dígitos (os 3 primeiros são o CST)
+    info_compl: str | None = None  # informações complementares (até 2000 caracteres)
+
+
+_TROCAS = {"\u2013": "-", "\u2014": "-", "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+           "\u2026": "...", "\u2022": "-", "\u00a0": " ", "\u20ac": "EUR"}
+
+
+def texto_leiaute(texto: str | None, quebra: str = " ") -> str:
+    """O leiaute nacional só aceita uma linha, com caracteres até o Latin-1 (sem emoji, sem
+    aspas curvas) e sem espaço no começo ou no fim. Ajusta o texto sem mudar o sentido."""
+    t = str(texto or "")
+    linhas = [l.strip() for l in t.replace("\r", "\n").split("\n") if l.strip()]
+    t = quebra.join(linhas)
+    t = "".join(_TROCAS.get(ch, ch) for ch in t)
+    t = "".join(ch if (" " <= ch <= "\u00ff") else " " for ch in t.replace("\t", " "))
+    return " ".join(t.split())
 
 
 def _sub(pai: etree._Element, tag: str, texto: str | None = None) -> etree._Element:
@@ -81,7 +101,7 @@ def montar_dps(d: DadosDPS) -> etree._Element:
 
     toma = _sub(inf, "toma")
     _sub(toma, d.tomador_tipo, d.tomador_documento)
-    _sub(toma, "xNome", d.tomador_nome)
+    _sub(toma, "xNome", texto_leiaute(d.tomador_nome)[:300])
 
     serv = _sub(inf, "serv")
     loc = _sub(serv, "locPrest")
@@ -90,7 +110,11 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     _sub(cserv, "cTribNac", d.codigo_servico.zfill(6))
     if d.codigo_municipal:
         _sub(cserv, "cTribMun", d.codigo_municipal)
-    _sub(cserv, "xDescServ", d.descricao)
+    if d.nbs:
+        _sub(cserv, "cNBS", d.nbs)  # no leiaute, o NBS vem antes da descrição
+    _sub(cserv, "xDescServ", texto_leiaute(d.descricao)[:2000])
+    if texto_leiaute(d.info_compl):
+        _sub(_sub(serv, "infoCompl"), "xInfComp", texto_leiaute(d.info_compl, " / ")[:2000])
 
     valores = _sub(inf, "valores")
     vprest = _sub(valores, "vServPrest")
@@ -113,7 +137,21 @@ def montar_dps(d: DadosDPS) -> etree._Element:
         for campo in ("pTotTribFed", "pTotTribEst", "pTotTribMun"):
             _sub(p, campo, "0.00")
 
+    if ibscbs_vai_no_xml(d):
+        g = _sub(inf, "IBSCBS")
+        # pessoa física (CPF) costuma ser uso ou consumo pessoal; empresa (CNPJ), não
+        _sub(g, "indFinal", "1" if d.tomador_tipo == "CPF" else "0")
+        _sub(g, "cIndOp", d.cind_op)
+        _sub(g, "indDest", "0")  # o destinatário é o próprio tomador
+        trib = _sub(_sub(g, "valores"), "trib")
+        _sub(trib, "CST", d.cclass_trib[:3])  # os 3 primeiros dígitos da classificação são o CST
+        _sub(trib, "cClassTrib", d.cclass_trib)
+
     return raiz
+
+
+def ibscbs_vai_no_xml(d: "DadosDPS") -> bool:
+    return bool(d.nbs and d.cind_op and d.cclass_trib)
 
 
 @dataclass(frozen=True)

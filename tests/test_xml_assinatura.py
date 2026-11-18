@@ -110,3 +110,54 @@ def test_codigo_municipal_vai_no_xml_e_passa_no_xsd():
     assinar(xml, "infDPS", certificado_de_teste())
     assert xml.find(".//{http://www.sped.fazenda.gov.br/nfse}cTribMun").text == "003"
     assert dps.validar_xsd(xml, Path(__file__).parent.parent / "app" / "xsd" / "DPS_v1.01.xsd") == []
+
+
+def test_ibscbs_e_informacoes_complementares_passam_no_xsd():
+    """Reforma Tributária: NBS, IBSCBS (cIndOp, CST, cClassTrib) e infoCompl seguem o XSD oficial."""
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from app import dps
+    from app.assinatura import assinar
+    from app.catalogo import ibscbs_sugerido
+    from app.certificados import certificado_de_teste
+
+    sug = ibscbs_sugerido("060201")
+    assert sug == {"nbs": "126022000", "cind_op": "030101", "cclass_trib": "000001"}
+    N = "{http://www.sped.fazenda.gov.br/nfse}"
+    for opcao, tipo, doc in (("1", "CNPJ", "11444777000161"), ("3", "CPF", "52998224725"), ("2", "CPF", "52998224725")):
+        d = dps.DadosDPS(tp_amb="2", versao_aplicativo="Emitta-0.1",
+                         emitida_em=datetime(2026, 11, 18, 14, 0, tzinfo=timezone(timedelta(hours=-3))),
+                         serie="1", numero=7, municipio_ibge="3550308", prestador_cnpj="27384956000190",
+                         opcao_simples=opcao, tomador_tipo=tipo, tomador_documento=doc, tomador_nome="Carla",
+                         codigo_servico="060201", descricao="Limpeza de pele", valor="180.00", aliquota_iss="2",
+                         info_compl="Pagamento via Pix. Pedido 123.", **sug)
+        xml = dps.montar_dps(d)
+        assinar(xml, "infDPS", certificado_de_teste())
+        assert dps.validar_xsd(xml, Path(__file__).parent.parent / "app" / "xsd" / "DPS_v1.01.xsd") == []
+        assert xml.find(f".//{N}cNBS").text == "126022000"
+        assert xml.find(f".//{N}IBSCBS/{N}cIndOp").text == "030101"
+        assert xml.find(f".//{N}IBSCBS/{N}indFinal").text == ("1" if tipo == "CPF" else "0")
+        assert xml.find(f".//{N}trib/{N}CST").text == "000"
+        assert xml.find(f".//{N}xInfComp").text == "Pagamento via Pix. Pedido 123."
+
+
+def test_texto_livre_e_ajustado_ao_leiaute():
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from app import dps
+    from app.assinatura import assinar
+    from app.certificados import certificado_de_teste
+
+    assert dps.texto_leiaute("  Linha 1\nLinha 2  ", " / ") == "Linha 1 / Linha 2"
+    assert dps.texto_leiaute("Ótimo “serviço” – feito ✅") == 'Ótimo "serviço" - feito'
+    d = dps.DadosDPS(tp_amb="2", versao_aplicativo="Emitta-0.1",
+                     emitida_em=datetime(2026, 11, 18, 14, 0, tzinfo=timezone(timedelta(hours=-3))),
+                     serie="1", numero=1, municipio_ibge="3550308", prestador_cnpj="27384956000190",
+                     opcao_simples="3", tomador_tipo="CPF", tomador_documento="52998224725",
+                     tomador_nome="Carla 💅", codigo_servico="060201", descricao="Limpeza\nde pele ✨", valor="1.00",
+                     info_compl="Pix\nobrigada 😊")
+    xml = dps.montar_dps(d)
+    assinar(xml, "infDPS", certificado_de_teste())
+    assert dps.validar_xsd(xml, Path(__file__).parent.parent / "app" / "xsd" / "DPS_v1.01.xsd") == []

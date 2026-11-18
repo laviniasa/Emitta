@@ -24,6 +24,7 @@ Segurança:
 """
 
 import base64
+import json
 import binascii
 import os
 from datetime import datetime, timezone
@@ -48,7 +49,7 @@ from .autenticacao import (
 )
 from . import assistente
 from .assinatura import ErroCertificado
-from .catalogo import carregar_catalogo
+from .catalogo import carregar_catalogo, ibscbs_sugerido, opcoes_ibscbs
 from .certificados import ProvedorCertificados, preparar_certificado
 from .config import carregar_config
 from .consulta_cnpj import CnpjNaoEncontrado, ConsultaCnpj, ConsultaIndisponivel
@@ -103,6 +104,10 @@ class ServicoLiberado(BaseModel):
     codigo: str
     apelido: str | None = None
     codigo_municipal: str | None = None  # complemento da prefeitura (cTribMun), 3 dígitos
+    # Reforma Tributária (IBS/CBS). Vazios: o Emitta usa a sugestão do Anexo VIII.
+    nbs: str | None = Field(None, pattern=r"^\d{9}$")
+    cind_op: str | None = Field(None, pattern=r"^\d{6}$")
+    cclass_trib: str | None = Field(None, pattern=r"^\d{6}$")
 
 
 class ListaServicos(BaseModel):
@@ -118,6 +123,7 @@ class NovaNota(BaseModel):
     competencia: str | None = Field(None, description="Data do serviço (AAAA-MM-DD). Padrão: hoje.")
     iss_retido: bool = False
     chave_envio: str | None = Field(None, max_length=64, description="Identificador único deste envio (evita nota duplicada)")
+    informacoes_complementares: str | None = Field(None, max_length=2000)
 
 
 class MensagemAssistente(BaseModel):
@@ -644,6 +650,8 @@ def criar_app(
             "motivo_cancelamento": n.motivo_cancelamento,
             "competencia": n.competencia,
             "iss_retido": bool(n.iss_retido),
+            "informacoes_complementares": n.info_compl,
+            "ibscbs": json.loads(n.ibscbs) if n.ibscbs else None,
             "pdf": f"/app/{n.cliente_id}/notas/{n.id}/pdf",
             "xml": f"/app/{n.cliente_id}/notas/{n.id}/xml",
         }
@@ -769,9 +777,17 @@ def criar_app(
         return [
             {**s, "liberado": s["codigo"] in liberados,
              "apelido": (liberados.get(s["codigo"]) or {}).get("apelido"),
-             "codigo_municipal": (liberados.get(s["codigo"]) or {}).get("codigo_municipal")}
+             "codigo_municipal": (liberados.get(s["codigo"]) or {}).get("codigo_municipal"),
+             **({k: liberados[s["codigo"]].get(k) for k in ("nbs", "cind_op", "cclass_trib")} if s["codigo"] in liberados else {})}
             for s in carregar_catalogo().values()
         ]
+
+    @app.get("/catalogo/{codigo}/ibscbs", tags=["catálogo"])
+    def opcoes_reforma_tributaria(codigo: str, _: Usuario = Depends(contador_atual)):
+        """NBS, cIndOp e classificações tributárias possíveis para o serviço (Anexo VIII)."""
+        if codigo not in carregar_catalogo():
+            raise HTTPException(404, "Serviço fora da lista nacional.")
+        return {**opcoes_ibscbs(codigo), "sugerido": ibscbs_sugerido(codigo)}
 
     @app.put("/contador/clientes/{cliente_id}/servicos", tags=["contador"])
     def liberar_servicos(cliente_id: int, dados: ListaServicos, _: Usuario = Depends(dono_do_cliente)):
@@ -785,9 +801,12 @@ def criar_app(
             raise HTTPException(422, "O código municipal tem 3 números (ex.: 001).")
         if desconhecidos:
             raise HTTPException(422, f"Códigos fora da lista nacional: {', '.join(desconhecidos)}")
+        def rtc(s):
+            sug = ibscbs_sugerido(s.codigo)
+            return (s.nbs or sug["nbs"], s.cind_op or sug["cind_op"], s.cclass_trib or sug["cclass_trib"])
         repo.definir_servicos_liberados(
             cliente_id,
-            [(s.codigo, (s.apelido or catalogo[s.codigo]["descricao"]).strip(), s.codigo_municipal or None)
+            [(s.codigo, (s.apelido or catalogo[s.codigo]["descricao"]).strip(), s.codigo_municipal or None, *rtc(s))
              for s in dados.servicos],
         )
         return repo.servicos_liberados(cliente_id)
@@ -873,6 +892,7 @@ def criar_app(
                 competencia=dados.competencia,
                 iss_retido=dados.iss_retido,
                 chave_envio=dados.chave_envio,
+                info_compl=dados.informacoes_complementares,
             )
         except NotaEmProcessamento as erro:
             return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)

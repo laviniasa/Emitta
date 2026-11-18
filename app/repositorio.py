@@ -187,6 +187,8 @@ class Nota:
     id_dps: str | None = None
     xml_dps: str | None = None
     chave_envio: str | None = None
+    info_compl: str | None = None
+    ibscbs: str | None = None  # JSON com NBS, cIndOp, CST e cClassTrib usados na nota
 
 
 @dataclass
@@ -247,10 +249,10 @@ class Repositorio:
             "cert_pfx_cifrado": "BLOB", "cert_senha_cifrada": "BLOB",
             "cert_validade": "TEXT", "cert_titular": "TEXT",
         },
-        "servicos_liberados": {"codigo_municipal": "TEXT"},
+        "servicos_liberados": {"codigo_municipal": "TEXT", "nbs": "TEXT", "cind_op": "TEXT", "cclass_trib": "TEXT"},
         "notas": {
             "competencia": "TEXT", "iss_retido": "INTEGER NOT NULL DEFAULT 0", "id_dps": "TEXT",
-            "xml_dps": "TEXT", "chave_envio": "TEXT",
+            "xml_dps": "TEXT", "chave_envio": "TEXT", "info_compl": "TEXT", "ibscbs": "TEXT",
         },
     }
 
@@ -336,12 +338,16 @@ class Repositorio:
     # ------------------------------------------------------------ serviços
 
     def definir_servicos_liberados(self, cliente_id: int, servicos: list[tuple]) -> None:
-        """Substitui toda a lista de serviços liberados: (codigo, apelido[, codigo_municipal])."""
-        linhas = [(cliente_id, s[0], s[1], (s[2] if len(s) > 2 else None) or None) for s in servicos]
+        """Substitui toda a lista de serviços liberados:
+        (codigo, apelido[, codigo_municipal[, nbs, cind_op, cclass_trib]])."""
+        def campo(s, i):
+            return (s[i] if len(s) > i else None) or None
+        linhas = [(cliente_id, s[0], s[1], campo(s, 2), campo(s, 3), campo(s, 4), campo(s, 5)) for s in servicos]
         with self.con:
             self.con.execute("DELETE FROM servicos_liberados WHERE cliente_id = ?", (cliente_id,))
             self.con.executemany(
-                "INSERT INTO servicos_liberados (cliente_id, codigo, apelido, codigo_municipal) VALUES (?, ?, ?, ?)",
+                "INSERT INTO servicos_liberados (cliente_id, codigo, apelido, codigo_municipal, nbs, cind_op, cclass_trib)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 linhas,
             )
 
@@ -352,7 +358,8 @@ class Repositorio:
 
     def servicos_liberados(self, cliente_id: int) -> list[dict]:
         linhas = self.con.execute(
-            "SELECT codigo, apelido, codigo_municipal FROM servicos_liberados WHERE cliente_id = ? ORDER BY apelido",
+            "SELECT codigo, apelido, codigo_municipal, nbs, cind_op, cclass_trib FROM servicos_liberados"
+            " WHERE cliente_id = ? ORDER BY apelido",
             (cliente_id,),
         ).fetchall()
         return [dict(l) for l in linhas]
