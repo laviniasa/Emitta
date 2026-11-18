@@ -293,7 +293,7 @@
         const cods = r.codigos_municipais || [];
         if (cods.length && !cods.includes(s.codigo_municipal || "")) { s.codigo_municipal = cods[0]; marcarAlterado(); }
       } catch (erro) {
-        estado.prefeitura[chave] = { erro: erro.message };
+        estado.prefeitura[chave] = { erro: erro.message, status: erro.status };
       }
       desenharPrincipal();
     };
@@ -316,6 +316,9 @@
         situacao = el("span", { class: "resultado-pref nao" }, conferido.conveniado === false
           ? `✗ A prefeitura ${cidade} ainda não usa a nota nacional.`
           : `✗ A prefeitura ${cidade} não aceita este serviço. Tire da lista e escolha um parecido.`);
+      } else if (conferido.status === 422 && !c.certificado) {
+        situacao = el("span", { class: "resultado-pref neutro" }, "Para conferir com a prefeitura, envie o certificado digital. ",
+          el("button", { type: "button", class: "botao-link", onclick: () => { estado.aba = "certificado"; desenharPrincipal(); } }, "Enviar agora"));
       } else {
         situacao = el("span", { class: "resultado-pref neutro" }, "Não deu para conferir agora. ",
           el("button", { type: "button", class: "botao-link", onclick: () => conferir(s) }, "Tentar de novo"));
@@ -653,6 +656,7 @@
           bytes.forEach((b) => { binario += String.fromCharCode(b); });
           await api("POST", `/contador/clientes/${c.id}/certificado`, { arquivo_base64: btoa(binario), senha });
           await carregarClientes();
+          estado.prefeitura = {}; // agora dá para conferir os serviços na prefeitura
           avisar("Certificado conferido e guardado com segurança.");
           desenharPrincipal();
         } catch (erro) {
