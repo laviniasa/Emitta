@@ -13,7 +13,7 @@
 <title>Emitta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=30">
+<link rel="stylesheet" href="/static/estilo.css?v=31">
 <style>
   /* no iPhone com o app instalado, a barra de cima e o cabeçalho descem abaixo do relógio */
   body.app-celular { padding-top: 0 !important; }
@@ -165,14 +165,24 @@
   .impressora .corpo { position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 16px; background: var(--noite); box-shadow: inset 0 -6px 0 rgba(0,0,0,.25); }
   .impressora .corpo::after { content: ""; position: absolute; right: 16px; top: 18px; width: 8px; height: 8px; border-radius: 50%; background: var(--lima); animation: piscar .8s ease-in-out infinite; }
   .impressora .fenda { position: absolute; left: 24px; right: 24px; top: 38px; height: 112px; overflow: hidden; }
-  .impressora .papel { position: absolute; left: 6px; right: 6px; top: 0; height: 104px; background: #fff; border-radius: 0 0 4px 4px;
+  .impressora .papel { position: absolute; left: 6px; right: 6px; top: 0; height: 104px; background: var(--lima); border-radius: 0 0 4px 4px;
     box-shadow: 0 6px 14px -6px rgba(15,42,36,.35); padding: 14px 12px; display: flex; flex-direction: column; gap: 8px;
     animation: imprimir 1.8s var(--suave) infinite; }
-  .impressora .papel span { height: 6px; border-radius: 3px; background: #DCE3D3; }
-  .impressora .papel span:nth-child(2) { width: 70%; } .impressora .papel span:nth-child(3) { width: 85%; background: var(--lima); }
+  .impressora .papel span { height: 5px; border-radius: 3px; background: rgba(15,42,36,.22); }
+  .impressora .papel span:nth-child(3) { width: 70%; } .impressora .papel span:nth-child(4) { width: 85%; }
+  .papel-logo { width: 30px; height: 30px; margin: -4px auto 2px; overflow: visible; }
+  .papel-logo path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: desenhar-e 1.8s var(--suave) infinite; }
+  @keyframes desenhar-e { 0%, 25% { stroke-dashoffset: 1; } 60%, 100% { stroke-dashoffset: 0; } }
+  .progresso-envio { width: 180px; height: 6px; border-radius: 999px; background: #E3EBD6; overflow: hidden; margin: 2px auto 0; }
+  .progresso-envio span { display: block; height: 100%; width: 40%; border-radius: inherit; background: linear-gradient(90deg, var(--lima), var(--verde)); animation: progresso 1.4s ease-in-out infinite; }
+  @keyframes progresso { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
+  .etapas .marca { transition: background .3s ease, border-color .3s ease, transform .3s var(--mola); }
+  .etapas .marca.feita { animation: pop .35s var(--mola); }
   .impressora .papel::after { content: ""; position: absolute; left: 0; right: 0; bottom: -8px; height: 8px;
-    background: linear-gradient(-45deg, transparent 6px, #fff 0) 0 0 / 12px 8px, linear-gradient(45deg, transparent 6px, #fff 0) 0 0 / 12px 8px; }
+    background: linear-gradient(-45deg, transparent 6px, var(--lima) 0) 0 0 / 12px 8px, linear-gradient(45deg, transparent 6px, var(--lima) 0) 0 0 / 12px 8px; }
   @keyframes imprimir { 0% { transform: translateY(-100%); } 60%, 80% { transform: translateY(0); } 100% { transform: translateY(0); opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) { .papel-logo path, .progresso-envio span { animation: none; stroke-dashoffset: 0; } }
 
   /* ---------- nota autorizada: o cupom cai, o visto se desenha, confete */
   .cupom-ok { position: relative; width: 118px; height: 132px; margin-top: 4px; animation: cair .7s var(--mola); }
@@ -195,9 +205,9 @@
 </head>
 <body class="app-celular">
 <div class="tela" id="tela" aria-live="polite"></div>
-<script src="/static/comum.js?v=30"></script>
-<script src="/static/assistente.js?v=30"></script>
-<script src="/static/app.js?v=30"></script>
-<script src="/static/pwa.js?v=30"></script>
+<script src="/static/comum.js?v=31"></script>
+<script src="/static/assistente.js?v=31"></script>
+<script src="/static/app.js?v=31"></script>
+<script src="/static/pwa.js?v=31"></script>
 </body>
 </html>

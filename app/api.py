@@ -708,8 +708,12 @@ def criar_app(
 
     @app.get("/contador/clientes", tags=["contador"])
     def listar_clientes(usuario: Usuario = Depends(contador_atual)):
+        from datetime import timedelta
+        hoje = datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
+        vencidas = repo.guias_vencidas_por_cliente(usuario.id, hoje)
         return [
-            {**c.publico(), "servicos_liberados": len(repo.servicos_liberados(c.id))}
+            {**c.publico(), "servicos_liberados": len(repo.servicos_liberados(c.id)),
+             "guias_vencidas": vencidas.get(c.id, 0)}
             for c in repo.listar_clientes(contador_id=usuario.id)
         ]
 
@@ -948,6 +952,61 @@ def criar_app(
             "Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store",
             "X-Content-Type-Options": "nosniff",
         })
+
+    SITUACOES = {"autorizada", "cancelada", "rejeitada", "processando"}
+
+    def filtros_notas(mes: str | None, cliente_id: int | None, situacao: str | None):
+        if mes and not (len(mes) == 7 and mes[4] == "-" and mes.replace("-", "").isdigit()):
+            raise HTTPException(422, "Mês inválido. Use AAAA-MM.")
+        if situacao and situacao not in SITUACOES:
+            raise HTTPException(422, "Situação inválida.")
+        return mes or None, cliente_id or None, situacao or None
+
+    @app.get("/contador/notas", tags=["contador"])
+    def notas_do_escritorio(mes: str | None = None, cliente_id: int | None = None, situacao: str | None = None,
+                            usuario: Usuario = Depends(contador_atual)):
+        """Todas as notas das empresas do contador, com filtros de mês, empresa e situação."""
+        mes, cliente_id, situacao = filtros_notas(mes, cliente_id, situacao)
+        nomes = {c.id: c.razao_social for c in repo.listar_clientes(usuario.id)}
+        if cliente_id and cliente_id not in nomes:
+            raise HTTPException(404, "Empresa não encontrada.")
+        notas = repo.notas_do_contador(usuario.id, mes, cliente_id, situacao)
+        return [{**nota_json(n), "cliente_id": n.cliente_id, "empresa": nomes.get(n.cliente_id, "")} for n in notas]
+
+    @app.get("/contador/notas/arquivos.zip", tags=["contador"])
+    def baixar_notas_do_escritorio(mes: str | None = None, cliente_id: int | None = None, tipo: str = "ambos",
+                                   usuario: Usuario = Depends(contador_atual)):
+        """Um .zip com o PDF e/ou o XML das notas autorizadas e canceladas do filtro (uma pasta por empresa)."""
+        import io
+        import re
+        import zipfile
+        mes, cliente_id, _ = filtros_notas(mes, cliente_id, None)
+        if tipo not in ("pdf", "xml", "ambos"):
+            raise HTTPException(422, "Tipo inválido.")
+        clientes = {c.id: c for c in repo.listar_clientes(usuario.id)}
+        if cliente_id and cliente_id not in clientes:
+            raise HTTPException(404, "Empresa não encontrada.")
+        notas = [n for n in repo.notas_do_contador(usuario.id, mes, cliente_id, None, limite=500)
+                 if n.situacao in ("autorizada", "cancelada")]
+        if not notas:
+            raise HTTPException(404, "Nenhuma nota autorizada ou cancelada nesse filtro.")
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
+            for n in notas:
+                c = clientes[n.cliente_id]
+                pasta = re.sub(r"[^\w\- ]", "", c.razao_social).strip()[:60] or f"empresa-{c.id}"
+                base = f"{pasta}/nota-{n.numero_dps:06d}" + ("-cancelada" if n.situacao == "cancelada" else "")
+                if tipo in ("pdf", "ambos"):
+                    z.writestr(base + ".pdf", gerar_pdf(n, c, servico.config.ambiente))
+                if tipo in ("xml", "ambos"):
+                    try:
+                        _, conteudo = xml_para_download(n, servico.config.ambiente)
+                        z.writestr(base + ".xml", conteudo)
+                    except regras.ErroDeNegocio:
+                        pass
+        nome = f"notas-{mes or 'todas'}.zip"
+        return RespostaBruta(buffer.getvalue(), media_type="application/zip", headers={
+            "Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
 
     @app.get("/contador/resumo", tags=["contador"])
     def resumo_do_escritorio(usuario: Usuario = Depends(contador_atual)):

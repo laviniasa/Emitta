@@ -420,6 +420,31 @@ class Repositorio:
             " WHERE c.contador_id = ? AND n.situacao = 'autorizada' AND n.emitida_em >= ?",
             (contador_id, desde))]
 
+    def notas_do_contador(self, contador_id: int, mes: str | None = None, cliente_id: int | None = None,
+                          situacao: str | None = None, limite: int = 2000) -> list[Nota]:
+        """Notas de todas as empresas do contador (sem as descartadas), mais novas primeiro."""
+        sql = ("SELECT n.* FROM notas n JOIN clientes c ON c.id = n.cliente_id"
+               " WHERE c.contador_id = ? AND n.situacao != 'descartada'")
+        args: list = [contador_id]
+        if mes:
+            sql += " AND substr(n.emitida_em, 1, 7) = ?"
+            args.append(mes)
+        if cliente_id:
+            sql += " AND n.cliente_id = ?"
+            args.append(cliente_id)
+        if situacao:
+            sql += " AND n.situacao = ?"
+            args.append(situacao)
+        sql += " ORDER BY n.emitida_em DESC, n.id DESC LIMIT ?"
+        args.append(limite)
+        return [Nota(**dict(l)) for l in self.con.execute(sql, args)]
+
+    def guias_vencidas_por_cliente(self, contador_id: int, hoje: str) -> dict[int, int]:
+        return {r[0]: r[1] for r in self.con.execute(
+            "SELECT d.cliente_id, COUNT(*) FROM documentos d JOIN clientes c ON c.id = d.cliente_id"
+            " WHERE c.contador_id = ? AND d.pago_em IS NULL AND d.vencimento IS NOT NULL AND d.vencimento < ?"
+            " GROUP BY d.cliente_id", (contador_id, hoje))}
+
     def guias_do_contador(self, contador_id: int) -> list[dict]:
         return [dict(r) for r in self.con.execute(
             "SELECT d.vencimento, d.pago_em, d.visto_em FROM documentos d JOIN clientes c ON c.id = d.cliente_id"

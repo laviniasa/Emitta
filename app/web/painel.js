@@ -149,8 +149,20 @@
       $lista.append(el("p", { class: "vazio" }, "Nenhuma empresa encontrada."));
       return;
     }
+    if (!autonomo()) {
+      $lista.append(el("button", {
+        class: "item-cliente item-todas", type: "button", "aria-current": estado.modo === "notas" ? "true" : "false",
+        onclick: () => abrirNotasEscritorio(),
+      }, el("span", { class: "nome" }, icone("documento", 16), "Notas do escritório"),
+        el("span", { class: "info" }, "Todas as empresas, com filtros e download")));
+    }
     for (const c of filtrados) {
       const qtd = c.servicos_liberados;
+      const selos = [];
+      if (c.guias_vencidas) selos.push(el("span", { class: "selo-mini vermelho" }, c.guias_vencidas > 1 ? `${c.guias_vencidas} guias vencidas` : "Guia vencida"));
+      if (!c.certificado) selos.push(el("span", { class: "selo-mini amarelo" }, "Sem certificado"));
+      else if (!qtd) selos.push(el("span", { class: "selo-mini amarelo" }, "Sem serviços"));
+      else if (!c.guias_vencidas) selos.push(el("span", { class: "selo-mini verde" }, "Pronta"));
       $lista.append(
         el("button", {
           class: "item-cliente", type: "button",
@@ -160,6 +172,7 @@
           el("span", { class: "nome" }, c.razao_social),
           el("span", { class: "info" },
             `${c.municipio_nome} · ${qtd === 0 ? "nenhum serviço liberado" : qtd === 1 ? "1 serviço" : qtd + " serviços"}`),
+          el("span", { class: "selos-cliente" }, ...selos),
         ),
       );
     }
@@ -269,6 +282,7 @@
     return el("section", { class: "resumo-escritorio" + (primeira ? " entrando" : ""), "aria-label": "Resumo do escritório" },
       el("header", { class: "resumo-topo" },
         el("h2", {}, `Seu escritório em ${MESES[r.mes - 1]}`),
+        el("button", { type: "button", class: "resumo-link", onclick: () => abrirNotasEscritorio() }, "Ver todas as notas", icone("seta", 14)),
         el("button", { type: "button", class: "resumo-atualizar", "aria-label": "Atualizar números", onclick: () => carregarResumo(true) }, icone("trocar", 16))),
       el("div", { class: "resumo-grade" },
         cartaoKpi({ rotulo: "Notas emitidas", valor: r.notas.total, formato: inteiro, delta: variacao(r.notas.total, r.notas.anterior),
@@ -285,6 +299,98 @@
       ));
   }
 
+  // ------------------------------------------------------------ notas do escritório (todas as empresas)
+  const mesAtual = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+
+  async function abrirNotasEscritorio() {
+    if (!confirmarSaida()) return;
+    estado.modo = "notas";
+    estado.selecionado = null;
+    estado.filtroNotas = estado.filtroNotas || { mes: mesAtual(), cliente_id: "", situacao: "", busca: "" };
+    desenharLista();
+    await carregarNotasEscritorio();
+    mostrarPrincipalNoCelular();
+  }
+
+  async function carregarNotasEscritorio() {
+    const f = estado.filtroNotas;
+    estado.notasEscritorio = null;
+    desenharPrincipal();
+    const q = new URLSearchParams();
+    if (f.mes) q.set("mes", f.mes);
+    if (f.cliente_id) q.set("cliente_id", f.cliente_id);
+    if (f.situacao) q.set("situacao", f.situacao);
+    try { estado.notasEscritorio = await api("GET", "/contador/notas?" + q.toString()); }
+    catch (erro) { estado.notasEscritorio = []; avisar(erro.message); }
+    desenharPrincipal();
+  }
+
+  function telaNotasEscritorio() {
+    const f = estado.filtroNotas;
+    const termo = semAcento(f.busca || "");
+    const todas = estado.notasEscritorio;
+    const notas = (todas || []).filter((n) => !termo || semAcento(n.tomador.nome + " " + n.empresa).includes(termo) || n.tomador.documento.includes(termo.replace(/\D/g, "") || "#"));
+    const autorizadas = notas.filter((n) => n.situacao === "autorizada");
+    const total = autorizadas.reduce((t, n) => t + Math.round(parseFloat(n.valor) * 100), 0);
+    const mudar = (campo) => (e) => { f[campo] = e.target.value; carregarNotasEscritorio(); };
+    const $busca = el("input", { type: "search", placeholder: "Cliente, CPF/CNPJ ou empresa", value: f.busca || "", "aria-label": "Buscar nas notas",
+      oninput: (e) => { f.busca = e.target.value; const pos = e.target.selectionStart; desenharPrincipal(); const novo = $principal.querySelector(".filtro-busca input"); if (novo) { novo.focus(); novo.setSelectionRange(pos, pos); } } });
+    const chip = (valor, rotulo) => el("button", {
+      type: "button", class: "chip-filtro", "aria-pressed": f.situacao === valor ? "true" : "false",
+      onclick: () => { f.situacao = valor; carregarNotasEscritorio(); },
+    }, rotulo);
+    const baixar = (tipo) => {
+      const q = new URLSearchParams({ tipo });
+      if (f.mes) q.set("mes", f.mes);
+      if (f.cliente_id) q.set("cliente_id", f.cliente_id);
+      return "/contador/notas/arquivos.zip?" + q.toString();
+    };
+    const mesNome = f.mes ? `${MESES[parseInt(f.mes.slice(5, 7), 10) - 1]} de ${f.mes.slice(0, 4)}` : "todos os meses";
+    return [
+      el("section", { class: "card notas-escritorio" },
+        el("div", { class: "ne-topo" },
+          el("div", {},
+            el("h1", { style: "font-size:22px" }, "Notas do escritório"),
+            el("p", { class: "sub" }, todas === null ? "Carregando…"
+              : `${notas.length} nota${notas.length === 1 ? "" : "s"} em ${mesNome} · ${reais(total)} autorizados`)),
+          el("div", { class: "ne-baixar" },
+            el("a", { class: "botao", href: baixar("ambos"), download: "" }, icone("download", 18), "Baixar PDFs e XMLs"),
+            el("a", { class: "botao-link", href: baixar("xml"), download: "" }, "Só XMLs (.zip)"))),
+        el("div", { class: "ne-filtros" },
+          el("label", { class: "campo" }, "Mês", el("input", { type: "month", value: f.mes || "", onchange: mudar("mes") })),
+          el("label", { class: "campo" }, "Empresa",
+            el("select", { onchange: mudar("cliente_id") },
+              el("option", { value: "" }, "Todas as empresas"),
+              ...estado.clientes.map((c) => el("option", { value: String(c.id), selected: String(c.id) === String(f.cliente_id) }, c.razao_social)))),
+          el("label", { class: "campo filtro-busca" }, "Buscar", $busca)),
+        el("div", { class: "ne-chips", role: "group", "aria-label": "Situação" },
+          chip("", "Todas"), chip("autorizada", "Autorizadas"), chip("cancelada", "Canceladas"), chip("rejeitada", "Recusadas")),
+        todas === null
+          ? el("div", { class: "carregando", role: "img", "aria-label": "Carregando", style: "margin:24px auto" })
+          : notas.length
+          ? el("div", { class: "tabela-caixa" }, el("table", { class: "tabela-notas" },
+            el("thead", {}, el("tr", {},
+              el("th", {}, "Nº"), el("th", {}, "Data"), el("th", {}, "Empresa"), el("th", {}, "Cliente"),
+              el("th", { style: "text-align:right" }, "Valor"), el("th", {}, "Situação"), el("th", {}, "Arquivos"))),
+            el("tbody", {}, ...notas.map((n) => el("tr", {},
+              el("td", { class: "num" }, String(n.numero_dps).padStart(6, "0")),
+              el("td", {}, dataHora(n.emitida_em)),
+              el("td", {}, el("button", { type: "button", class: "botao-link", onclick: () => abrirCliente(n.cliente_id) }, n.empresa)),
+              el("td", {}, n.tomador.nome),
+              el("td", { class: "valor" }, dinheiro(n.valor)),
+              el("td", {}, seloSituacao(n.situacao)),
+              el("td", { style: "white-space:nowrap" },
+                n.situacao === "autorizada" || n.situacao === "cancelada"
+                  ? [el("a", { href: n.pdf, download: "", target: "_blank", rel: "noopener" }, "PDF"), " · ",
+                    el("a", { href: n.xml, download: "", target: "_blank", rel: "noopener" }, "XML")]
+                  : "—"))))))
+          : el("div", { class: "vazio-ilustrado" },
+            el("span", { class: "cupom-vazio", "aria-hidden": "true" }),
+            el("strong", {}, "Nenhuma nota aqui"),
+            el("span", {}, f.busca ? "Tente buscar de outro jeito ou limpe a busca." : "Mude o mês ou a empresa para ver outras notas."))),
+    ];
+  }
+
   function desenharPrincipal() {
     $principal.replaceChildren();
     if (estado.modo === "carregando") {
@@ -294,6 +400,8 @@
       $principal.append(formularioNovaEmpresa());
     } else if (estado.modo === "cliente") {
       $principal.append(...[faixaResumo(), ...telaCliente()].filter(Boolean));
+    } else if (estado.modo === "notas") {
+      $principal.append(...[faixaResumo(), ...telaNotasEscritorio()].filter(Boolean));
     } else if (estado.modo === "seguranca") {
       $principal.append(...telaSeguranca());
     } else {

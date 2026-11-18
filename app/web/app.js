@@ -444,14 +444,15 @@
         el("main", { class: "conteudo" },
           el("div", { class: "centro", style: "padding-top:32px" },
             el("div", { class: "impressora", role: "img", "aria-label": "Enviando" },
-              el("div", { class: "fenda" }, el("div", { class: "papel" }, el("span"), el("span"), el("span"))),
+              el("div", { class: "fenda" }, el("div", { class: "papel" }, logoNoPapel(), el("span"), el("span"), el("span"))),
               el("div", { class: "corpo" })),
             el("p", { class: "grande", style: "font-size:18px" }, "Enviando para a prefeitura"),
+            el("div", { class: "progresso-envio", "aria-hidden": "true" }, el("span")),
             el("p", { class: "ajuda-pequena", style: "font-size:14px" }, "Isso costuma levar poucos segundos. Não feche o app.")),
-          el("ol", { class: "etapas card" },
-            etapa("Dados conferidos", "Serviço liberado e documento válido", "feita"),
-            etapa("Nota montada e assinada", "Com o certificado digital da empresa", "feita"),
-            etapa("Enviando ao Emissor Nacional", "Conexão segura", "agora"),
+          el("ol", { class: "etapas card", id: "etapas-envio", "aria-live": "polite" },
+            etapa("Dados conferidos", "Serviço liberado e documento válido", "agora"),
+            etapa("Nota montada e assinada", "Com o certificado digital da empresa", "depois"),
+            etapa("Enviando ao Emissor Nacional", "Conexão segura", "depois"),
             etapa("Aguardando autorização", "Resposta da prefeitura", "depois"))),
       ];
     },
@@ -727,9 +728,33 @@
     ir("nova");
   }
 
+  // As etapas acendem uma a uma enquanto a nota vai para o governo (a última espera a resposta).
+  function logoNoPapel() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "30 28 40 40"); svg.setAttribute("class", "papel-logo"); svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML = '<path pathLength="1" d="M35 46 H65 A15 15 0 1 0 60.6 56.6" fill="none" stroke="#0F2A24" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    return svg;
+  }
+
+  function avancarEtapas() {
+    const marcar = (i, tipo) => {
+      const m = document.querySelectorAll("#etapas-envio .marca")[i];
+      if (!m) return;
+      m.className = "marca " + tipo;
+      m.replaceChildren(...(tipo === "feita" ? [icone("certo", 16, "#fff")] : []));
+    };
+    const passos = [[450, () => { marcar(0, "feita"); marcar(1, "agora"); }],
+                    [1000, () => { marcar(1, "feita"); marcar(2, "agora"); }],
+                    [1700, () => { marcar(2, "feita"); marcar(3, "agora"); }]];
+    const timers = passos.map(([ms, f]) => setTimeout(() => { if (estado.tela === "enviando") f(); }, ms));
+    return () => timers.forEach(clearTimeout);
+  }
+
   async function emitir() {
     const f = estado.form;
     ir("enviando");
+    const pararEtapas = avancarEtapas();
     const inicio = Date.now();
     try {
       const resposta = await api("POST", `/app/${estado.empresa.id}/notas`, {
@@ -737,7 +762,8 @@
         valor: f.valor, descricao: f.descricao || null, competencia: f.competencia || null,
         iss_retido: !!f.iss_retido, chave_envio: f.chave_envio,
       });
-      await esperarMinimo(inicio);
+      await esperarMinimo(inicio, 2100);
+      pararEtapas();
       await recarregarNotas();
       if (resposta.processando) { estado.nota = resposta.nota; ir("processando"); return; }
       estado.nota = resposta;
