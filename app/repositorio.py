@@ -124,6 +124,26 @@ CREATE TABLE IF NOT EXISTS documentos (
 );
 CREATE INDEX IF NOT EXISTS documentos_cliente ON documentos (cliente_id, criado_em DESC);
 
+-- NFS-e em que a empresa é a tomadora (distribuídas pelo ADN)
+CREATE TABLE IF NOT EXISTS notas_recebidas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    nsu INTEGER NOT NULL,
+    chave TEXT NOT NULL,
+    numero TEXT,
+    emitida_em TEXT,
+    emitente_documento TEXT,
+    emitente_nome TEXT,
+    descricao TEXT,
+    codigo_servico TEXT,
+    valor_centavos INTEGER,
+    situacao TEXT NOT NULL DEFAULT 'autorizada',
+    xml TEXT NOT NULL,
+    recebida_em TEXT NOT NULL,
+    UNIQUE (cliente_id, chave)
+);
+CREATE INDEX IF NOT EXISTS notas_recebidas_cliente ON notas_recebidas (cliente_id, emitida_em DESC);
+
 CREATE TABLE IF NOT EXISTS desafios_2fa (
     token_hash TEXT PRIMARY KEY,
     usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -152,10 +172,13 @@ class Cliente:
     cert_validade: str | None = None
     cert_titular: str | None = None
     contador_id: int | None = None
+    abertura: str | None = None          # data de abertura do CNPJ (limite proporcional do MEI)
+    adn_ult_nsu: int = 0                 # último NSU lido no ADN (notas recebidas)
+    adn_buscado_em: str | None = None
 
     def publico(self) -> dict:
         """Dados que podem sair na API (sem o certificado cifrado)."""
-        d = {k: v for k, v in self.__dict__.items() if not k.startswith("cert_")}
+        d = {k: v for k, v in self.__dict__.items() if not k.startswith(("cert_", "adn_ult"))}
         d["certificado"] = (
             {"titular": self.cert_titular, "validade": self.cert_validade}
             if self.cert_pfx_cifrado else None
@@ -248,6 +271,7 @@ class Repositorio:
             "reg_ap_trib_sn": "TEXT NOT NULL DEFAULT '1'", "p_tot_trib_sn": "TEXT",
             "cert_pfx_cifrado": "BLOB", "cert_senha_cifrada": "BLOB",
             "cert_validade": "TEXT", "cert_titular": "TEXT",
+            "abertura": "TEXT", "adn_ult_nsu": "INTEGER NOT NULL DEFAULT 0", "adn_buscado_em": "TEXT",
         },
         "servicos_liberados": {"codigo_municipal": "TEXT", "nbs": "TEXT", "cind_op": "TEXT", "cclass_trib": "TEXT"},
         "notas": {
@@ -425,6 +449,66 @@ class Repositorio:
     # ------------------------------------------------------------ usuários
 
     # ---------------------------------------------------------------- resumo do escritório
+    # ------------------------------------------------------------ resumo do ano
+
+    def faturamento_por_mes(self, cliente_id: int, ano: int) -> list[dict]:
+        """Notas autorizadas (sem as canceladas) de cada mês do ano: [{mes, notas, valor_centavos}] x 12."""
+        meses = {m: [0, 0] for m in range(1, 13)}
+        for r in self.con.execute(
+            "SELECT CAST(substr(emitida_em, 6, 2) AS INTEGER) AS mes, COUNT(*) AS q, SUM(valor_centavos) AS v FROM notas"
+            " WHERE cliente_id = ? AND situacao = 'autorizada' AND substr(emitida_em, 1, 4) = ? GROUP BY mes",
+                (cliente_id, f"{ano:04d}")):
+            meses[r["mes"]] = [r["q"], r["v"] or 0]
+        return [{"mes": m, "notas": q, "valor_centavos": v} for m, (q, v) in meses.items()]
+
+    def faturamento_ano_por_cliente(self, contador_id: int, ano: int) -> dict[int, int]:
+        return {r["cliente_id"]: r["v"] or 0 for r in self.con.execute(
+            "SELECT n.cliente_id, SUM(n.valor_centavos) AS v FROM notas n JOIN clientes c ON c.id = n.cliente_id"
+            " WHERE c.contador_id = ? AND n.situacao = 'autorizada' AND substr(n.emitida_em, 1, 4) = ?"
+            " GROUP BY n.cliente_id", (contador_id, f"{ano:04d}"))}
+
+    def definir_abertura(self, cliente_id: int, abertura: str) -> None:
+        with self.con:
+            self.con.execute("UPDATE clientes SET abertura = ? WHERE id = ?", (abertura, cliente_id))
+
+    # ------------------------------------------------------------ notas recebidas (ADN)
+
+    def guardar_nota_recebida(self, cliente_id: int, d: dict) -> bool:
+        """Guarda (ou atualiza, se veio um cancelamento) uma nota recebida. Devolve True se é nova."""
+        with self.con:
+            cur = self.con.execute(
+                """INSERT INTO notas_recebidas (cliente_id, nsu, chave, numero, emitida_em, emitente_documento,
+                   emitente_nome, descricao, codigo_servico, valor_centavos, situacao, xml, recebida_em)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (cliente_id, chave) DO NOTHING""",
+                (cliente_id, d["nsu"], d["chave"], d.get("numero"), d.get("emitida_em"), d.get("emitente_documento"),
+                 d.get("emitente_nome"), d.get("descricao"), d.get("codigo_servico"), d.get("valor_centavos"),
+                 d.get("situacao", "autorizada"), d["xml"], datetime.now().astimezone().isoformat()))
+            return cur.rowcount == 1
+
+    def marcar_recebida_cancelada(self, cliente_id: int, chave: str) -> None:
+        with self.con:
+            self.con.execute("UPDATE notas_recebidas SET situacao = 'cancelada' WHERE cliente_id = ? AND chave = ?",
+                             (cliente_id, chave))
+
+    def avancar_nsu(self, cliente_id: int, nsu: int) -> None:
+        with self.con:
+            self.con.execute("UPDATE clientes SET adn_ult_nsu = MAX(adn_ult_nsu, ?), adn_buscado_em = ? WHERE id = ?",
+                             (nsu, datetime.now().astimezone().isoformat(), cliente_id))
+
+    def notas_recebidas(self, cliente_id: int, mes: str | None = None) -> list[dict]:
+        sql = ("SELECT id, nsu, chave, numero, emitida_em, emitente_documento, emitente_nome, descricao,"
+               " codigo_servico, valor_centavos, situacao FROM notas_recebidas WHERE cliente_id = ?")
+        args: list = [cliente_id]
+        if mes:
+            sql += " AND substr(emitida_em, 1, 7) = ?"
+            args.append(mes)
+        return [dict(r) for r in self.con.execute(sql + " ORDER BY emitida_em DESC, id DESC", args)]
+
+    def xml_nota_recebida(self, cliente_id: int, recebida_id: int) -> dict | None:
+        r = self.con.execute("SELECT chave, numero, xml FROM notas_recebidas WHERE cliente_id = ? AND id = ?",
+                             (cliente_id, recebida_id)).fetchone()
+        return dict(r) if r else None
+
     def notas_autorizadas_do_contador(self, contador_id: int, desde: str) -> list[dict]:
         """Notas autorizadas (ou já canceladas depois) das empresas do contador, emitidas desde `desde`."""
         return [dict(r) for r in self.con.execute(

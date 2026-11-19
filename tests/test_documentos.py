@@ -1,6 +1,8 @@
 """Guias de imposto: o contador envia o PDF, a empresa vê, baixa e marca como pago."""
 
 import base64
+import io
+import zipfile
 
 import pytest
 
@@ -93,7 +95,10 @@ def test_notas_do_escritorio_e_zip(app, auth):  # noqa: F811
     r = rafa.get("/contador/notas/arquivos.zip?tipo=ambos")
     assert r.status_code == 200
     nomes = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
-    assert len(nomes) == 4 and all(n.startswith("Minha Empresa ME/") for n in nomes)
+    assert len(nomes) == 5 and all(n.startswith("Minha Empresa ME/") for n in nomes if not n.endswith(".csv"))
+    planilha = zipfile.ZipFile(io.BytesIO(r.content)).read("planilha-notas-todas.csv").decode("utf-8-sig").splitlines()
+    assert planilha[0].startswith("Empresa;CNPJ da empresa;Número") and len(planilha) == 3 and ";100,00;" in planilha[1]
+    assert rafa.get("/contador/notas/planilha.csv").text.count("\n") == 3
     assert outro.get("/contador/notas/arquivos.zip").status_code == 404
     assert rafa.get("/contador/clientes").json()[0]["guias_vencidas"] == 0
 
@@ -135,3 +140,55 @@ def test_servicos_sugeridos_pelo_cnae_da_empresa(app, auth):  # noqa: F811
     r = rafa.get(f"/contador/clientes/{cid}/servicos/sugeridos").json()
     assert [c["codigo"] for c in r["cnaes"]] == ["6201501", "9602502"]
     assert "010101" in r["cnaes"][0]["servicos"] and "060201" in r["cnaes"][1]["servicos"]
+
+
+def test_resumo_do_ano_e_limite_do_mei(app, auth):  # noqa: F811
+    from .test_api import entrar_como_empresa as entrar
+    rafa = contador_aprovado(app, auth, "Rafa", "rafa@escritorio.com")
+    r = rafa.post("/contador/clientes", json={"cnpj": "11.222.333/0001-81", "razao_social": "Bia MEI",
+                                              "municipio_ibge": "3550308", "municipio_nome": "São Paulo",
+                                              "aliquota_iss": "2", "opcao_simples": "2", "abertura": "2019-03-10"})
+    cid = r.json()["id"]
+    rafa.put(f"/contador/clientes/{cid}/servicos", json={"servicos": [{"codigo": "060201", "apelido": "Limpeza"}]})
+    empresa = entrar(app, rafa, cid)
+    for valor in ("40.000,00", "25.000,00"):
+        assert empresa.post(f"/app/{cid}/notas", json={"codigo_servico": "060201", "tomador_documento": "52998224725",
+                                                      "tomador_nome": "Ana", "valor": valor}).status_code == 201
+    r = empresa.get(f"/app/{cid}/resumo-ano").json()
+    assert r["total_centavos"] == 6_500_000 and r["notas"] == 2
+    assert r["mei"]["usado_pct"] == 80 and r["mei"]["nivel"] == "atencao" and r["mei"]["proporcional"] is False
+    assert sum(m["valor_centavos"] for m in r["meses"]) == 6_500_000 and len(r["meses"]) == 12
+    lista = rafa.get("/contador/clientes").json()[0]
+    assert lista["faturamento_ano_centavos"] == 6_500_000 and lista["limite_mei"]["nivel"] == "atencao"
+    assert rafa.get("/contador/resumo").json()["meis"] == {"total": 1, "atencao": 1, "passaram": 0}
+    csv = rafa.get(f"/contador/clientes/{cid}/resumo-ano.csv").content.decode("utf-8-sig")
+    assert "Total;2;65000,00" in csv and "Limite do MEI no ano;;81000,00" in csv
+
+
+def test_regras_do_limite_do_mei_e_certificado():
+    from datetime import date
+    from app import regras
+    assert regras.limite_mei(2026, "2026-09-15") == (675_000 * 4, True)  # set a dez: 4 meses
+    assert regras.limite_mei(2026, "2025-01-01") == (8_100_000, False)
+    assert regras.situacao_limite(9_000_000, 8_100_000)["nivel"] == "passou"
+    assert regras.situacao_limite(9_800_000, 8_100_000)["nivel"] == "grave"   # mais de 20% acima
+    assert regras.dias_para_vencer("2026-12-01T12:00:00+00:00", date(2026, 11, 19)) == 12
+    assert regras.dias_para_vencer(None, date(2026, 11, 19)) is None
+
+
+def test_notas_recebidas_do_adn(app, auth):  # noqa: F811
+    rafa = contador_aprovado(app, auth, "Rafa", "rafa@escritorio.com")
+    cid = criar_empresa(rafa, "27.384.956/0001-90")
+    r = rafa.post(f"/contador/clientes/{cid}/recebidas/buscar")
+    assert r.status_code == 200, r.text
+    assert r.json()["novas"] == 3 and r.json()["canceladas"] == 1
+    assert rafa.post(f"/contador/clientes/{cid}/recebidas/buscar").json()["novas"] == 0  # continua do último NSU
+    lista = rafa.get(f"/contador/clientes/{cid}/recebidas").json()
+    assert [n["emitente_nome"] for n in lista["notas"]][0] == "LIMPA BEM SERVICOS LTDA"
+    assert lista["notas"][0]["situacao"] == "cancelada" and lista["total_centavos"] == 18_990 + 120_000
+    x = rafa.get(lista["notas"][1]["xml"])
+    assert x.status_code == 200 and b"<nNFSe>102</nNFSe>" in x.content
+    z = rafa.get(f"/contador/clientes/{cid}/recebidas/arquivos.zip?mes=2026-11")
+    assert z.status_code == 200 and len(zipfile.ZipFile(io.BytesIO(z.content)).namelist()) == 3
+    outro = contador_aprovado(app, auth, "Outro", "outro@escritorio.com")
+    assert outro.get(f"/contador/clientes/{cid}/recebidas").status_code in (403, 404)

@@ -61,6 +61,7 @@ def _resumo(d: dict) -> dict:
             "complemento": (d.get("complemento") or "").strip(),
             "bairro": (d.get("bairro") or "").strip(),
         },
+        "abertura": (d.get("data_inicio_atividade") or "")[:10],
         "regime": "2" if mei else ("3" if simples else ("1" if simples is False else "")),
     }
 

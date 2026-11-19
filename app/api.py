@@ -27,7 +27,7 @@ import base64
 import json
 import binascii
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Literal
@@ -98,6 +98,7 @@ class NovoCliente(BaseModel):
     prazo_cancelamento_dias: int | None = Field(None, ge=0, le=3650)
     p_tot_trib_sn: Decimal | None = Field(None, ge=0, le=100, description="% aproximado de tributos do Simples (ME/EPP)")
     reg_ap_trib_sn: Literal["1", "2", "3"] = "1"
+    abertura: str | None = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Data de abertura do CNPJ (Receita)")
 
 
 class ServicoLiberado(BaseModel):
@@ -709,6 +710,9 @@ def criar_app(
             if "UNIQUE" in str(erro):
                 raise HTTPException(409, "Você já cadastrou esta empresa.")
             raise
+        if dados.abertura:
+            repo.definir_abertura(cliente.id, dados.abertura)
+            cliente = repo.buscar_cliente(cliente.id)
         if usuario.papel == "autonomo":
             repo.atualizar_usuario(usuario.id, cliente_id=cliente.id)  # a empresa é a própria pessoa
         evento("empresa_cadastrada", request, usuario, detalhe=f"{cliente.razao_social} ({cnpj})")
@@ -719,11 +723,18 @@ def criar_app(
         from datetime import timedelta
         hoje = datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
         vencidas = repo.guias_vencidas_por_cliente(usuario.id, hoje)
-        return [
-            {**c.publico(), "servicos_liberados": len(repo.servicos_liberados(c.id)),
-             "guias_vencidas": vencidas.get(c.id, 0)}
-            for c in repo.listar_clientes(contador_id=usuario.id)
-        ]
+        hoje_d = date.fromisoformat(hoje)
+        faturado = repo.faturamento_ano_por_cliente(usuario.id, hoje_d.year)
+        saida = []
+        for c in repo.listar_clientes(contador_id=usuario.id):
+            total = faturado.get(c.id, 0)
+            saida.append({**c.publico(), "servicos_liberados": len(repo.servicos_liberados(c.id)),
+                          "guias_vencidas": vencidas.get(c.id, 0),
+                          "cert_dias": regras.dias_para_vencer(c.cert_validade, hoje_d) if c.cert_pfx_cifrado else None,
+                          "faturamento_ano_centavos": total,
+                          "limite_mei": regras.situacao_limite(total, regras.limite_mei(hoje_d.year, c.abertura)[0])
+                          if c.opcao_simples == "2" else None})
+        return saida
 
     @app.post("/contador/clientes/{cliente_id}/certificado", tags=["contador"])
     def enviar_certificado(cliente_id: int, dados: EnvioCertificado, request: Request,
@@ -1016,6 +1027,28 @@ def criar_app(
         notas = repo.notas_do_contador(usuario.id, mes, cliente_id, situacao)
         return [{**nota_json(n), "cliente_id": n.cliente_id, "empresa": nomes.get(n.cliente_id, "")} for n in notas]
 
+    def planilha_notas(notas, clientes) -> str:
+        """CSV (separado por ;) com uma linha por nota, para conferir ou importar no sistema contábil."""
+        reais = lambda c: f"{(c or 0) / 100:.2f}".replace(".", ",")  # noqa: E731
+        linhas = ["Empresa;CNPJ da empresa;Número;Data;Competência;Cliente;CPF/CNPJ do cliente;Código do serviço;"
+                  "Valor (R$);ISS (R$);ISS retido;Situação;Chave de acesso"]
+        for n in sorted(notas, key=lambda x: (x.cliente_id, x.numero_dps)):
+            c = clientes[n.cliente_id]
+            campos = [c.razao_social, c.cnpj, f"{n.numero_dps}", n.emitida_em[:10], n.competencia or "",
+                      n.tomador_nome, n.tomador_documento, n.codigo_servico, reais(n.valor_centavos),
+                      reais(n.iss_centavos), "sim" if n.iss_retido else "não", n.situacao, n.chave_acesso or ""]
+            linhas.append(";".join(str(x).replace(";", ",") for x in campos))
+        return "\ufeff" + "\r\n".join(linhas) + "\r\n"
+
+    @app.get("/contador/notas/planilha.csv", tags=["contador"])
+    def planilha_do_escritorio(mes: str | None = None, cliente_id: int | None = None, usuario: Usuario = Depends(contador_atual)):
+        mes, cliente_id, _ = filtros_notas(mes, cliente_id, None)
+        clientes = {c.id: c for c in repo.listar_clientes(usuario.id)}
+        notas = [n for n in repo.notas_do_contador(usuario.id, mes, cliente_id, None, limite=5000)
+                 if n.situacao in ("autorizada", "cancelada")]
+        return RespostaBruta(planilha_notas(notas, clientes).encode("utf-8"), media_type="text/csv; charset=utf-8", headers={
+            "Content-Disposition": f'attachment; filename="notas-{mes or "todas"}.csv"', "Cache-Control": "no-store"})
+
     @app.get("/contador/notas/arquivos.zip", tags=["contador"])
     def baixar_notas_do_escritorio(mes: str | None = None, cliente_id: int | None = None, tipo: str = "ambos",
                                    usuario: Usuario = Depends(contador_atual)):
@@ -1047,6 +1080,7 @@ def criar_app(
                         z.writestr(base + ".xml", conteudo)
                     except regras.ErroDeNegocio:
                         pass
+            z.writestr(f"planilha-notas-{mes or 'todas'}.csv", planilha_notas(notas, clientes))
         nome = f"notas-{mes or 'todas'}.zip"
         return RespostaBruta(buffer.getvalue(), media_type="application/zip", headers={
             "Content-Disposition": f'attachment; filename="{nome}"', "Cache-Control": "no-store"})
@@ -1082,7 +1116,15 @@ def criar_app(
         clientes = repo.listar_clientes(usuario.id)
         prontas = sum(1 for c in clientes if c.cert_pfx_cifrado and repo.servicos_liberados(c.id))
         sem_cert = sum(1 for c in clientes if not c.cert_pfx_cifrado)
+        dias_cert = [regras.dias_para_vencer(c.cert_validade, hoje) for c in clientes if c.cert_pfx_cifrado]
+        faturado = repo.faturamento_ano_por_cliente(usuario.id, hoje.year)
+        meis = [regras.situacao_limite(faturado.get(c.id, 0), regras.limite_mei(hoje.year, c.abertura)[0])
+                for c in clientes if c.opcao_simples == "2"]
         return {
+            "certificados": {"vencendo": sum(1 for d in dias_cert if d is not None and 0 <= d <= regras.DIAS_AVISO_CERTIFICADO),
+                             "vencidos": sum(1 for d in dias_cert if d is not None and d < 0)},
+            "meis": {"total": len(meis), "atencao": sum(1 for m in meis if m["nivel"] == "atencao"),
+                     "passaram": sum(1 for m in meis if m["nivel"] in ("passou", "grave"))},
             "mes": hoje.month, "ano": hoje.year,
             "notas": {"total": mes[0], "anterior": ant[0]},
             "valor": {"total_centavos": mes[1], "anterior_centavos": ant[1]},
@@ -1090,6 +1132,118 @@ def criar_app(
             "guias": {"pendentes": len(pendentes), "vencidas": len(vencidas), "enviadas": len(guias)},
             "empresas": {"total": len(clientes), "prontas": prontas, "sem_certificado": sem_cert},
         }
+
+    # ------------------------------------------------------------ resumo do ano
+
+    def resumo_ano(cliente, ano: int | None) -> dict:
+        from datetime import timedelta
+        hoje = datetime.now(timezone(timedelta(hours=-3))).date()
+        ano = ano or hoje.year
+        if not 2020 <= ano <= hoje.year:
+            raise HTTPException(422, "Ano inválido.")
+        meses = repo.faturamento_por_mes(cliente.id, ano)
+        total = sum(m["valor_centavos"] for m in meses)
+        notas = sum(m["notas"] for m in meses)
+        if cliente.opcao_simples == "2" and not cliente.abertura:
+            try:  # limite proporcional no ano de abertura: a data vem da Receita (uma vez)
+                abertura = (consulta_cnpj.consultar(cliente.cnpj) or {}).get("abertura")
+                if abertura:
+                    repo.definir_abertura(cliente.id, abertura)
+                    cliente = repo.buscar_cliente(cliente.id)
+            except Exception as erro:  # a consulta é ajuda; sem ela usa o limite cheio
+                print(f"[resumo-ano] abertura indisponível: {erro}", flush=True)
+        # média só a partir do primeiro mês com nota no Emitta (ou da abertura do CNPJ, se foi depois)
+        com_nota = [m["mes"] for m in meses if m["notas"]]
+        primeiro_mes = max(com_nota[0] if com_nota else 1,
+                           int(cliente.abertura[5:7]) if cliente.abertura and cliente.abertura[:4] == f"{ano:04d}" else 1)
+        ultimo_mes = hoje.month if ano == hoje.year else 12
+        meses_ativos = max(1, ultimo_mes - primeiro_mes + 1)
+        mei = None
+        if cliente.opcao_simples == "2":
+            limite, proporcional = regras.limite_mei(ano, cliente.abertura)
+            mei = {**regras.situacao_limite(total, limite), "proporcional": proporcional, "abertura": cliente.abertura}
+        return {"ano": ano, "total_centavos": total, "notas": notas,
+                "media_mensal_centavos": round(total / meses_ativos), "meses": meses, "mei": mei,
+                "observacao": "Soma das notas autorizadas emitidas pelo Emitta (sem as canceladas)."}
+
+    @app.get("/contador/clientes/{cliente_id}/resumo-ano", tags=["contador"])
+    def resumo_ano_contador(cliente_id: int, ano: int | None = None, _: Usuario = Depends(dono_do_cliente)):
+        return resumo_ano(cliente_ou_404(cliente_id), ano)
+
+    @app.get("/app/{cliente_id}/resumo-ano", tags=["app da empresa"])
+    def resumo_ano_empresa(cliente_id: int, ano: int | None = None, _: Usuario = Depends(autorizar_empresa)):
+        return resumo_ano(cliente_ou_404(cliente_id), ano)
+
+    @app.get("/contador/clientes/{cliente_id}/resumo-ano.csv", tags=["contador"])
+    def resumo_ano_planilha(cliente_id: int, ano: int | None = None, _: Usuario = Depends(dono_do_cliente)):
+        cliente = cliente_ou_404(cliente_id)
+        r = resumo_ano(cliente, ano)
+        nomes = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
+                 "setembro", "outubro", "novembro", "dezembro"]
+        reais = lambda c: f"{c / 100:.2f}".replace(".", ",")  # noqa: E731
+        linhas = [f"Empresa;{cliente.razao_social}", f"CNPJ;{cliente.cnpj}", f"Ano;{r['ano']}", "", "Mês;Notas;Faturamento (R$)"]
+        linhas += [f"{nomes[m['mes'] - 1]};{m['notas']};{reais(m['valor_centavos'])}" for m in r["meses"]]
+        linhas += [f"Total;{r['notas']};{reais(r['total_centavos'])}", "", r["observacao"]]
+        if r["mei"]:
+            linhas.append(f"Limite do MEI no ano;;{reais(r['mei']['limite_centavos'])}")
+        corpo = "\ufeff" + "\r\n".join(linhas) + "\r\n"  # BOM: o Excel abre com acentos certos
+        return RespostaBruta(corpo.encode("utf-8"), media_type="text/csv; charset=utf-8", headers={
+            "Content-Disposition": f'attachment; filename="faturamento-{cliente.cnpj}-{r["ano"]}.csv"',
+            "Cache-Control": "no-store"})
+
+    # ------------------------------------------------------------ notas recebidas (ADN)
+
+    def recebida_json(cliente_id: int, d: dict) -> dict:
+        return {**d, "xml": f"/contador/clientes/{cliente_id}/recebidas/{d['id']}/xml"}
+
+    @app.get("/contador/clientes/{cliente_id}/recebidas", tags=["contador"])
+    def listar_recebidas(cliente_id: int, mes: str | None = None, _: Usuario = Depends(dono_do_cliente)):
+        cliente = cliente_ou_404(cliente_id)
+        mes, _c, _s = filtros_notas(mes, None, None)
+        notas = repo.notas_recebidas(cliente_id, mes)
+        return {"notas": [recebida_json(cliente_id, n) for n in notas], "buscado_em": cliente.adn_buscado_em,
+                "total_centavos": sum(n["valor_centavos"] or 0 for n in notas if n["situacao"] != "cancelada")}
+
+    @app.post("/contador/clientes/{cliente_id}/recebidas/buscar", tags=["contador"])
+    def buscar_recebidas(cliente_id: int, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
+        from .recebidas import buscar
+        cliente = cliente_ou_404(cliente_id)
+        if not limitador_consultas.permitir(f"adn:{cliente_id}"):
+            raise HTTPException(429, "Aguarde um minuto antes de buscar de novo.")
+        try:
+            cert = servico.certificados.para(cliente)
+            resultado = buscar(repo, servico.sefin, cert, cliente)
+        except ErroCertificado as erro:
+            raise HTTPException(422, str(erro))
+        except regras.ErroDeNegocio as erro:
+            raise HTTPException(502, str(erro))
+        evento("notas_recebidas_buscadas", request, usuario, detalhe=f"{cliente.razao_social}: {resultado['novas']} novas")
+        return resultado
+
+    @app.get("/contador/clientes/{cliente_id}/recebidas/{recebida_id}/xml", tags=["contador"])
+    def xml_recebida(cliente_id: int, recebida_id: int, _: Usuario = Depends(dono_do_cliente)):
+        d = repo.xml_nota_recebida(cliente_id, recebida_id)
+        if not d:
+            raise HTTPException(404, "Nota não encontrada.")
+        return RespostaBruta(d["xml"].encode("utf-8"), media_type="application/xml", headers={
+            "Content-Disposition": f'attachment; filename="recebida-{d["chave"] or recebida_id}.xml"', "Cache-Control": "no-store"})
+
+    @app.get("/contador/clientes/{cliente_id}/recebidas/arquivos.zip", tags=["contador"])
+    def zip_recebidas(cliente_id: int, mes: str | None = None, _: Usuario = Depends(dono_do_cliente)):
+        import io
+        import zipfile
+        cliente_ou_404(cliente_id)
+        mes, _c, _s = filtros_notas(mes, None, None)
+        notas = repo.notas_recebidas(cliente_id, mes)
+        if not notas:
+            raise HTTPException(404, "Nenhuma nota recebida nesse mês.")
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as z:
+            for n in notas:
+                d = repo.xml_nota_recebida(cliente_id, n["id"])
+                z.writestr(f"recebida-{d['chave'] or n['id']}" + ("-cancelada" if n["situacao"] == "cancelada" else "") + ".xml", d["xml"])
+        return RespostaBruta(buffer.getvalue(), media_type="application/zip", headers={
+            "Content-Disposition": f'attachment; filename="notas-recebidas-{mes or "todas"}.zip"', "Cache-Control": "no-store"})
 
     @app.get("/contador/clientes/{cliente_id}/documentos", tags=["contador"])
     def listar_documentos_contador(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):

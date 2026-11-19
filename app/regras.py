@@ -255,3 +255,50 @@ def info_complementar_com_tributos(texto_tributos_: str, info: str | None) -> st
         resto = info.split(";", 3)[-1] if info.count(";") >= 3 else ""
         info = resto.lstrip(" /").strip()
     return (texto_tributos_ + (" / " + info if info else ""))[:2000]
+
+
+# ---------------------------------------------------------------- resumo do ano / MEI / certificado
+
+LIMITE_MEI_ANO_CENTAVOS = 8_100_000      # R$ 81.000 (LC 123, art. 18-A); conferir se mudar em 2027
+LIMITE_MEI_MES_CENTAVOS = 675_000        # R$ 6.750 por mês no ano de abertura
+DIAS_AVISO_CERTIFICADO = 30
+
+
+def limite_mei(ano: int, abertura: str | None) -> tuple[int, bool]:
+    """(limite do ano em centavos, é proporcional?). No ano de abertura: R$ 6.750 x meses
+    de atividade, contando o mês de abertura."""
+    if abertura and abertura[:4] == f"{ano:04d}":
+        try:
+            mes = int(abertura[5:7])
+        except ValueError:
+            return LIMITE_MEI_ANO_CENTAVOS, False
+        return LIMITE_MEI_MES_CENTAVOS * (13 - mes), True
+    return LIMITE_MEI_ANO_CENTAVOS, False
+
+
+def situacao_limite(total_centavos: int, limite_centavos: int) -> dict:
+    """Quanto do limite já foi usado e em que faixa: ok (< 80%), atencao (80 a 100%),
+    passou (até 20% acima: paga a diferença e vira ME no ano seguinte), grave (mais de 20%)."""
+    pct = round(total_centavos * 100 / limite_centavos) if limite_centavos else 0
+    if total_centavos > limite_centavos * 1.2:
+        nivel = "grave"
+    elif total_centavos > limite_centavos:
+        nivel = "passou"
+    elif pct >= 80:
+        nivel = "atencao"
+    else:
+        nivel = "ok"
+    return {"limite_centavos": limite_centavos, "usado_pct": pct, "nivel": nivel,
+            "falta_centavos": max(0, limite_centavos - total_centavos)}
+
+
+def dias_para_vencer(validade_iso: str | None, hoje) -> int | None:
+    """Dias até o certificado vencer (negativo se já venceu); None sem certificado."""
+    if not validade_iso:
+        return None
+    from datetime import datetime
+    try:
+        vence = datetime.fromisoformat(validade_iso).date()
+    except ValueError:
+        return None
+    return (vence - hoje).days

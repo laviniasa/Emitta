@@ -409,3 +409,59 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .cnae-cod { font-variant-numeric: tabular-nums; color: var(--verde); }
 .sugerido-cnae .selo-mini { background: var(--verde-claro); color: var(--verde-escuro); }
 .sugerido-cnae .linha-catalogo { background: #fff; border-radius: 10px; }
+
+/* ---------- avisos sob o resumo do escritório ---------- */
+.resumo-avisos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.resumo-aviso { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; }
+.resumo-aviso.atencao { background: #FEF3C7; color: #7A3E06; }
+.resumo-aviso.ruim { background: #FEE4E2; color: #9B1C12; }
+
+/* ---------- resumo do ano (painel) ---------- */
+.resumo-ano, .recebidas { display: flex; flex-direction: column; gap: 18px; }
+.ra-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.ra-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ra-acoes select { height: 42px; border-radius: 10px; border: 1px solid var(--borda-forte); padding: 0 10px; font: inherit; background: var(--card); }
+.ra-numeros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ra-numeros div { background: var(--fundo); border-radius: 12px; padding: 12px 14px; }
+.ra-numeros span { display: block; font-size: 13px; color: var(--texto-2); }
+.ra-numeros strong { font-family: var(--titulo); font-size: 22px; }
+.ra-mei { border-radius: 12px; padding: 12px 14px; background: var(--verde-claro); }
+.ra-mei.atencao { background: #FEF3C7; } .ra-mei.ruim { background: #FEE4E2; }
+.ra-mei p { margin: 8px 0 0; font-size: 14px; }
+.ra-barra { height: 10px; border-radius: 99px; background: rgba(15, 42, 36, .1); overflow: hidden; }
+.ra-barra i { display: block; height: 100%; border-radius: 99px; background: var(--verde); }
+.ra-mei.atencao .ra-barra i { background: #D69E12; } .ra-mei.ruim .ra-barra i { background: var(--vermelho); }
+.ra-meses { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; align-items: end; min-height: 170px; }
+.ra-mes { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.ra-mes.futuro { opacity: .4; }
+.ra-coluna { width: 100%; height: 110px; display: flex; align-items: flex-end; background: var(--fundo); border-radius: 8px; overflow: hidden; }
+.ra-coluna i { display: block; width: 100%; background: var(--noite); border-radius: 8px 8px 0 0; min-height: 0; }
+.ra-mes:hover .ra-coluna i { background: var(--verde); }
+.ra-valor { font-size: 11px; color: var(--texto-2); white-space: nowrap; height: 14px; }
+.ra-nome { font-size: 12px; color: var(--texto-2); text-transform: capitalize; }
+@media (max-width: 640px) {
+  .ra-numeros { grid-template-columns: 1fr 1fr; }
+  .ra-meses { grid-template-columns: repeat(6, 1fr); row-gap: 14px; }
+}
+/* ---------- notas recebidas ---------- */
+.rc-filtro { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.rc-filtro .campo { max-width: 200px; margin: 0; }
+.recebidas td small { display: block; color: var(--texto-3); font-size: 12px; }
+.recebidas tr.cancelada td { color: var(--texto-3); text-decoration: line-through; }
+.recebidas tr.cancelada td:nth-last-child(-n+2) { text-decoration: none; }
+.vazio-recebidas { text-align: center; color: var(--texto-2); padding: 28px 12px; background: var(--fundo); border-radius: 12px; }
+
+/* ---------- cartão do ano no app da empresa ---------- */
+.cartao-ano { display: block; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px 18px; font: inherit; color: inherit; cursor: pointer; }
+.cartao-ano .ca-topo { display: flex; justify-content: space-between; align-items: baseline; }
+.cartao-ano .ca-topo span { font-size: 14px; color: var(--texto-2); }
+.cartao-ano .ca-topo em { font-style: normal; font-size: 13px; color: var(--verde); font-weight: 600; }
+.cartao-ano strong { display: block; font-family: var(--titulo); font-size: 28px; margin-top: 4px; }
+.cartao-ano small { display: block; font-size: 13px; color: var(--texto-2); margin-top: 2px; }
+.cartao-ano .ra-barra { margin-top: 12px; }
+.cartao-ano .ca-mei { margin-top: 8px; font-size: 13px; color: var(--texto-2); }
+.cartao-ano.atencao .ra-barra i { background: #D69E12; } .cartao-ano.ruim .ra-barra i { background: var(--vermelho); }
+.lista-meses { background: var(--card); border-radius: var(--raio); border: 1px solid var(--borda); }
+.lista-meses div { display: flex; justify-content: space-between; padding: 13px 16px; border-top: 1px solid var(--borda); text-transform: capitalize; }
+.lista-meses div:first-child { border-top: 0; }
+.lista-meses div.vazio { color: var(--texto-3); }

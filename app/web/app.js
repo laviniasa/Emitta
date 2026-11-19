@@ -34,7 +34,7 @@
   // ------------------------------------------------------------ movimento
   const calmo = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Ordem das telas: avançar desliza da direita, voltar desliza da esquerda.
-  const ORDEM = { carregando: 0, semAcesso: 1, inicio: 1, detalhe: 2, nova: 2, impostos: 2, cancelar: 3, enviando: 3, erro: 4, processando: 4, sucesso: 4, cancelada: 4 };
+  const ORDEM = { carregando: 0, semAcesso: 1, inicio: 1, detalhe: 2, nova: 2, impostos: 2, ano: 2, cancelar: 3, enviando: 3, erro: 4, processando: 4, sucesso: 4, cancelada: 4 };
   let telaAnterior = null;
 
   function animarTroca() {
@@ -113,6 +113,7 @@
       ]);
       Object.assign(estado, { empresa, servicos, notas });
       estado.documentos = estado.eu.papel === "autonomo" ? [] : await api("GET", `/app/${id}/documentos`).catch(() => []);
+      estado.ano = await api("GET", `/app/${id}/resumo-ano`).catch(() => null);
       ir(new URLSearchParams(location.search).get("tela") === "impostos" ? "impostos" : "inicio");
       const rascunho = rascunhoDoPainel();
       if (rascunho && rascunho.cliente_id === empresa.id) ajudaAgir(rascunho.acao);
@@ -125,6 +126,24 @@
 
   async function recarregarNotas() {
     estado.notas = await api("GET", `/app/${estado.empresa.id}/notas`);
+    estado.ano = await api("GET", `/app/${estado.empresa.id}/resumo-ano`).catch(() => estado.ano);
+  }
+
+  // Faturamento do ano (soma das notas autorizadas no Emitta) e, no MEI, o uso do limite.
+  function cartaoAno() {
+    const a = estado.ano;
+    if (!a || (!a.notas && !a.mei)) return null;
+    const mei = a.mei;
+    const classe = mei ? (mei.nivel === "ok" ? "" : mei.nivel === "atencao" ? " atencao" : " ruim") : "";
+    const textoMei = mei && (mei.nivel === "ok" ? `${mei.usado_pct}% do limite do MEI (${dinheiro(mei.limite_centavos / 100)})`
+      : mei.nivel === "atencao" ? `${mei.usado_pct}% do limite do MEI. Fale com seu contador.`
+      : `Passou do limite do MEI (${mei.usado_pct}%). Fale com seu contador.`);
+    return el("button", { type: "button", class: "cartao-ano" + classe, onclick: () => ir("ano") },
+      el("div", { class: "ca-topo" }, el("span", {}, `Faturamento em ${a.ano}`), el("em", {}, "Ver meses ›")),
+      el("strong", { class: "num" }, dinheiro(a.total_centavos / 100)),
+      el("small", {}, `${a.notas} nota${a.notas === 1 ? "" : "s"} no ano · média de ${dinheiro(a.media_mensal_centavos / 100)} por mês`),
+      mei && el("div", { class: "ra-barra" }, el("i", { style: `width:${Math.min(mei.usado_pct, 100)}%` })),
+      mei && el("div", { class: "ca-mei" }, textoMei));
   }
 
 
@@ -310,11 +329,29 @@
             el("a", { class: "atalho", href: "/escritorio?aba=servicos" }, icone("documento", 20), "Meus serviços"),
             el("a", { class: "atalho", href: "/escritorio?aba=certificado" }, icone("escudo", 20), "Certificado"),
             el("a", { class: "atalho", href: "/escritorio?aba=dados" }, icone("engrenagem", 20), "Dados")),
+          cartaoAno(),
           el("h2", { style: "font-size:15px;margin-top:8px" }, "Últimas notas"),
           ...(estado.notas.length
             ? estado.notas.slice(0, 20).map(itemNota)
             : [el("div", { class: "card vazio" }, "Você ainda não emitiu nenhuma nota.")]),
         ),
+        menu("inicio"),
+      ];
+    },
+
+    ano: () => {
+      const a = estado.ano;
+      const nomes = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+      const mesHoje = new Date().getMonth() + 1;
+      return [
+        barra(`Faturamento em ${a ? a.ano : ""}`, "inicio", estado.empresa.razao_social),
+        el("main", { class: "conteudo" },
+          cartaoAno(),
+          a && el("div", { class: "lista-meses" },
+            ...a.meses.filter((m) => m.mes <= mesHoje || m.notas).map((m) => el("div", { class: m.notas ? "" : "vazio" },
+              el("span", {}, nomes[m.mes - 1]),
+              el("span", { class: "num" }, m.notas ? `${dinheiro(m.valor_centavos / 100)} · ${m.notas} nota${m.notas === 1 ? "" : "s"}` : "—")))),
+          el("p", { class: "sub", style: "margin:0" }, "Soma das notas autorizadas emitidas pelo Emitta, sem as canceladas. Notas emitidas em outro lugar não entram nesta conta.")),
         menu("inicio"),
       ];
     },

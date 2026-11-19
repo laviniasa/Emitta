@@ -86,6 +86,8 @@
     estado.buscaServico = "";
     estado.vistaServicos = null;
     estado.sugeridos = null;
+    estado.resumoAno = null;
+    estado.recebidas = null;
     guardar("emitta.painel.cliente", String(id));
     desenharLista();
     desenharPrincipal();
@@ -163,9 +165,14 @@
       const qtd = c.servicos_liberados;
       const selos = [];
       if (c.guias_vencidas) selos.push(el("span", { class: "selo-mini vermelho" }, c.guias_vencidas > 1 ? `${c.guias_vencidas} guias vencidas` : "Guia vencida"));
+      const certVencido = c.cert_dias != null && c.cert_dias < 0;
+      if (certVencido) selos.push(el("span", { class: "selo-mini vermelho" }, "Certificado vencido"));
+      else if (c.cert_dias != null && c.cert_dias <= 30) selos.push(el("span", { class: "selo-mini amarelo" }, c.cert_dias === 0 ? "Certificado vence hoje" : `Certificado vence em ${c.cert_dias} dia${c.cert_dias === 1 ? "" : "s"}`));
+      if (c.limite_mei && c.limite_mei.nivel !== "ok") selos.push(el("span", { class: "selo-mini " + (c.limite_mei.nivel === "atencao" ? "amarelo" : "vermelho") },
+        c.limite_mei.nivel === "atencao" ? `MEI: ${c.limite_mei.usado_pct}% do limite` : "MEI passou do limite"));
       if (!c.certificado) selos.push(el("span", { class: "selo-mini amarelo" }, "Sem certificado"));
       else if (!qtd) selos.push(el("span", { class: "selo-mini amarelo" }, "Sem serviços"));
-      else if (!c.guias_vencidas) selos.push(el("span", { class: "selo-mini verde" }, "Pronta"));
+      else if (!c.guias_vencidas && !certVencido) selos.push(el("span", { class: "selo-mini verde" }, "Pronta"));
       $lista.append(
         el("button", {
           class: "item-cliente", type: "button",
@@ -299,7 +306,21 @@
         cartaoKpi({ rotulo: "Empresas prontas", valor: r.empresas.prontas, formato: (v) => `${Math.round(v)} de ${r.empresas.total}`,
           legenda: r.empresas.sem_certificado ? `${r.empresas.sem_certificado} sem certificado` : "Todas com certificado",
           barra: { parte: r.empresas.total ? r.empresas.prontas / r.empresas.total : 0, texto: "Empresas prontas para emitir" } }),
-      ));
+      ),
+      avisosResumo(r));
+  }
+
+  // Avisos que pedem ação: certificados vencendo e MEIs perto do limite do ano.
+  function avisosResumo(r) {
+    const itens = [];
+    const cert = r.certificados || {}, mei = r.meis || {};
+    if (cert.vencidos) itens.push(["ruim", `${cert.vencidos} certificado${cert.vencidos > 1 ? "s" : ""} vencido${cert.vencidos > 1 ? "s" : ""}`]);
+    if (cert.vencendo) itens.push(["atencao", `${cert.vencendo} certificado${cert.vencendo > 1 ? "s vencem" : " vence"} em até 30 dias`]);
+    if (mei.passaram) itens.push(["ruim", `${mei.passaram} MEI passou do limite do ano`]);
+    if (mei.atencao) itens.push(["atencao", `${mei.atencao} MEI perto do limite do ano`]);
+    if (!itens.length) return null;
+    return el("div", { class: "resumo-avisos", role: "status" },
+      ...itens.map(([tipo, texto]) => el("span", { class: "resumo-aviso " + tipo }, icone("alerta", 15), texto)));
   }
 
   // ------------------------------------------------------------ notas do escritório (todas as empresas)
@@ -358,7 +379,8 @@
               : `${notas.length} nota${notas.length === 1 ? "" : "s"} em ${mesNome} · ${reais(total)} autorizados`)),
           el("div", { class: "ne-baixar" },
             el("a", { class: "botao", href: baixar("ambos"), download: "" }, icone("download", 18), "Baixar PDFs e XMLs"),
-            el("a", { class: "botao-link", href: baixar("xml"), download: "" }, "Só XMLs (.zip)"))),
+            el("a", { class: "botao-link", href: baixar("xml"), download: "" }, "Só XMLs (.zip)"),
+            el("a", { class: "botao-link", href: baixar("xml").replace("arquivos.zip", "planilha.csv"), download: "" }, "Planilha (.csv)"))),
         el("div", { class: "ne-filtros" },
           el("label", { class: "campo" }, "Mês", el("input", { type: "month", value: f.mes || "", onchange: mudar("mes") })),
           el("label", { class: "campo" }, "Empresa",
@@ -450,6 +472,8 @@
   const ABAS = [
     { id: "servicos", nome: "Serviços" },
     { id: "notas", nome: "Notas" },
+    { id: "ano", nome: "Resumo do ano" },
+    { id: "recebidas", nome: "Notas recebidas" },
     { id: "impostos", nome: "Impostos" },
     { id: "certificado", nome: "Certificado" },
     { id: "acesso", nome: "Acesso ao app" },
@@ -511,6 +535,8 @@
     if (autonomo() && (estado.aba === "acesso" || estado.aba === "impostos")) estado.aba = "servicos";
     if (estado.aba === "notas") conteudo = [secaoNotas()];
     else if (estado.aba === "impostos") conteudo = secaoImpostos(c);
+    else if (estado.aba === "ano") conteudo = [secaoAno(c)];
+    else if (estado.aba === "recebidas") conteudo = [secaoRecebidas(c)];
     else if (estado.aba === "certificado") conteudo = [secaoCertificado(c)];
     else if (estado.aba === "acesso") conteudo = [secaoAcessos(c)];
     else if (estado.aba === "dados") conteudo = [secaoDados(c)];
@@ -975,6 +1001,7 @@
         prazo_cancelamento_dias: d.prazo_cancelamento_dias ? parseInt(d.prazo_cancelamento_dias, 10) : null,
         opcao_simples: d.opcao_simples || "3",
         p_tot_trib_sn: d.p_tot_trib_sn ? String(d.p_tot_trib_sn).replace(",", ".") : null,
+        abertura: /^\d{4}-\d{2}-\d{2}$/.test(form.dataset.abertura || "") ? form.dataset.abertura : null,
       };
       const botao = form.querySelector("[type=submit]");
       botao.disabled = true;
@@ -1005,6 +1032,7 @@
         preencher("municipio_nome", r.municipio);
         preencher("municipio_ibge", r.codigo_municipio_ibge);
         if (r.regime) form.querySelector("[name=opcao_simples]").value = r.regime;
+        form.dataset.abertura = r.abertura || "";
         const regime = { "1": "fora do Simples", "2": "MEI", "3": "Simples Nacional" }[r.regime] || "regime não informado";
         $dicaCnpj.textContent = `Dados da Receita: ${r.razao_social} · ${r.municipio}/${r.uf} · ${regime}` +
           (r.cnae_principal && r.cnae_principal.descricao ? ` · Atividade: ${r.cnae_principal.descricao}` : "") +
@@ -1035,7 +1063,7 @@
           class: "botao botao-texto-perigo", type: "button",
           onclick: async () => {
             if (!window.confirm("Remover o certificado desta empresa? Ela não conseguirá emitir até enviar outro.")) return;
-            try { await api("DELETE", `/contador/clientes/${c.id}/certificado`); await carregarClientes(); desenharPrincipal(); }
+            try { await api("DELETE", `/contador/clientes/${c.id}/certificado`); await carregarClientes(); desenharLista(); desenharPrincipal(); }
             catch (erro) { avisar(erro.message); }
           },
         }, "Remover certificado")),
@@ -1063,6 +1091,7 @@
           bytes.forEach((b) => { binario += String.fromCharCode(b); });
           await api("POST", `/contador/clientes/${c.id}/certificado`, { arquivo_base64: btoa(binario), senha });
           await carregarClientes();
+          desenharLista();
           estado.prefeitura = {}; // agora dá para conferir os serviços na prefeitura
           avisar("Certificado conferido e guardado com segurança.");
           desenharPrincipal();
@@ -1084,6 +1113,113 @@
         el("p", { class: "sub2", style: "margin-top:4px" },
           "Usado para assinar as notas. O arquivo e a senha ficam guardados criptografados e nunca aparecem de novo.")),
       $erro, ...corpo);
+  }
+
+  // ------------------------------------------------------------ resumo do ano
+
+  function secaoAno(c) {
+    const anoAtual = new Date().getFullYear();
+    const r = estado.resumoAno;
+    if (!r || r.cliente_id !== c.id) {
+      const ano = (r && r.pedido) || anoAtual;
+      estado.resumoAno = { cliente_id: c.id, pedido: ano, carregando: true };
+      api("GET", `/contador/clientes/${c.id}/resumo-ano?ano=${ano}`)
+        .then((d) => { if (estado.selecionado === c.id) { estado.resumoAno = { ...d, cliente_id: c.id, pedido: ano }; desenharPrincipal(); } })
+        .catch((erro) => { estado.resumoAno = { cliente_id: c.id, pedido: ano, erro: erro.message }; desenharPrincipal(); });
+      return el("section", { class: "card" }, el("p", { class: "sub2" }, "Somando as notas do ano..."));
+    }
+    if (r.carregando) return el("section", { class: "card" }, el("p", { class: "sub2" }, "Somando as notas do ano..."));
+    if (r.erro) return el("section", { class: "card" }, el("div", { class: "aviso aviso-erro" }, r.erro));
+    const trocarAno = (ano) => { estado.resumoAno = { cliente_id: null, pedido: ano }; desenharPrincipal(); };
+    const anos = [anoAtual, anoAtual - 1, anoAtual - 2];
+    const maior = Math.max(1, ...r.meses.map((m) => m.valor_centavos));
+    const mesAtualN = new Date().getMonth() + 1;
+    const mei = r.mei;
+    const corMei = mei && (mei.nivel === "ok" ? "ok" : mei.nivel === "atencao" ? "atencao" : "ruim");
+    const textoMei = mei && (mei.nivel === "ok" ? `${mei.usado_pct}% do limite do MEI · faltam ${reais(mei.falta_centavos)}`
+      : mei.nivel === "atencao" ? `${mei.usado_pct}% do limite do MEI · faltam ${reais(mei.falta_centavos)}. Acompanhe de perto.`
+      : mei.nivel === "passou" ? `Passou do limite (${mei.usado_pct}%). Até 20% acima: paga a diferença e vira ME no ano que vem.`
+      : `Passou mais de 20% do limite (${mei.usado_pct}%). O desenquadramento volta ao início do ano.`);
+    return el("section", { class: "card resumo-ano" },
+      el("div", { class: "ra-topo" },
+        el("div", {},
+          el("h2", { class: "titulo" }, `Faturamento em ${r.ano}`),
+          el("p", { class: "sub2" }, r.observacao)),
+        el("div", { class: "ra-acoes" },
+          el("select", { "aria-label": "Ano", onchange: (e) => trocarAno(parseInt(e.target.value, 10)) },
+            ...anos.map((a) => el("option", { value: String(a), selected: a === r.ano ? "" : null }, String(a)))),
+          el("a", { class: "botao botao-secundario", href: `/contador/clientes/${c.id}/resumo-ano.csv?ano=${r.ano}`, download: "" },
+            icone("download", 16), "Baixar planilha"))),
+      el("div", { class: "ra-numeros" },
+        el("div", {}, el("span", {}, "Total no ano"), el("strong", { class: "num" }, reais(r.total_centavos))),
+        el("div", {}, el("span", {}, "Notas"), el("strong", { class: "num" }, String(r.notas))),
+        el("div", {}, el("span", {}, "Média por mês"), el("strong", { class: "num" }, reais(r.media_mensal_centavos)))),
+      mei && el("div", { class: "ra-mei " + corMei },
+        el("div", { class: "ra-barra", role: "progressbar", "aria-valuenow": String(Math.min(mei.usado_pct, 100)), "aria-valuemin": "0", "aria-valuemax": "100",
+          "aria-label": "Uso do limite do MEI" }, el("i", { style: `width:${Math.min(mei.usado_pct, 100)}%` })),
+        el("p", {}, textoMei + (mei.proporcional ? ` Limite proporcional de ${reais(mei.limite_centavos)}, porque o CNPJ abriu neste ano.` : ""))),
+      el("div", { class: "ra-meses", role: "list", "aria-label": "Faturamento por mês" },
+        ...r.meses.map((m) => el("div", { class: "ra-mes" + (r.ano === anoAtual && m.mes > mesAtualN ? " futuro" : ""), role: "listitem",
+          title: `${MESES[m.mes - 1]}: ${reais(m.valor_centavos)} em ${m.notas} nota${m.notas === 1 ? "" : "s"}` },
+          el("span", { class: "ra-valor num" }, m.valor_centavos ? reaisCurto(m.valor_centavos) : ""),
+          el("span", { class: "ra-coluna" }, el("i", { style: `height:${Math.round((m.valor_centavos / maior) * 100)}%` })),
+          el("span", { class: "ra-nome" }, MESES[m.mes - 1].slice(0, 3))))));
+  }
+
+  // ------------------------------------------------------------ notas recebidas (ADN)
+
+  function secaoRecebidas(c) {
+    const r = estado.recebidas;
+    const mes = (r && r.mes) || mesAtual();
+    const carregar = (novoMes) => {
+      estado.recebidas = { cliente_id: c.id, mes: novoMes, carregando: true };
+      api("GET", `/contador/clientes/${c.id}/recebidas?mes=${novoMes}`)
+        .then((d) => { if (estado.selecionado === c.id) { estado.recebidas = { ...d, cliente_id: c.id, mes: novoMes }; desenharPrincipal(); } })
+        .catch((erro) => { estado.recebidas = { cliente_id: c.id, mes: novoMes, erro: erro.message }; desenharPrincipal(); });
+    };
+    if (!r || r.cliente_id !== c.id) { carregar(mes); return el("section", { class: "card" }, el("p", { class: "sub2" }, "Carregando...")); }
+    const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+    const $ok = el("div", { class: "aviso aviso-info", role: "status", hidden: true });
+    const buscar = el("button", { type: "button", class: "botao", onclick: async () => {
+      buscar.disabled = true; buscar.textContent = "Buscando no Ambiente Nacional...";
+      $erro.hidden = true;
+      try {
+        const res = await api("POST", `/contador/clientes/${c.id}/recebidas/buscar`);
+        carregar(mes);
+        estado.avisoRecebidas = res.novas ? `${res.novas} nota${res.novas > 1 ? "s novas" : " nova"}` + (res.canceladas ? `, ${res.canceladas} cancelada${res.canceladas > 1 ? "s" : ""}` : "") + "."
+          : "Nenhuma nota nova desde a última busca.";
+      } catch (erro) {
+        $erro.textContent = erro.message; $erro.hidden = false;
+        buscar.disabled = false; buscar.textContent = "Buscar notas recebidas";
+      }
+    } }, icone("trocar", 16), "Buscar notas recebidas");
+    if (estado.avisoRecebidas) { $ok.textContent = estado.avisoRecebidas; $ok.hidden = false; estado.avisoRecebidas = null; }
+    const notas = r.notas || [];
+    const data = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
+    return el("section", { class: "card recebidas" },
+      el("div", { class: "ra-topo" },
+        el("div", {},
+          el("h2", { class: "titulo" }, "Notas recebidas"),
+          el("p", { class: "sub2" }, "Notas de serviço que fornecedores emitiram para esta empresa, direto do Ambiente Nacional. Usa o certificado da empresa.")),
+        el("div", { class: "ra-acoes" }, buscar)),
+      $ok, $erro,
+      el("div", { class: "rc-filtro" },
+        el("label", { class: "campo" }, "Mês", el("input", { type: "month", value: mes, onchange: (e) => e.target.value && carregar(e.target.value) })),
+        el("p", { class: "sub2" }, r.carregando ? "Carregando..." : r.erro ? r.erro
+          : `${notas.length} nota${notas.length === 1 ? "" : "s"} · ${reais(r.total_centavos || 0)} (sem as canceladas)` +
+            (r.buscado_em ? ` · última busca ${new Date(r.buscado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}` : " · ainda não buscou")),
+        notas.length ? el("a", { class: "botao-link", href: `/contador/clientes/${c.id}/recebidas/arquivos.zip?mes=${mes}`, download: "" }, "Baixar XMLs do mês (.zip)") : null),
+      notas.length
+        ? el("div", { class: "tabela-caixa" }, el("table", { class: "tabela-notas" },
+            el("thead", {}, el("tr", {}, ...["Data", "Prestador", "Serviço", "Valor", "Situação", ""].map((t) => el("th", {}, t)))),
+            el("tbody", {}, ...notas.map((n) => el("tr", { class: n.situacao === "cancelada" ? "cancelada" : "" },
+              el("td", { class: "num" }, data(n.emitida_em)),
+              el("td", {}, el("strong", {}, n.emitente_nome || "—"), el("small", { class: "num" }, n.emitente_documento || "")),
+              el("td", {}, n.descricao || n.codigo_servico || "—"),
+              el("td", { class: "num", style: "text-align:right" }, n.valor_centavos != null ? reais(n.valor_centavos) : "—"),
+              el("td", {}, el("span", { class: "selo-mini " + (n.situacao === "cancelada" ? "vermelho" : "verde") }, n.situacao === "cancelada" ? "Cancelada" : "Autorizada")),
+              el("td", {}, el("a", { href: n.xml, download: "" }, "XML")))))))
+        : el("p", { class: "vazio-recebidas" }, r.buscado_em ? "Nenhuma nota recebida neste mês." : "Toque em \"Buscar notas recebidas\" para trazer as notas do Ambiente Nacional."));
   }
 
   // ------------------------------------------------------------ acesso da empresa

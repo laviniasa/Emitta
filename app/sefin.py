@@ -126,6 +126,29 @@ class SefinSimulada:
         return ServicoNaPrefeitura(administrado=True, conveniado=True,
                                    mensagens=["Modo simulação: a prefeitura não foi consultada."])
 
+    def distribuir_dfe(self, nsu: int, cnpj: str, cert) -> dict:
+        """Imita o ADN: no primeiro lote, três notas que fornecedores emitiram para a empresa
+        e o cancelamento da terceira; depois, nada novo."""
+        if nsu >= 4:
+            return {"StatusProcessamento": "NENHUM_DOCUMENTO_LOCALIZADO", "LoteDFe": []}
+        exemplos = [("11444777000161", "CONTABIL SERVICOS DE TI LTDA", "Licença do sistema de agendamento", "010501", "189.90", "2026-11-03"),
+                    ("11222333000181", "BELLA FORMA ACADEMIA LTDA", "Aluguel de sala para atendimento", "031201", "1200.00", "2026-11-05"),
+                    ("12345678000195", "LIMPA BEM SERVICOS LTDA", "Limpeza do salão", "070201", "350.00", "2026-11-10")]
+        lote = []
+        for i, (doc, nome, desc, cod, valor, dia) in enumerate(exemplos, start=1):
+            chave = f"3550308{doc}{i:020d}"[:50].ljust(50, "0")
+            xml = (f'<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse"><infNFSe Id="NFS{chave}"><nNFSe>{100 + i}</nNFSe>'
+                   f'<dhProc>{dia}T10:00:00-03:00</dhProc><emit><CNPJ>{doc}</CNPJ><xNome>{nome}</xNome></emit>'
+                   f'<DPS><infDPS><dhEmi>{dia}T09:58:00-03:00</dhEmi><toma><CNPJ>{cnpj}</CNPJ><xNome>Tomador</xNome></toma>'
+                   f'<serv><cServ><cTribNac>{cod}</cTribNac><xDescServ>{desc}</xDescServ></cServ></serv>'
+                   f'<valores><vServPrest><vServ>{valor}</vServ></vServPrest></valores></infDPS></DPS></infNFSe></NFSe>')
+            lote.append({"NSU": i, "ChaveAcesso": chave, "TipoDocumento": "NFSE", "ArquivoXml": compactar(xml.encode())})
+        canc = (f'<evento xmlns="http://www.sped.fazenda.gov.br/nfse"><infEvento><pedRegEvento><infPedReg>'
+                f'<chNFSe>{lote[2]["ChaveAcesso"]}</chNFSe><e101101><xDesc>Cancelamento</xDesc></e101101>'
+                f'</infPedReg></pedRegEvento></infEvento></evento>')
+        lote.append({"NSU": 4, "ChaveAcesso": lote[2]["ChaveAcesso"], "TipoDocumento": "EVENTO", "ArquivoXml": compactar(canc.encode())})
+        return {"StatusProcessamento": "DOCUMENTOS_LOCALIZADOS", "LoteDFe": [d for d in lote if d["NSU"] > nsu]}
+
 
 class SefinNacional:
     def __init__(self, url_base: str, url_adn: str | None = None, timeout: int = 40):
@@ -209,6 +232,24 @@ class SefinNacional:
         xml = dados.get("eventoXmlGZipB64")
         return RespostaSefin(sucesso=True, chave_acesso=chave_acesso,
                              xml=descompactar(xml) if xml else None)
+
+    def distribuir_dfe(self, nsu: int, cnpj: str, cert) -> dict:
+        """ADN: documentos ligados ao CNPJ a partir do NSU (lote de até 50)."""
+        resp = self._chamar("GET", f"/contribuintes/DFe/{int(nsu)}?cnpjConsulta={cnpj}", cert, base=self.url_adn)
+        print(f"[adn-dfe] NSU {nsu} -> HTTP {resp.status_code}", flush=True)
+        try:
+            dados = resp.json()
+        except ValueError:
+            dados = None
+        if resp.status_code == 404 and (dados is None or not dados.get("Erros")):
+            return {"StatusProcessamento": "NENHUM_DOCUMENTO_LOCALIZADO", "LoteDFe": []}
+        if resp.status_code >= 500 or dados is None:
+            raise SemResposta("O Ambiente Nacional não respondeu agora. Tente de novo em alguns minutos.")
+        if not resp.ok or dados.get("Erros"):
+            erros = dados.get("Erros") or []
+            texto = "; ".join(" ".join(str(e.get(k, "")) for k in ("Codigo", "Descricao") if e.get(k)) for e in erros if isinstance(e, dict))
+            raise ErroDeNegocio(f"O Ambiente Nacional recusou a busca: {texto or f'HTTP {resp.status_code}'}")
+        return dados
 
     def consultar_servico_municipio(self, municipio_ibge: str, codigo: str, cert) -> ServicoNaPrefeitura:
         """Pergunta ao governo (ADN, /parametrizacao) se o município aceita este
