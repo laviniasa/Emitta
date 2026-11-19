@@ -156,7 +156,7 @@
       $lista.append(el("button", {
         class: "item-cliente item-todas", type: "button", "aria-current": estado.modo === "notas" ? "true" : "false",
         onclick: () => abrirNotasEscritorio(),
-      }, el("span", { class: "nome" }, icone("documento", 16), "Notas do escritório"),
+      }, el("span", { class: "nome" }, icone("notas", 16), "Notas do escritório"),
         el("span", { class: "info" }, "Todas as empresas, com filtros e download")));
     }
     for (const c of filtrados) {
@@ -474,7 +474,7 @@
         el("h1", {}, c.razao_social),
         el("p", { class: "sub" }, `CNPJ ${formatarDocumento(c.cnpj)} · ${c.municipio_nome}`)),
       autonomo()
-        ? el("a", { class: "botao", href: "/empresa" }, icone("mais", 18), "Emitir notas")
+        ? el("a", { class: "botao", href: "/empresa" }, icone("recibo", 18), "Emitir notas")
         : el("a", { class: "botao botao-secundario", href: `/empresa?empresa=${c.id}` }, "Ver como o cliente vê"),
     );
 

@@ -152,13 +152,13 @@
       el("button", { type: "button", "aria-current": atual === id ? "page" : null, onclick: acao }, icone(ic, 22), rotulo);
     return el("nav", { class: "menu", "aria-label": "Menu" },
       item("inicio", "Início", "casa", () => ir("inicio")),
-      item("nova", "Emitir", "mais", novaNota),
+      item("nova", "Emitir", "recibo", novaNota),
       estado.eu.papel !== "autonomo" && el("button", {
         type: "button", "aria-current": atual === "impostos" ? "page" : null, onclick: () => ir("impostos"),
-      }, el("span", { class: "menu-icone" }, icone("documento", 22),
+      }, el("span", { class: "menu-icone" }, icone("guia", 22),
         guiasPendentes().length ? el("span", { class: "menu-bolinha", "aria-label": `${guiasPendentes().length} para pagar` }, String(guiasPendentes().length)) : null),
       "Impostos"),
-      item("ajuda", "Ajuda", "brilho", () => ajuda.abrir()),
+      item("ajuda", "Ajuda", "balao", () => ajuda.abrir()),
       estado.eu.papel === "contador"
         ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/escritorio"; })
         : estado.eu.papel === "autonomo"
@@ -252,7 +252,7 @@
     const primeira = pend.slice().sort((a, b) => String(a.vencimento || "9").localeCompare(String(b.vencimento || "9")))[0];
     const prazo = prazoGuia(primeira);
     return el("button", { type: "button", class: "aviso-guia " + prazo.classe, onclick: () => ir("impostos") },
-      icone("documento", 22),
+      icone("guia", 22),
       el("span", { class: "ag-texto" },
         el("strong", {}, pend.length === 1 ? "Você tem 1 imposto para pagar" : `Você tem ${pend.length} impostos para pagar`),
         el("span", {}, [primeira.titulo, primeira.valor && `R$ ${primeira.valor}`, prazo.texto].filter(Boolean).join(" · "))),
@@ -301,7 +301,7 @@
           avisoGuias(),
           estado.servicos.length
             ? el("button", { class: "botao botao-grande", type: "button", style: "min-height:60px;font-size:17px", onclick: novaNota },
-              icone("mais", 22), "Nova nota")
+              icone("recibo", 22), "Nova nota")
             : estado.eu.papel === "autonomo"
             ? null
             : el("div", { class: "aviso aviso-alerta" }, icone("cadeado"),

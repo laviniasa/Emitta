@@ -29,13 +29,13 @@ window.EmittaAssistente = (() => {
     const $enviar = el("button", { class: "assist-enviar", type: "button", "aria-label": "Enviar", onclick: () => enviar() }, icone("enviar", 20));
     const $painel = el("section", { class: "assist-painel", role: "dialog", "aria-label": "Assistente do Emitta", hidden: true },
       el("header", { class: "assist-topo" },
-        el("span", { class: "assist-avatar", "aria-hidden": "true" }, icone("brilho", 18)),
+        el("span", { class: "assist-avatar", "aria-hidden": "true" }, icone("balao", 18)),
         el("div", {}, el("strong", {}, "Assistente Emitta"), el("span", { class: "assist-sub" }, "Eu preparo, você confere e confirma")),
         el("button", { class: "assist-x", type: "button", "aria-label": "Fechar ajuda", onclick: () => alternar(false) }, icone("fechar", 20))),
       $lista,
       el("div", { class: "assist-rodape" }, $campo, $enviar));
     const $botao = el("button", { class: "assist-botao", type: "button", "aria-label": "Abrir ajuda", onclick: () => alternar() },
-      icone("brilho", 20), el("span", {}, "Ajuda"));
+      icone("balao", 20), el("span", {}, "Ajuda"));
     document.body.append($painel);
     if (botao) document.body.append($botao);
 
