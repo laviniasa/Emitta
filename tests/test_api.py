@@ -98,7 +98,7 @@ def entrar_como_empresa(app, contador, cid, email="bia@empresa.com"):
 
 def test_status_e_paginas_publicas(anonimo):
     assert anonimo.get("/status").json()["ambiente"] == "simulacao"
-    for caminho, trecho in [("/", "Sou contador"), ("/entrar", "entrar.js"), ("/escritorio", "painel.js"),
+    for caminho, trecho in [("/", "Criar conta de contador"), ("/entrar", "entrar.js"), ("/escritorio", "painel.js"),
                             ("/empresa", "app.js"), ("/static/estilo.css", "--verde")]:
         resp = anonimo.get(caminho)
         assert resp.status_code == 200 and trecho in resp.text, caminho

@@ -1,97 +1,250 @@
 <!doctype html>
-<html lang="pt-BR">
+<!-- plan · kind: software (app para escritórios contábeis e seus clientes)
+     deal: hero split · cores do próprio Emitta (verde #0f2a24 e limão #c6f36b) via start.mjs brand, porque o cliente já tem marca · type onest · radius soft · buttons solid
+     nav-cards (simplificado: quatro palavras) · footer-columns · close-type · rhythm surface-pairs · moment word-highlight
+     sections: hero (1) · contador split-text-left (1) · empresa steps (1) · declaração word-highlight (1) · ibs-cbs features-2x2 (2) · guias split-text-left (1) · perguntas faq (1) · close + footer -->
+<html lang="pt-BR" data-type="software" data-radius="soft" data-ground="sage" data-buttons="solid" data-motion>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0F2A24">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Emitta: emissor de nota de serviço para escritórios contábeis</title>
+<meta name="description" content="O contador cadastra a empresa e libera os serviços; o cliente emite a NFS-e pelo celular, direto no Emissor Nacional, com IBS e CBS preenchidos.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Emitta: emissor de nota de serviço para escritórios contábeis">
+<meta property="og:description" content="O cliente emite a NFS-e pelo celular, só com os serviços que o contador liberou.">
+<meta property="og:image" content="/static/site/img/hero.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
+<meta name="theme-color" content="#f6f5ef">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/static/icones/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="emitta">
-<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
-<title>Emitta · Nota fiscal de serviço sem complicação</title>
+<meta name="site-kind" content="software">
+<meta name="page-type" content="software">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=36">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400..700&family=JetBrains+Mono:wght@400..500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/site/assets/system.css">
+<link rel="stylesheet" href="/static/site/assets/ui/cards.css">
+<link rel="stylesheet" href="/static/site/assets/motion/motion.css">
+<link rel="stylesheet" href="/static/site/assets/backgrounds/backgrounds.css">
+<link rel="stylesheet" href="/static/site/assets/layout/layout.css">
+<link rel="stylesheet" href="/static/site/assets/icons/icon.css">
 <style>
-  body { background: var(--noite); color: #fff; min-height: 100vh; display: flex; flex-direction: column; }
-  .topo { display: flex; align-items: center; gap: 12px; padding: 20px 24px; max-width: 1080px; width: 100%; margin: 0 auto; }
-  .nome { font-size: 20px; font-weight: 700; }
-  main { flex: 1; max-width: 1080px; width: 100%; margin: 0 auto; padding: 32px 24px 48px; display: flex; flex-direction: column; gap: 40px; }
-  .chamada { display: flex; flex-direction: column; gap: 16px; max-width: 680px; }
-  .chamada h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
-  .chamada p { font-size: 18px; color: var(--verde-borda); line-height: 1.6; }
-  .portas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-  .porta {
-    display: flex; flex-direction: column; gap: 12px; padding: 24px; border-radius: 16px; text-decoration: none;
-    background: var(--noite-2); color: #fff; border: 1px solid #24524A; transition: border-color .15s;
-  }
-  .porta:hover { border-color: var(--verde); color: #fff; }
-  .porta h2 { font-size: 20px; }
-  .porta p { color: var(--verde-borda); font-size: 15px; line-height: 1.55; }
-  .porta .ir { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #7FD3BE; }
-  .passos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
-  .passo { display: flex; flex-direction: column; gap: 8px; }
-  .passo .num { width: 32px; height: 32px; border-radius: 999px; background: var(--verde); display: grid; place-items: center; font-weight: 700; }
-  .passo h3 { font-size: 16px; }
-  .passo p { color: var(--verde-borda); font-size: 14px; line-height: 1.55; }
-  footer { max-width: 1080px; width: 100%; margin: 0 auto; padding: 20px 24px 28px; color: #8FB8AD; font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
-  footer a { color: #8FB8AD; }
-  .instalar { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(198,243,107,.5); background: transparent; color: #C6F36B; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
-  .instalar:active { transform: scale(.96); }
-  .dica-iphone { margin: 12px auto 0; max-width: 520px; padding: 14px 16px; border-radius: 16px; background: rgba(198,243,107,.1); border: 1px solid rgba(198,243,107,.35); color: #E8F5D8; font-size: 14px; line-height: 1.5; }
-  .dica-iphone strong { color: #C6F36B; }
-  .dica-iphone ol { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
-  .acesso-adm { position: fixed; right: 10px; bottom: 10px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #8FB8AD; opacity: .28; transition: opacity .2s; }
-  .acesso-adm:hover, .acesso-adm:focus-visible { opacity: .9; }
+:root {
+  --p-bg: #f6f5ef; --p-surface: #ecebe3; --p-ink: #0f2a24; --p-muted: #596a64;
+  --p-accent: #c6f36b; --p-accent-ink: #111111; --p-action: #0f2a24; --p-action-ink: #f6f5ef;
+  --p-inv-bg: #0f2a24; --p-inv-surface: #1e3630; --p-inv-ink: #f6f5ef; --p-inv-muted: #97a29b;
+  --p-inv-accent: #c6f36b; --p-inv-accent-ink: #111111; --p-inv-action: #c6f36b; --p-inv-action-ink: #111111;
+  --font-display: "Onest", system-ui, sans-serif;
+  --font-text: "Onest", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --display-weight: 400;
+  --display-tracking: -0.035em;
+  --display-tracking-xl: -0.04em;
+}
+</style>
+<script src="/static/site/inicio.js?v=36"></script>
+<script src="/static/site/assets/backgrounds/backgrounds.js"></script>
+<link rel="modulepreload" href="/static/site/assets/moments/moments.js">
+<link rel="modulepreload" href="/static/site/assets/moments/lib.js">
+<link rel="modulepreload" href="/static/site/assets/moments/word-highlight/moment.js">
+<!-- page CSS: só o que fica dentro dos visuais -->
+<style>
+  .nav__logo img { width: 28px; height: 28px; border-radius: 8px; }
+  #empresa .panel { --p-h: 336px; }
+  #ibs-cbs .panel { --p-h: 336px; }
+  #empresa .panel > img, #ibs-cbs .panel > img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block; }
+  .frame--split > img.frame__img { object-position: 0 0; }
+  #contador h2, #guias h2 { margin-bottom: 24px; }
+  .fatos { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
+  .fatos li { display: flex; gap: 10px; align-items: baseline; }
+  .fatos li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--p-ink); transform: translateY(-2px); }
+  @media (max-width: 639px) { #empresa .panel, #ibs-cbs .panel { --p-h: 220px; } .hero .ly-float { display: none; } .hero__media img { object-position: 85% 40% !important; } }
 </style>
 </head>
 <body>
-<header class="topo">
-  <svg class="marca-svg" width="34" height="40" viewBox="17 10 66 78" aria-hidden="true"><path class="logo-papel" d="M27 14 H73 Q79 14 79 20 V84 L71.75 78.5 L64.5 84 L57.25 78.5 L50 84 L42.75 78.5 L35.5 84 L28.25 78.5 L21 84 V20 Q21 14 27 14 Z" fill="#C6F36B"/><path class="logo-e" pathLength="1" d="M35 46 H65 A15 15 0 1 0 60.6 56.6" fill="none" stroke="#0F2A24" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <span class="nome">emitta</span>
-  <button class="instalar" type="button" data-instalar hidden style="margin-left:auto">Instalar app</button>
-  <a class="botao" href="/entrar" style="margin-left:12px">Entrar</a>
+<header class="nav">
+  <div class="wrap nav__bar">
+    <a class="skip-link" href="#top">Pular para o conteúdo</a>
+    <a class="nav__logo" href="#top"><img src="/static/icone.svg" alt="" aria-hidden="true">Emitta</a>
+    <nav class="nav__links" aria-label="Principal">
+      <div class="nav__item"><a class="nav__link" href="#contador">Para o contador</a></div>
+      <div class="nav__item"><a class="nav__link" href="#empresa">Para a empresa</a></div>
+      <div class="nav__item"><a class="nav__link" href="#ibs-cbs">IBS e CBS</a></div>
+      <div class="nav__item"><a class="nav__link" href="#perguntas">Perguntas</a></div>
+    </nav>
+    <div class="nav__actions">
+      <a class="nav__link" href="/entrar">Entrar</a>
+      <a class="btn btn--primary" href="/entrar?criar=1">Criar conta de contador</a>
+    </div>
+    <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
 </header>
-<div class="dica-iphone" data-dica-iphone hidden>
-  <strong>Instalar no iPhone</strong>
-  <ol>
-    <li>Toque em <b>Compartilhar</b> (o quadrado com a seta para cima), na barra do Safari.</li>
-    <li>Escolha <b>Adicionar à Tela de Início</b>.</li>
-    <li>Toque em <b>Adicionar</b>. Pronto: o emitta aparece junto com os outros apps.</li>
-  </ol>
-</div>
-<main>
-  <section class="chamada">
-    <h1>Nota fiscal de serviço sem código confuso e sem nota recusada.</h1>
-    <p>O contador libera os serviços de cada empresa. O cliente escolhe o serviço, diz para quem e quanto, e emite pelo celular no novo Emissor Nacional.</p>
+
+<main id="top">
+  <section class="hero hero--split" data-enter aria-labelledby="hero-h">
+    <div class="wrap"><div class="hero-text grid hero__grid">
+      <div class="hero__text span-5">
+        <p class="hero__kicker"><span class="dot" aria-hidden="true"></span>IBS e CBS de 2026 já na nota</p>
+        <h1 id="hero-h">Emissor de nota de serviço para escritórios contábeis</h1>
+        <p class="hero__lead">Você cadastra a empresa pelo CNPJ e libera os serviços dela. O cliente emite a NFS-e pelo celular, direto no Emissor Nacional, sem escolher código.</p>
+        <div class="btn-row"><a class="btn btn--primary" href="/entrar?criar=1">Criar conta de contador</a><a class="btn btn--secondary" href="#contador">Ver como funciona</a></div>
+      </div>
+      <div class="hero__media span-6 start-7">
+        <img src="/static/site/img/hero.jpg" alt="Painel do contador com as notas do escritório e, à frente, uma nota autorizada no celular" style="--ly-pos: 30% 30%" fetchpriority="high">
+        <div class="ly-float">
+          <div class="ly-float__row"><span class="ly-live">Autorizada</span><span>Nota nº 000004</span></div>
+          <div class="ly-float__title">Limpeza de pele, R$ 350,00</div>
+        </div>
+      </div>
+    </div></div>
   </section>
 
-  <section class="portas" aria-label="Entrar">
-    <a class="porta" href="/entrar?perfil=contador">
-      <h2>Sou contador</h2>
-      <p>Cadastre as empresas, libere os serviços de cada uma e acompanhe todas as notas num só lugar.</p>
-      <span class="ir">Entrar ou criar conta →</span>
-    </a>
-    <a class="porta" href="/entrar?perfil=empresa">
-      <h2>Sou empresa</h2>
-      <p>Emita e cancele notas em poucos toques, vendo só os serviços que o seu contador liberou.</p>
-      <span class="ir">Entrar →</span>
-    </a>
+  <section class="section" id="contador" aria-labelledby="contador-h" style="--h: 1">
+    <div class="wrap grid">
+      <div class="span-5">
+        <h2 id="contador-h">Você libera os serviços de cada empresa</h2>
+        <p class="t-lead">Digite o CNPJ e os dados chegam da Receita. O Emitta sugere os serviços pela atividade da empresa e confere o código na prefeitura antes da primeira nota.</p>
+        <ul class="fatos">
+          <li>Dados da empresa direto da Receita</li>
+          <li>Serviços sugeridos pelo CNAE do cartão CNPJ</li>
+          <li>Todas as notas do escritório numa tela só</li>
+        </ul>
+        <a class="link" href="#empresa">Ver como o cliente emite</a>
+      </div>
+      <div class="frame frame--split span-6 start-7">
+        <img class="frame__img" src="/static/site/img/contador.jpg" alt="Painel do contador com a empresa Studio Aurora Estética, as etapas para deixá-la pronta e os serviços liberados" loading="lazy">
+      </div>
+    </div>
   </section>
 
-  <section class="passos" aria-label="Como funciona">
-    <div class="passo"><span class="num">1</span><h3>O contador configura</h3><p>Escolhe uma vez quais serviços a empresa pode emitir e com que nome eles aparecem.</p></div>
-    <div class="passo"><span class="num">2</span><h3>O cliente emite</h3><p>Serviço, cliente e valor. O Emitta confere tudo antes de enviar, para a prefeitura não recusar.</p></div>
-    <div class="passo"><span class="num">3</span><h3>Cancelar sem medo</h3><p>Motivos em linguagem simples e aviso do prazo da prefeitura. O contador fica sabendo.</p></div>
+  <section class="section ground-surface" id="empresa" aria-labelledby="empresa-h" style="--h: 1">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="empresa-h">O cliente emite a nota em 3 passos</h2>
+        <p class="t-lead">Pelo celular, sem instalar nada e sem escolher código de serviço.</p>
+      </div>
+      <div class="grid">
+        <article class="card card--row card--open span-4">
+          <span class="step-num">1</span>
+          <h3 class="t-card">Escolhe o serviço</h3>
+          <p>Só aparecem os serviços que você liberou para a empresa.</p>
+          <div class="panel"><img src="/static/site/img/passo1.jpg" alt="Lista de serviços liberados, com Limpeza de pele marcada" loading="lazy"></div>
+        </article>
+        <article class="card card--row card--open span-4">
+          <span class="step-num">2</span>
+          <h3 class="t-card">Informa o cliente e o valor</h3>
+          <p>Com CNPJ, o nome do cliente vem preenchido pela Receita.</p>
+          <div class="panel"><img src="/static/site/img/passo2.jpg" alt="CNPJ do cliente digitado e o nome preenchido pela Receita" loading="lazy"></div>
+        </article>
+        <article class="card card--row card--open span-4">
+          <span class="step-num">3</span>
+          <h3 class="t-card">Toca em Emitir nota</h3>
+          <p>A nota vai ao Emissor Nacional e volta autorizada em segundos.</p>
+          <div class="panel"><img src="/static/site/img/passo3.jpg" alt="Tela de nota autorizada, número 000004" loading="lazy"></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section statement ground-inverse" id="por-que" data-moment="word-highlight" aria-label="Por que o Emitta">
+    <div class="wrap">
+      <p class="t-label">Por que o Emitta</p>
+      <p class="mo-wh__text">O contador decide o que cada empresa pode emitir, e o cliente nunca precisa procurar um código. A nota sai <strong>certa da primeira vez</strong>, com ISS, IBS e CBS preenchidos.</p>
+    </div>
+  </section>
+
+  <section class="section" id="ibs-cbs" aria-labelledby="ibs-h" style="--h: 2">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="ibs-h">Nota pronta para 2026. <span class="muted">O Emitta preenche o que a Reforma Tributária pede.</span></h2>
+      </div>
+      <div class="grid">
+        <article class="card card--row card--open span-6">
+          <h3 class="t-card">Preenche IBS e CBS</h3>
+          <p>A classificação e o NBS de cada serviço saem da tabela oficial do Anexo VIII.</p>
+          <div class="panel"><img src="/static/site/img/ibs.jpg" alt="Linha IBS/CBS da nota com CST 000 e cClassTrib 000001" loading="lazy"></div>
+        </article>
+        <article class="card card--row card--open span-6">
+          <h3 class="t-card">Soma os tributos da nota</h3>
+          <p>Federais, estaduais e municipais, como pede a Lei 12.741, nas informações complementares.</p>
+          <div class="panel"><img src="/static/site/img/lei.jpg" alt="Informações complementares com os totais aproximados dos tributos" loading="lazy"></div>
+        </article>
+        <article class="card card--row card--open span-6">
+          <h3 class="t-card">Sugere serviços pelo CNAE</h3>
+          <p>A atividade do cartão CNPJ vira a lista de serviços que a empresa presta.</p>
+          <div class="panel"><img src="/static/site/img/cnae.jpg" alt="Serviços sugeridos pela atividade 96.02-5-02 da empresa" loading="lazy"></div>
+        </article>
+        <article class="card card--row card--open span-6">
+          <h3 class="t-card">Baixa as notas do mês</h3>
+          <p>PDFs e XMLs de todas as empresas num arquivo só, no padrão nacional.</p>
+          <div class="panel"><img src="/static/site/img/zip.jpg" alt="Notas do escritório com filtros e o botão Baixar PDFs e XMLs" loading="lazy"></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="guias" aria-labelledby="guias-h" style="--h: 1">
+    <div class="wrap grid">
+      <div class="span-5">
+        <h2 id="guias-h">Guias de imposto no mesmo app</h2>
+        <p class="t-lead">Você envia o DAS ou o DARF em PDF. A empresa vê o vencimento, baixa a guia e marca que pagou.</p>
+        <ul class="fatos">
+          <li>Aviso de guia vencendo na tela inicial</li>
+          <li>Situação de cada guia: enviada, vista ou paga</li>
+          <li>Um PDF de até 5 MB por guia</li>
+        </ul>
+        <a class="link" href="#perguntas">Ver as perguntas frequentes</a>
+      </div>
+      <div class="frame frame--split span-6 start-7">
+        <img class="frame__img" src="/static/site/img/guias.jpg" alt="App da empresa com o aviso de um imposto para pagar e a guia DAS de R$ 312,40" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="perguntas" aria-labelledby="perguntas-h" style="--h: 1">
+    <div class="wrap grid">
+      <div class="span-4">
+        <h2 id="perguntas-h">Perguntas</h2>
+        <p class="t-lead muted">Sobre certificado, preço e segurança.</p>
+      </div>
+      <div class="faq span-7 start-6">
+        <div class="faq__item"><h3>Preciso de certificado digital?</h3><p>Sim, o certificado A1 de cada empresa. Você envia o arquivo pelo painel, e ele fica guardado com criptografia.</p></div>
+        <div class="faq__item"><h3>A nota tem validade fiscal?</h3><p>Sim. Ela é emitida no Emissor Nacional da NFS-e com o certificado da empresa, como no portal do governo.</p></div>
+        <div class="faq__item"><h3>Funciona para MEI?</h3><p>Sim. O MEI sem contador usa o Emitta sozinho, com um passo a passo na tela inicial.</p></div>
+        <div class="faq__item"><h3>A minha cidade aceita?</h3><p>O Emitta consulta a prefeitura antes da primeira nota e avisa se o serviço não é aceito lá.</p></div>
+        <div class="faq__item"><h3>Consigo levar as notas para o meu sistema?</h3><p>Sim. Baixe os PDFs e XMLs do mês num arquivo .zip; o XML segue o padrão nacional.</p></div>
+        <div class="faq__item"><h3>Quanto custa?</h3><p>O preço é por empresa atendida. Crie a conta de contador e combinamos o valor do seu escritório.</p></div>
+      </div>
+    </div>
   </section>
 </main>
-<footer>
-  <span id="ambiente">Versão de demonstração · notas sem valor fiscal</span>
-  <a href="/docs">Documentação da API</a>
+
+<footer class="footer closing" id="contato" aria-labelledby="close-h">
+  <div class="wrap">
+    <div class="closing__cta close--type">
+      <div class="section-head"><h2 id="close-h">Comece pelo primeiro cliente do escritório</h2></div>
+      <a class="btn btn--primary btn--xl" href="/entrar?criar=1">Criar conta de contador<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
+    </div>
+    <div class="closing__links">
+      <div class="grid">
+        <div class="span-4 stack-5">
+          <a class="nav__logo" href="#top"><img src="/static/icone.svg" alt="" aria-hidden="true">Emitta</a>
+          <p class="footer__lede">Nota de serviço para contadores e seus clientes.</p>
+        </div>
+        <div class="span-2 start-7 footer__col"><h4>Para o contador</h4><ul><li><a href="#contador">Liberar serviços</a></li><li><a href="#guias">Enviar guias</a></li></ul></div>
+        <div class="span-2 footer__col"><h4>Para a empresa</h4><ul><li><a href="#empresa">Emitir a nota</a></li><li><a href="/entrar?perfil=empresa">Entrar como empresa ou MEI</a></li></ul></div>
+        <div class="span-2 footer__col"><h4>Ajuda</h4><ul><li><a href="#ibs-cbs">IBS e CBS</a></li><li><a href="#perguntas">Perguntas</a></li></ul></div>
+      </div>
+      <div class="footer__legal">
+        <span>&copy; 2026 Emitta · lav.code</span><a href="/admin" class="t-small muted">Administração</a>
+      </div>
+    </div>
+  </div>
 </footer>
-<a class="acesso-adm" href="/admin" aria-label="Administração" title="Administração"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg></a>
+<script type="module" src="/static/site/assets/system.js"></script>
 <script src="/static/pwa.js?v=36"></script>
 </body>
 </html>
