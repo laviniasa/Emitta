@@ -368,8 +368,20 @@ def criar_app(
     def pagina_inicial():
         return pagina("index.html")
 
+    def veio_de_fora(request: Request) -> bool:
+        # Link aberto de fora (WhatsApp, Instagram, digitado): sem endereço de volta
+        # e sem ter vindo de outra página do próprio Emitta.
+        if request.url.query:
+            return False
+        origem = request.headers.get("referer") or ""
+        return not origem.startswith(f"{request.url.scheme}://{request.url.netloc}/") and \
+            not origem.startswith(f"https://{request.url.netloc}/")
+
     @app.get("/entrar", include_in_schema=False)
-    def pagina_entrar():
+    def pagina_entrar(request: Request):
+        # Quem chega por um link de fora vê primeiro a página que explica o Emitta.
+        if veio_de_fora(request):
+            return RedirectResponse("/", 307, headers={"Cache-Control": "no-store"})
         resposta = pagina("entrar.html")
         # Manda o navegador apagar cópias antigas do site guardadas no aparelho
         # (versões de antes do login ficavam presas no cache de alguns celulares).
@@ -386,7 +398,10 @@ def criar_app(
 
     # ---------------------------------------------------------- app instalável (PWA)
     @app.get("/abrir", include_in_schema=False)
-    def pagina_abrir():
+    def pagina_abrir(request: Request):
+        # O ícone do app abre /abrir?origem=app; um link /abrir solto vai para a página inicial.
+        if veio_de_fora(request):
+            return RedirectResponse("/", 307, headers={"Cache-Control": "no-store"})
         # Abertura com a animação da nota; decide para onde levar cada pessoa.
         return FileResponse(PASTA_WEB / "abrir.html", headers={"Cache-Control": "no-cache"})
 

@@ -96,15 +96,17 @@ def entrar_como_empresa(app, contador, cid, email="bia@empresa.com"):
 
 # ---------------------------------------------------------------- público
 
+DE_DENTRO = {"referer": "http://testserver/"}
+
 def test_status_e_paginas_publicas(anonimo):
     assert anonimo.get("/status").json()["ambiente"] == "simulacao"
     for caminho, trecho in [("/", "Criar conta de contador"), ("/entrar", "entrar.js"), ("/escritorio", "painel.js"),
                             ("/empresa", "app.js"), ("/static/estilo.css", "--verde")]:
-        resp = anonimo.get(caminho)
+        resp = anonimo.get(caminho, headers=DE_DENTRO)
         assert resp.status_code == 200 and trecho in resp.text, caminho
         if not caminho.startswith("/static"):
             assert resp.headers["cache-control"] == "no-store", caminho
-    assert anonimo.get("/entrar").headers["clear-site-data"] == '"cache"'
+    assert anonimo.get("/entrar", headers=DE_DENTRO).headers["clear-site-data"] == '"cache"'
     assert anonimo.get("/painel", follow_redirects=False).headers["location"] == "/escritorio"
     assert anonimo.get("/app?empresa=2", follow_redirects=False).headers["location"] == "/empresa?empresa=2"
 
@@ -438,12 +440,24 @@ def test_pwa_manifesto_e_service_worker(anonimo):
 
 
 def test_pwa_abertura_e_offline(anonimo):
-    for caminho, texto in [("/abrir", "emitta"), ("/offline", "Sem internet")]:
+    for caminho, texto in [("/abrir?origem=app", "emitta"), ("/offline", "Sem internet")]:
         r = anonimo.get(caminho)
         assert r.status_code == 200 and texto in r.text
         assert "Content-Security-Policy" in r.headers
     for pagina in ["/", "/entrar", "/escritorio", "/empresa", "/admin"]:
-        assert 'rel="manifest"' in anonimo.get(pagina).text, pagina
+        assert 'rel="manifest"' in anonimo.get(pagina, headers=DE_DENTRO).text, pagina
+
+
+def test_link_de_fora_abre_a_pagina_inicial(anonimo):
+    # Link solto (WhatsApp, Instagram): vai para a página que explica o Emitta.
+    for caminho in ["/entrar", "/abrir"]:
+        r = anonimo.get(caminho, follow_redirects=False)
+        assert r.status_code == 307 and r.headers["location"] == "/", caminho
+    # Vindo de dentro do site, com endereço de volta, ou pelo ícone do app: abre normal.
+    assert anonimo.get("/entrar", headers=DE_DENTRO, follow_redirects=False).status_code == 200
+    assert anonimo.get("/entrar?volta=/escritorio", follow_redirects=False).status_code == 200
+    assert anonimo.get("/entrar?criar=1", follow_redirects=False).status_code == 200
+    assert anonimo.get("/abrir?origem=app", follow_redirects=False).status_code == 200
 
 
 def test_admin_sem_duas_etapas_so_em_teste(servico, auth, monkeypatch):
