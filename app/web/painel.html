@@ -85,7 +85,7 @@
   .passo-num { width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; background: var(--fundo); color: var(--texto); font-size: 13px; font-weight: 700; }
   .passo.feito .passo-num { background: var(--lima); color: var(--noite); }
   .passo.feito { color: var(--texto-2); }
-  .abas-empresa { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .abas-empresa { display: flex; flex-wrap: wrap; gap: 6px; }
   .abas-empresa::-webkit-scrollbar { display: none; }
   .aba-empresa { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--borda); background: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--texto); }
   .aba-empresa[aria-selected="true"] { background: var(--noite); border-color: var(--noite); color: #fff; }

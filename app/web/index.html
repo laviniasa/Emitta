@@ -60,6 +60,11 @@
   #empresa .panel > img, #ibs-cbs .panel > img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block; }
   .frame--split > img.frame__img { object-position: 0 0; }
   #contador h2, #guias h2 { margin-bottom: 24px; }
+  /* tela baixa no computador: a seção cresce com o conteúdo em vez de passar por cima da próxima */
+  @media (min-width: 1280px) {
+    main > :is(section, .section):not(.hero), footer.closing { height: auto; min-height: calc(var(--h, 1) * 100svh); }
+    main > :is(section, .section):not(.hero) > .wrap, footer.closing > .wrap { height: auto; }
+  }
   .fatos { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
   .fatos li { display: flex; gap: 10px; align-items: baseline; }
   .fatos li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--p-ink); transform: translateY(-2px); }
