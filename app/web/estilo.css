@@ -465,3 +465,36 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .lista-meses div { display: flex; justify-content: space-between; padding: 13px 16px; border-top: 1px solid var(--borda); text-transform: capitalize; }
 .lista-meses div:first-child { border-top: 0; }
 .lista-meses div.vazio { color: var(--texto-3); }
+
+/* ---------- menu lateral do painel (gaveta) ---------- */
+.gaveta { position: fixed; inset: 0; z-index: 80; }
+.gaveta-fundo { position: absolute; inset: 0; background: rgba(15, 42, 36, .45); opacity: 0; transition: opacity .2s ease; }
+.gaveta-painel { position: absolute; top: 0; bottom: 0; left: 0; width: min(320px, 86vw); background: var(--card); overflow-y: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 12px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  box-shadow: 8px 0 40px rgba(15, 42, 36, .25); transform: translateX(-104%); transition: transform .22s var(--suave); outline: none;
+  display: flex; flex-direction: column; gap: 8px; }
+.gaveta.aberta .gaveta-fundo { opacity: 1; }
+.gaveta.aberta .gaveta-painel { transform: none; }
+.gaveta-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 4px 8px 12px; border-bottom: 1px solid var(--borda); }
+.gaveta-topo strong { display: block; font-family: var(--titulo); font-size: 17px; }
+.gaveta-topo span { font-size: 13px; color: var(--texto-2); word-break: break-all; }
+.gaveta-fechar { border: 0; background: var(--fundo); width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; cursor: pointer; color: var(--texto); flex: none; }
+.gaveta-grupo { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--borda); }
+.gaveta-grupo:last-child { border-bottom: 0; }
+.gaveta-titulo { margin: 0; padding: 4px 10px 6px; font-size: 12px; font-weight: 600; color: var(--texto-3); text-transform: uppercase; letter-spacing: .06em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gaveta-item { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent;
+  font: 500 15px/1.2 Inter, system-ui, sans-serif; color: var(--texto); text-align: left; text-decoration: none; cursor: pointer; width: 100%; }
+.gaveta-item:hover { background: var(--fundo); color: var(--texto); }
+.gaveta-item.atual { background: var(--verde-claro); font-weight: 600; }
+.gaveta-item.atual svg { color: var(--verde); }
+.gaveta-item:focus-visible { outline: 2px solid var(--verde); outline-offset: 1px; }
+/* no celular, as abas da empresa viram um botão que abre o menu */
+.secao-celular { display: none; }
+@media (max-width: 700px) {
+  .abas-empresa { display: none !important; }
+  .secao-celular { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 0 14px; border-radius: var(--raio);
+    border: 1px solid var(--borda); background: var(--card); font: 600 16px Inter, system-ui, sans-serif; color: var(--texto); cursor: pointer; }
+  .secao-celular .secao-trocar { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--verde); }
+}
+@media (prefers-reduced-motion: reduce) { .gaveta-painel, .gaveta-fundo { transition: none; } }

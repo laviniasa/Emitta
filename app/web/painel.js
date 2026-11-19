@@ -54,6 +54,77 @@
     return !estado.alterado || window.confirm("Há alterações nos serviços que não foram salvas. Sair mesmo assim?");
   }
 
+  // ------------------------------------------------------------ menu lateral (gaveta)
+
+  const $gaveta = document.getElementById("gaveta");
+  const $gavetaPainel = $gaveta.querySelector(".gaveta-painel");
+  const $btnMenu = document.getElementById("btn-menu");
+  $btnMenu.append(icone("menu", 20));
+  $btnMenu.addEventListener("click", () => abrirGaveta());
+  $gaveta.addEventListener("click", (e) => { if (e.target.closest("[data-fechar]")) fecharGaveta(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$gaveta.hidden) fecharGaveta(); });
+
+  function sairDoPainel() {
+    if (confirmarSaida()) { estado.alterado = false; sair(); }
+  }
+
+  function irPara(acao) {
+    fecharGaveta();
+    acao();
+  }
+
+  function desenharGaveta() {
+    const item = (rotulo, ic, acao, opcoes = {}) => el("button", {
+      type: "button", class: "gaveta-item" + (opcoes.atual ? " atual" : ""), "aria-current": opcoes.atual ? "page" : null,
+      onclick: () => irPara(acao),
+    }, icone(ic, 18), el("span", {}, rotulo), opcoes.extra || null);
+    const c = estado.modo === "cliente" && estado.clientes.find((x) => x.id === estado.selecionado);
+    const grupos = [];
+    if (!autonomo()) {
+      grupos.push(el("div", { class: "gaveta-grupo" },
+        el("p", { class: "gaveta-titulo" }, "Escritório"),
+        item("Início", "casa", () => { if (!confirmarSaida()) return; estado.modo = null; estado.selecionado = null; desenharLista(); desenharPrincipal(); },
+          { atual: !estado.modo }),
+        item("Notas do escritório", "notas", () => abrirNotasEscritorio(), { atual: estado.modo === "notas" }),
+        item("Nova empresa", "mais", () => $btnNova.click(), { atual: estado.modo === "nova" })));
+    }
+    if (c) {
+      grupos.push(el("div", { class: "gaveta-grupo" },
+        el("p", { class: "gaveta-titulo" }, autonomo() ? "Minha empresa" : c.razao_social),
+        ...abasVisiveis().map((a) => item(a.nome, a.icone, () => { if (a.id !== estado.aba) irParaAba(a.id); }, { atual: estado.aba === a.id })),
+        el("a", { class: "gaveta-item", href: `/empresa?empresa=${c.id}` }, icone("olho", 18), el("span", {}, autonomo() ? "Voltar ao app" : "Ver como o cliente vê"))));
+    }
+    grupos.push(el("div", { class: "gaveta-grupo" },
+      el("p", { class: "gaveta-titulo" }, "Conta"),
+      item("Segurança", "escudo", abrirSeguranca, { atual: estado.modo === "seguranca" }),
+      item("Ajuda", "balao", () => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Ajuda" && !x.closest(".gaveta")); if (b) b.click(); }),
+      item("Sair", "sair", sairDoPainel)));
+    $gavetaPainel.replaceChildren(
+      el("div", { class: "gaveta-topo" },
+        el("div", {}, el("strong", {}, estado.eu ? estado.eu.nome : ""), el("span", {}, estado.eu ? estado.eu.email : "")),
+        el("button", { type: "button", class: "gaveta-fechar", "aria-label": "Fechar menu", "data-fechar": "" }, icone("x", 20))),
+      ...grupos);
+  }
+
+  function abrirGaveta() {
+    desenharGaveta();
+    $gaveta.hidden = false;
+    requestAnimationFrame(() => $gaveta.classList.add("aberta"));
+    $btnMenu.setAttribute("aria-expanded", "true");
+    document.body.style.overflow = "hidden";
+    const foco = $gavetaPainel.querySelector(".gaveta-item.atual") || $gavetaPainel.querySelector(".gaveta-item");
+    if (foco) foco.focus();
+  }
+
+  function fecharGaveta() {
+    if ($gaveta.hidden) return;
+    $gaveta.classList.remove("aberta");
+    $btnMenu.setAttribute("aria-expanded", "false");
+    document.body.style.overflow = "";
+    setTimeout(() => { $gaveta.hidden = true; }, 220);
+    $btnMenu.focus();
+  }
+
   // ------------------------------------------------------------ assistente
 
   // No painel, o contador pode pedir ajuda e até montar uma nota de uma empresa:
@@ -470,15 +541,16 @@
   const autonomo = () => estado.eu && estado.eu.papel === "autonomo";
 
   const ABAS = [
-    { id: "servicos", nome: "Serviços" },
-    { id: "notas", nome: "Notas" },
-    { id: "ano", nome: "Resumo do ano" },
-    { id: "recebidas", nome: "Notas recebidas" },
-    { id: "impostos", nome: "Impostos" },
-    { id: "certificado", nome: "Certificado" },
-    { id: "acesso", nome: "Acesso ao app" },
-    { id: "dados", nome: "Dados da empresa" },
+    { id: "servicos", nome: "Serviços", icone: "certo" },
+    { id: "notas", nome: "Notas", icone: "recibo" },
+    { id: "ano", nome: "Resumo do ano", icone: "grafico" },
+    { id: "recebidas", nome: "Notas recebidas", icone: "notas" },
+    { id: "impostos", nome: "Impostos", icone: "guia" },
+    { id: "certificado", nome: "Certificado", icone: "escudo" },
+    { id: "acesso", nome: "Acesso ao app", icone: "usuario" },
+    { id: "dados", nome: "Dados da empresa", icone: "engrenagem" },
   ];
+  const abasVisiveis = () => ABAS.filter((a) => !(autonomo() && (a.id === "acesso" || a.id === "impostos")));
 
   function irParaAba(aba) {
     estado.aba = aba;
@@ -522,7 +594,7 @@
           el("span", {}, e.nome, el("span", { class: "visualmente-oculto" }, e.feito ? " (feito)" : " (pendente)")))))));
 
     const abas = el("div", { class: "abas-empresa", role: "tablist", "aria-label": "Seções da empresa" },
-      ...ABAS.filter((a) => !(autonomo() && (a.id === "acesso" || a.id === "impostos"))).map((a) => el("button", {
+      ...abasVisiveis().map((a) => el("button", {
         type: "button", role: "tab", class: "aba-empresa", id: `aba-${a.id}`,
         "aria-selected": estado.aba === a.id ? "true" : "false",
         onclick: () => { if (a.id !== estado.aba) irParaAba(a.id); },
@@ -543,7 +615,11 @@
     else conteudo = abaServicos(c, liberados);
 
     const voltar = autonomo() && el("a", { class: "voltar-app", href: "/empresa" }, icone("voltar", 18), "Voltar ao início do app");
-    return [voltar || null, cabecalho, passos || null, abas,
+    const atual = ABAS.find((a) => a.id === estado.aba) || ABAS[0];
+    const secaoCelular = el("button", { type: "button", class: "secao-celular", onclick: () => abrirGaveta(),
+      "aria-label": `Seção: ${atual.nome}. Abrir menu para trocar` },
+      icone(atual.icone, 18), el("span", {}, atual.nome), el("span", { class: "secao-trocar" }, "Trocar", icone("menu", 16)));
+    return [voltar || null, cabecalho, passos || null, secaoCelular, abas,
       el("div", { role: "tabpanel", "aria-labelledby": `aba-${estado.aba}`, class: "painel-aba" }, ...conteudo),
     ].filter(Boolean);
   }
@@ -1400,8 +1476,8 @@
       estado.eu = await exigirLogin("contador");
       document.getElementById("topo-acoes").append(
         el("span", { class: "quem" }, estado.eu.nome),
-        el("button", { class: "topo-botao", type: "button", onclick: abrirSeguranca }, icone("escudo", 16), "Segurança"),
-        el("button", { class: "topo-botao", type: "button", onclick: () => { if (confirmarSaida()) { estado.alterado = false; sair(); } } }, icone("sair", 16), "Sair"),
+        el("button", { class: "topo-botao topo-acoes-largas", type: "button", onclick: abrirSeguranca }, icone("escudo", 16), "Segurança"),
+        el("button", { class: "topo-botao topo-acoes-largas", type: "button", onclick: sairDoPainel }, icone("sair", 16), "Sair"),
       );
       const status = await api("GET", "/status");
       const selo = document.getElementById("selo-ambiente");

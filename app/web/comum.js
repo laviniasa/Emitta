@@ -149,6 +149,8 @@ const Emitta = (() => {
   }
 
   const ICONES = {
+    menu: "M4 7h16M4 12h16M4 17h16",
+    grafico: "M4 20h16M7 16v-5M12 16V6M17 16v-8",
     // desenhados a partir do logo (recibo serrilhado e o "e")
     recibo: "M6 3h12a1 1 0 0 1 1 1v17l-2.33-1.5L14.33 21 12 19.5 9.67 21 7.33 19.5 5 21V4a1 1 0 0 1 1-1zM12 7.5v7M8.5 11h7",
     notas: "M6 3h12a1 1 0 0 1 1 1v17l-2.33-1.5L14.33 21 12 19.5 9.67 21 7.33 19.5 5 21V4a1 1 0 0 1 1-1zM8.5 8h7M8.5 11.5h7M8.5 15h4",
