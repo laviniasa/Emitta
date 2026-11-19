@@ -113,7 +113,25 @@ def test_nota_com_ibscbs_e_informacoes_complementares(app, auth):  # noqa: F811
                                                 "tomador_nome": "Carla", "valor": "180,00",
                                                 "informacoes_complementares": "Pagamento via Pix."})
     nota = r.json()
-    assert nota["informacoes_complementares"] == "Pagamento via Pix."
-    assert nota["ibscbs"] == {"nbs": "126022000", "cind_op": "030101", "cclass_trib": "000001"}
+    assert nota["informacoes_complementares"].startswith("Totais aproximados dos Tributos cfe. Lei n° 12.741/2012:")
+    assert nota["informacoes_complementares"].endswith(" / Pagamento via Pix.")
+    assert nota["ibscbs"] is None  # tomador CPF sem endereço: grupo IBS/CBS fica de fora (E0239)
     pdf = empresa.get(nota["pdf"])
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    # tomador CNPJ: endereço vem da Receita e o grupo IBS/CBS vai na nota
+    r = empresa.post(f"/app/{cid}/notas", json={"codigo_servico": "060201", "tomador_documento": "11444777000161",
+                                                "tomador_nome": "Empresa Consultada", "valor": "300,00"})
+    nota = r.json()
+    assert r.status_code == 201, nota
+    assert nota["ibscbs"] == {"nbs": "126022000", "cind_op": "030101", "cclass_trib": "000001"}
+    assert empresa.get(nota["pdf"]).status_code == 200
+
+
+def test_servicos_sugeridos_pelo_cnae_da_empresa(app, auth):  # noqa: F811
+    rafa = contador_aprovado(app, auth, "Rafa", "rafa@escritorio.com")
+    cid = rafa.post("/contador/clientes", json={"cnpj": "11444777000161", "razao_social": "Empresa Consultada",
+                                                "municipio_ibge": "3550308", "municipio_nome": "São Paulo",
+                                                "aliquota_iss": "2"}).json()["id"]
+    r = rafa.get(f"/contador/clientes/{cid}/servicos/sugeridos").json()
+    assert [c["codigo"] for c in r["cnaes"]] == ["6201501", "9602502"]
+    assert "010101" in r["cnaes"][0]["servicos"] and "060201" in r["cnaes"][1]["servicos"]

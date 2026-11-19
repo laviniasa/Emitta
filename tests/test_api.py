@@ -29,7 +29,10 @@ class ConsultaFalsa:
             raise CnpjNaoEncontrado("CNPJ não encontrado na Receita.")
         return {"razao_social": "EMPRESA CONSULTADA LTDA", "nome_fantasia": "", "municipio": "São Paulo",
                 "uf": "SP", "codigo_municipio_ibge": "3550308", "situacao": "ATIVA",
-                "cnae_principal": {"codigo": "6201501", "descricao": "Desenvolvimento"}, "regime": "3"}
+                "cnae_principal": {"codigo": "6201501", "descricao": "Desenvolvimento"}, "regime": "3",
+                "cnaes_secundarios": [{"codigo": "9602502", "descricao": "Estética"}],
+                "endereco": {"cmun": "3550308", "cep": "01310100", "logradouro": "AVENIDA PAULISTA", "numero": "1000",
+                             "complemento": "", "bairro": "BELA VISTA"}}
 
 
 @pytest.fixture
