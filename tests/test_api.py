@@ -472,3 +472,29 @@ def test_admin_sem_duas_etapas_so_em_teste(servico, auth, monkeypatch):
                     headers=CSRF, base_url="https://testserver")
     assert c2.post("/auth/entrar", json={"email": "dona@emitta.com", "senha": SENHA}).status_code == 200
     assert c2.get("/admin/contas").json()["detail"]["codigo"] == "admin_2fa"
+
+
+# ---------------------------------------------------------------- remover empresa
+
+def test_contador_remove_empresa_com_notas_e_acessos(app, auth, contador):
+    cid = criar_empresa(contador)
+    contador.put(f"/contador/clientes/{cid}/servicos", json={"servicos": [{"codigo": "010101"}]})
+    empresa = entrar_como_empresa(app, contador, cid)
+    assert empresa.post(f"/app/{cid}/notas", json={
+        "codigo_servico": "010101", "tomador_documento": CNPJ_TOMADOR, "tomador_nome": "Cliente", "valor": "100",
+    }).status_code == 201
+
+    # outro contador não remove a empresa de quem não é dele
+    carlos = contador_aprovado(app, auth, "Carlos", "carlos@outro.com")
+    assert carlos.delete(f"/contador/clientes/{cid}").status_code == 404
+    # a própria empresa também não
+    assert empresa.delete(f"/contador/clientes/{cid}").status_code in (403, 404)
+
+    assert contador.delete(f"/contador/clientes/{cid}").status_code == 204
+    assert all(c["id"] != cid for c in contador.get("/contador/clientes").json())
+    assert contador.get(f"/contador/clientes/{cid}/servicos").status_code == 404
+    # o login da empresa deixa de funcionar e a sessão dela cai
+    assert empresa.get(f"/app/{cid}/servicos").status_code == 401
+    assert auth.repo.buscar_usuario_por_email("bia@empresa.com") is None
+    # dá para cadastrar o mesmo CNPJ de novo
+    criar_empresa(contador)

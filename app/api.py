@@ -776,6 +776,18 @@ def criar_app(
         evento("certificado_removido", request, usuario, detalhe=cliente.razao_social)
         return repo.remover_certificado(cliente_id).publico()
 
+    @app.delete("/contador/clientes/{cliente_id}", status_code=204, tags=["contador"])
+    def remover_empresa(cliente_id: int, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
+        """Remove a empresa da carteira do contador (com as notas guardadas no Emitta)."""
+        if usuario.papel != "contador":
+            raise HTTPException(403, "Só o contador pode remover uma empresa.")
+        cliente = cliente_ou_404(cliente_id)
+        notas = repo.contar_notas(cliente_id)
+        repo.remover_cliente(cliente_id)
+        evento("empresa_removida", request, usuario,
+               detalhe=f"{cliente.razao_social} ({cliente.cnpj}) · {notas} nota(s) apagada(s) do Emitta")
+        return Response(status_code=204)
+
     # ------------------------------------------------------------ consulta CNPJ
 
     @app.get("/consulta/cnpj/{cnpj}", tags=["consulta"])

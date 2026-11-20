@@ -345,6 +345,16 @@ class Repositorio:
             )
         return self.buscar_cliente(cliente_id)
 
+    def contar_notas(self, cliente_id: int) -> int:
+        return int(self.con.execute("SELECT COUNT(*) FROM notas WHERE cliente_id = ?", (cliente_id,)).fetchone()[0])
+
+    def remover_cliente(self, cliente_id: int) -> None:
+        """Apaga a empresa e tudo dela no Emitta: notas guardadas, serviços, guias, notas recebidas
+        e os logins da empresa (com as sessões). As notas continuam no Emissor Nacional do governo."""
+        with self.con:
+            self.con.execute("DELETE FROM notas WHERE cliente_id = ?", (cliente_id,))
+            self.con.execute("DELETE FROM clientes WHERE id = ?", (cliente_id,))
+
     def remover_certificado(self, cliente_id: int) -> Cliente:
         with self.con:
             self.con.execute(

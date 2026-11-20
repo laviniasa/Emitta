@@ -498,3 +498,7 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
   .secao-celular .secao-trocar { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--verde); }
 }
 @media (prefers-reduced-motion: reduce) { .gaveta-painel, .gaveta-fundo { transition: none; } }
+
+/* Dados da empresa: remover */
+.remover-empresa { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--borda, #e4e2da); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.remover-empresa h3 { font-size: 15px; margin: 0; }

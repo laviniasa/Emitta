@@ -1013,7 +1013,25 @@
       linha("Regime", regime),
       linha("Alíquota de ISS", `${String(c.aliquota_iss).replace(".", ",")}%`),
       c.opcao_simples === "3" && linha("Tributos aproximados do Simples", c.p_tot_trib_sn ? `${String(c.p_tot_trib_sn).replace(".", ",")}%` : "Não informado"),
-      linha("Prazo para cancelar", c.prazo_cancelamento_dias ? `${c.prazo_cancelamento_dias} dias (informado por você)` : "Definido pela prefeitura"));
+      linha("Prazo para cancelar", c.prazo_cancelamento_dias ? `${c.prazo_cancelamento_dias} dias (informado por você)` : "Definido pela prefeitura"),
+      !autonomo() && el("div", { class: "remover-empresa" },
+        el("h3", {}, "Remover empresa"),
+        el("p", { class: "sub2" }, "Tira a empresa da sua lista e apaga do Emitta os serviços, os acessos dela, o certificado, as guias e as notas guardadas aqui. As notas emitidas continuam no Emissor Nacional do governo."),
+        el("button", { class: "botao botao-texto-perigo", type: "button", onclick: () => removerEmpresa(c) }, "Remover esta empresa")));
+  }
+
+  async function removerEmpresa(c) {
+    const ok = window.confirm(
+      `Remover ${c.razao_social} (${formatarDocumento(c.cnpj)})?\n\n` +
+      "Serão apagados do Emitta: serviços liberados, acessos da empresa, certificado, guias e notas guardadas aqui.\n" +
+      "As notas emitidas continuam no Emissor Nacional. Se precisar dos XML e PDF, baixe antes em Notas do escritório.\n\n" +
+      "Essa ação não pode ser desfeita.");
+    if (!ok) return;
+    try {
+      await api("DELETE", `/contador/clientes/${c.id}`);
+      estado.selecionado = null; estado.modo = null; estado.alterado = false;
+      await carregarClientes(); desenharLista(); desenharPrincipal();
+    } catch (erro) { avisar(erro.message); }
   }
 
   function formularioNovaEmpresa() {
