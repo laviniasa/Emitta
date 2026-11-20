@@ -67,6 +67,11 @@ h1, h2, h3, h4 { hyphens: manual; -webkit-hyphens: manual; }
     main > :is(section, .section):not(.hero), footer.closing { height: auto; min-height: calc(var(--h, 1) * 100svh); }
     main > :is(section, .section):not(.hero) > .wrap, footer.closing > .wrap { height: auto; }
   }
+  /* tela baixa no computador (ou com zoom): a primeira dobra cresce com o texto em vez de cortá-lo */
+  @media (min-width: 640px) {
+    main > .hero { height: auto; min-height: 100vh; min-height: 100svh; }
+    main > .hero > .wrap { height: auto; }
+  }
   .fatos { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
   .fatos li { display: flex; gap: 10px; align-items: baseline; }
   .fatos li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--p-ink); transform: translateY(-2px); }
