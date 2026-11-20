@@ -72,6 +72,13 @@ h1, h2, h3, h4 { hyphens: manual; -webkit-hyphens: manual; }
     main > .hero { height: auto; min-height: 100vh; min-height: 100svh; }
     main > .hero > .wrap { height: auto; }
   }
+  #quem-faz { min-height: 0 !important; height: auto !important; padding-block: 72px !important; }
+  .quem-faz__rotulo { letter-spacing: .08em; text-transform: uppercase; }
+  .autora { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
+  .autora__foto { width: 64px; height: 64px; border-radius: 50%; background: #c6f36b; color: #0f2a24; display: grid; place-items: center; font-size: 28px; font-weight: 600; }
+  .autora__nome { font-size: 1.25rem; font-weight: 600; margin: 0; }
+  .adm-discreto { opacity: .3; color: inherit; display: inline-flex; padding: 6px; }
+  .adm-discreto:hover, .adm-discreto:focus-visible { opacity: .75; }
   .fatos { list-style: none; padding: 0; margin: 24px 0; display: grid; gap: 10px; }
   .fatos li { display: flex; gap: 10px; align-items: baseline; }
   .fatos li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--p-ink); transform: translateY(-2px); }
@@ -236,6 +243,23 @@ h1, h2, h3, h4 { hyphens: manual; -webkit-hyphens: manual; }
       </div>
     </div>
   </section>
+  <section class="section ground-surface" id="quem-faz" aria-labelledby="quem-h">
+    <div class="wrap grid">
+      <div class="span-4">
+        <p class="t-small muted quem-faz__rotulo">Quem faz o Emitta</p>
+        <div class="autora">
+          <div class="autora__foto" aria-hidden="true">L</div>
+          <div><p class="autora__nome">Lavínia</p><p class="t-small muted">Desenvolvedora · lav.code</p></div>
+        </div>
+      </div>
+      <div class="span-7 start-6 stack-5">
+        <h2 id="quem-h">Feito junto com uma contadora</h2>
+        <p class="t-lead">O Emitta nasceu da rotina de um escritório de contabilidade de verdade: cada tela foi testada por uma contadora que emite notas para os clientes todo mês.</p>
+        <p>Sou a Lavínia, desenvolvedora. Criei o Emitta para que o contador libere os serviços uma vez e a empresa emita a nota sozinha, sem erro de código.</p>
+        <a class="link" href="https://instagram.com/lav.code" target="_blank" rel="noopener">Me acompanhe no Instagram: @lav.code</a>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="footer closing" id="contato" aria-labelledby="close-h">
@@ -255,7 +279,7 @@ h1, h2, h3, h4 { hyphens: manual; -webkit-hyphens: manual; }
         <div class="span-2 footer__col"><h4>Ajuda</h4><ul><li><a href="#ibs-cbs">IBS e CBS</a></li><li><a href="#perguntas">Perguntas</a></li></ul></div>
       </div>
       <div class="footer__legal">
-        <span>&copy; 2026 Emitta · lav.code</span><a href="/admin" class="t-small muted">Administração</a>
+        <span>&copy; 2026 Emitta · lav.code</span><a href="/admin" class="adm-discreto" aria-label="Administração" title="Administração"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg></a>
       </div>
     </div>
   </div>
