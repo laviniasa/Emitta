@@ -1,0 +1,118 @@
+/* Páginas públicas de apoio: Central de ajuda, Termos de uso e Política de privacidade.
+   Usa as cores do estilo.css (carregado antes). */
+
+body.pagina-apoio { background: var(--fundo); min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ---------- barra do topo ---------- */
+.apoio-topo { position: sticky; top: 0; z-index: 10; background: var(--noite); color: #fff;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 20px 12px; }
+.apoio-topo-in { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.apoio-marca { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-family: var(--titulo); font-weight: 700; font-size: 19px; }
+.apoio-marca svg { width: 30px; height: 30px; }
+.apoio-topo nav { display: flex; gap: 6px; align-items: center; }
+.apoio-topo nav a { color: #DCEBE3; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 12px; border-radius: 999px; }
+.apoio-topo nav a:hover { background: rgba(255,255,255,.08); color: #fff; }
+.apoio-topo nav a.cheio { background: var(--lima); color: var(--noite); font-weight: 600; }
+.apoio-topo nav a.cheio:hover { background: var(--lima-forte); }
+@media (max-width: 560px) { .apoio-topo nav a.so-largo { display: none; } }
+
+/* ---------- cabeçalho da página ---------- */
+.apoio-cabeca { background: var(--noite); color: #fff; padding: 44px 20px 72px; position: relative; overflow: hidden; }
+.apoio-cabeca::after { content: ""; position: absolute; inset: auto -10% -60% 40%; height: 120%;
+  background: radial-gradient(closest-side, rgba(198,243,107,.16), transparent); pointer-events: none; }
+.apoio-cabeca-in { max-width: 760px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; position: relative; z-index: 1; }
+.selo { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(198,243,107,.35); background: rgba(198,243,107,.08);
+  color: var(--lima); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; }
+.selo svg { width: 14px; height: 14px; }
+.apoio-cabeca h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.06; letter-spacing: -.03em; text-wrap: balance; }
+.apoio-cabeca p { color: #CFE3D9; font-size: 16px; line-height: 1.55; max-width: 560px; text-wrap: balance; }
+
+.apoio-corpo { flex: 1; padding: 0 20px 64px; }
+.apoio-largura { max-width: 760px; margin: 0 auto; }
+
+/* ---------- busca ---------- */
+.busca-ajuda { position: relative; margin-top: -30px; z-index: 2; }
+.busca-ajuda svg { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--texto-3); pointer-events: none; }
+.busca-ajuda input { width: 100%; min-height: 60px; border-radius: 16px; border: 1px solid var(--borda); background: var(--card);
+  padding: 0 18px 0 50px; font-size: 16px; box-shadow: 0 14px 40px rgba(15,42,36,.12); transition: border-color .15s, box-shadow .15s; }
+.busca-ajuda input:focus { outline: none; border-color: var(--verde); box-shadow: 0 14px 40px rgba(15,42,36,.12), 0 0 0 4px rgba(28,122,67,.14); }
+
+/* ---------- categorias ---------- */
+.categorias { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 8px; }
+.categorias button { border: 1px solid var(--borda-forte); background: var(--card); border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 500;
+  cursor: pointer; color: var(--texto-2); transition: background .15s, color .15s, border-color .15s; }
+.categorias button:hover { border-color: var(--verde); color: var(--texto); }
+.categorias button[aria-pressed="true"] { background: var(--noite); border-color: var(--noite); color: #fff; }
+.contagem { color: var(--texto-3); font-size: 13px; margin: 14px 2px 10px; min-height: 18px; }
+
+/* ---------- perguntas (acordeão) ---------- */
+.perguntas { display: flex; flex-direction: column; gap: 10px; }
+.pergunta { background: var(--card); border: 1px solid var(--borda); border-radius: 16px; overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+.pergunta:hover { border-color: var(--borda-forte); }
+.pergunta.aberta { border-color: var(--lima-forte); box-shadow: 0 8px 26px rgba(15,42,36,.07); }
+.pergunta > h3 { margin: 0; font: inherit; }
+.pergunta-botao { width: 100%; display: flex; align-items: center; gap: 14px; justify-content: space-between; text-align: left; background: none; border: 0;
+  padding: 18px 20px; cursor: pointer; font-family: var(--titulo); font-size: 16.5px; font-weight: 600; color: var(--texto); line-height: 1.3; }
+.pergunta-botao:focus-visible { outline: 3px solid rgba(28,122,67,.35); outline-offset: -3px; border-radius: 16px; }
+.pergunta-cat { display: block; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 600; color: var(--verde); margin-bottom: 3px; letter-spacing: .01em; }
+.pergunta-seta { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--fundo); color: var(--texto-2);
+  transition: transform .25s var(--suave), background .15s; }
+.pergunta.aberta .pergunta-seta { transform: rotate(180deg); background: var(--lima); color: var(--noite); }
+.pergunta-seta svg { width: 16px; height: 16px; }
+.pergunta-resposta { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s var(--suave); }
+.pergunta.aberta .pergunta-resposta { grid-template-rows: 1fr; }
+.pergunta-resposta > div { overflow: hidden; }
+.pergunta-resposta .texto { padding: 0 20px 20px; color: var(--texto-2); line-height: 1.6; font-size: 15px; display: flex; flex-direction: column; gap: 10px; }
+.pergunta-resposta ol, .pergunta-resposta ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.pergunta-resposta strong { color: var(--texto); }
+mark { background: #E8F8C4; color: inherit; border-radius: 3px; padding: 0 1px; }
+.vazio-ajuda { border: 1px dashed var(--borda-forte); border-radius: 16px; padding: 34px 20px; text-align: center; color: var(--texto-2); background: rgba(255,255,255,.5); }
+@media (prefers-reduced-motion: reduce) { .pergunta-resposta, .pergunta-seta { transition: none; } }
+
+/* ---------- ainda com dúvida ---------- */
+.contato-ajuda { margin-top: 34px; border: 1px dashed var(--borda-forte); background: rgba(255,255,255,.6); border-radius: 18px; padding: 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.contato-ajuda .lado { display: flex; align-items: center; gap: 14px; }
+.contato-ajuda .bola { width: 42px; height: 42px; flex: none; border-radius: 50%; background: var(--noite); color: var(--lima); display: grid; place-items: center; }
+.contato-ajuda .bola svg { width: 20px; height: 20px; }
+.contato-ajuda strong { display: block; font-family: var(--titulo); font-size: 16px; }
+.contato-ajuda span { color: var(--texto-2); font-size: 14px; }
+.contato-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.botao-pilula { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 16px; border-radius: 999px; font-weight: 600; font-size: 14px;
+  text-decoration: none; border: 1px solid var(--borda-forte); background: var(--card); color: var(--texto); }
+.botao-pilula.cheio { background: var(--noite); border-color: var(--noite); color: #fff; }
+.botao-pilula svg { width: 16px; height: 16px; }
+.botao-pilula:hover { filter: brightness(1.05); border-color: var(--verde); }
+
+/* ---------- documentos (termos e privacidade) ---------- */
+.doc { max-width: 1080px; margin: -36px auto 0; position: relative; z-index: 2; display: grid; grid-template-columns: 240px 1fr; gap: 28px; align-items: start; }
+.doc-indice { position: sticky; top: 84px; background: var(--card); border: 1px solid var(--borda); border-radius: 16px; padding: 16px; }
+.doc-indice p { font-size: 12px; font-weight: 700; color: var(--texto-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.doc-indice ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: i; }
+.doc-indice a { display: block; padding: 7px 10px; border-radius: 10px; color: var(--texto-2); text-decoration: none; font-size: 14px; line-height: 1.3; }
+.doc-indice a:hover { background: var(--fundo); color: var(--texto); }
+.doc-indice a.atual { background: var(--verde-claro); color: var(--verde-escuro); font-weight: 600; }
+.doc-texto { background: var(--card); border: 1px solid var(--borda); border-radius: 18px; padding: 34px clamp(20px, 4vw, 44px); min-width: 0; }
+.doc-texto .resumo { background: var(--verde-claro); border-radius: 14px; padding: 16px 18px; color: var(--texto); line-height: 1.55; margin-bottom: 8px; }
+.doc-texto .resumo strong { font-family: var(--titulo); }
+.doc-texto section { padding-top: 26px; scroll-margin-top: 90px; }
+.doc-texto h2 { font-size: 21px; letter-spacing: -.015em; margin-bottom: 10px; display: flex; gap: 10px; align-items: baseline; }
+.doc-texto h2 .n { font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 700; color: var(--verde); }
+.doc-texto p, .doc-texto li { color: var(--texto-2); line-height: 1.65; font-size: 15px; }
+.doc-texto p + p { margin-top: 10px; }
+.doc-texto ul { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.doc-texto strong { color: var(--texto); }
+.doc-data { color: #CFE3D9; font-size: 14px; }
+@media (max-width: 860px) {
+  .doc { grid-template-columns: 1fr; gap: 14px; }
+  .doc-indice { position: static; }
+  .doc-indice ol { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .doc-indice a { border: 1px solid var(--borda); border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+}
+
+/* ---------- rodapé ---------- */
+.apoio-rodape { border-top: 1px solid var(--borda); padding: 22px 20px calc(env(safe-area-inset-bottom, 0px) + 22px); }
+.apoio-rodape-in { max-width: 1080px; margin: 0 auto; display: flex; gap: 8px 18px; flex-wrap: wrap; justify-content: space-between; color: var(--texto-3); font-size: 13px; }
+.apoio-rodape nav { display: flex; gap: 16px; flex-wrap: wrap; }
+.apoio-rodape a { color: var(--texto-2); text-decoration: none; }
+.apoio-rodape a:hover { color: var(--texto); text-decoration: underline; }

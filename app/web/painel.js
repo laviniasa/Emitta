@@ -1,6 +1,6 @@
 // Painel do contador: empresas, serviços liberados e notas.
 (() => {
-  const { api, el, zonaArquivo, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin } = Emitta;
+  const { api, el, zonaArquivo, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin, suporte } = Emitta;
 
   const estado = {
     clientes: [],
@@ -73,6 +73,11 @@
     acao();
   }
 
+  // "Fale com o suporte": aparece quando o servidor tem WhatsApp ou e-mail configurado.
+  const $itemSuporte = el("a", { class: "gaveta-item", target: "_blank", rel: "noopener", hidden: true },
+    icone("telefone", 18), el("span", {}, "Fale com o suporte"));
+  suporte().then((c) => { const d = c.whatsapp || c.email; if (d) { $itemSuporte.href = d; $itemSuporte.hidden = false; } });
+
   function desenharGaveta() {
     const item = (rotulo, ic, acao, opcoes = {}) => el("button", {
       type: "button", class: "gaveta-item" + (opcoes.atual ? " atual" : ""), "aria-current": opcoes.atual ? "page" : null,
@@ -97,7 +102,9 @@
     grupos.push(el("div", { class: "gaveta-grupo" },
       el("p", { class: "gaveta-titulo" }, "Conta"),
       item("Segurança", "escudo", abrirSeguranca, { atual: estado.modo === "seguranca" }),
-      item("Ajuda", "balao", () => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Ajuda" && !x.closest(".gaveta")); if (b) b.click(); }),
+      item("Assistente", "balao", () => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Ajuda" && !x.closest(".gaveta")); if (b) b.click(); }),
+      el("a", { class: "gaveta-item", href: "/ajuda", target: "_blank", rel: "noopener" }, icone("livro", 18), el("span", {}, "Central de ajuda")),
+      $itemSuporte,
       item("Sair", "sair", sairDoPainel)));
     $gavetaPainel.replaceChildren(
       el("div", { class: "gaveta-topo" },

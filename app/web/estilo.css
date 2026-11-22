@@ -502,3 +502,10 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 /* Dados da empresa: remover */
 .remover-empresa { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--borda, #e4e2da); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .remover-empresa h3 { font-size: 15px; margin: 0; }
+
+/* Assistente: atalhos para a central de ajuda e para falar com uma pessoa */
+.assist-atalhos { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+.assist-atalho { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px dashed var(--borda-forte);
+  color: var(--texto-2); font-size: 13px; font-weight: 500; text-decoration: none; background: #fff; }
+.assist-atalho:hover { border-color: var(--verde); color: var(--texto); }
+.gaveta-item[hidden] { display: none; }

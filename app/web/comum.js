@@ -150,6 +150,8 @@ const Emitta = (() => {
 
   const ICONES = {
     menu: "M4 7h16M4 12h16M4 17h16",
+    telefone: "M4 13v-1a8 8 0 0 1 16 0v1M4 13h3v6H5a1 1 0 0 1-1-1zM20 13h-3v6h2a1 1 0 0 0 1-1zM17 19c0 1.1-1.8 2-4 2",
+    livro: "M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2zM4 20a2 2 0 0 0 2 2h13v-4M8 7h7M8 11h5",
     grafico: "M4 20h16M7 16v-5M12 16V6M17 16v-8",
     // desenhados a partir do logo (recibo serrilhado e o "e")
     recibo: "M6 3h12a1 1 0 0 1 1 1v17l-2.33-1.5L14.33 21 12 19.5 9.67 21 7.33 19.5 5 21V4a1 1 0 0 1 1-1zM12 7.5v7M8.5 11h7",
@@ -269,5 +271,21 @@ const Emitta = (() => {
     return el("div", { class: "zona" }, $caixa, $input, $erro);
   }
 
-  return { api, el, zonaArquivo, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, guardar, ler, sair, exigirLogin };
+  // Canais de atendimento do Emitta (definidos no servidor). Devolve { whatsapp: url|null, email: url|null, emailTexto }.
+  let _suporte;
+  function suporte() {
+    if (!_suporte) {
+      _suporte = fetch("/suporte", { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : {}))
+        .catch(() => ({}))
+        .then((c) => ({
+          whatsapp: c.whatsapp ? `https://wa.me/${c.whatsapp}?text=${encodeURIComponent("Olá! Tenho uma dúvida sobre o Emitta.")}` : null,
+          email: c.email ? `mailto:${c.email}` : null,
+          emailTexto: c.email || null,
+        }));
+    }
+    return _suporte;
+  }
+
+  return { suporte, api, el, zonaArquivo, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, guardar, ler, sair, exigirLogin };
 })();

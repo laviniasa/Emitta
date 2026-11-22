@@ -1,7 +1,7 @@
 // Assistente do Emitta: botão "Ajuda" + conversa. Ela só monta rascunhos;
 // quem emite ou cancela é a pessoa, conferindo na tela de sempre.
 window.EmittaAssistente = (() => {
-  const { api, el, icone, formatarDocumento } = Emitta;
+  const { api, el, icone, formatarDocumento, suporte } = Emitta;
 
   function montar({ clienteId = () => null, conta = () => null, aoAgir = () => {}, sugestoes = [], botao = true } = {}) {
     // A conversa é guardada por conta e por empresa: quem entra com outra conta
@@ -34,6 +34,14 @@ window.EmittaAssistente = (() => {
         el("button", { class: "assist-x", type: "button", "aria-label": "Fechar ajuda", onclick: () => alternar(false) }, icone("fechar", 20))),
       $lista,
       el("div", { class: "assist-rodape" }, $campo, $enviar));
+    // Atalhos para quem prefere ler as respostas prontas ou falar com uma pessoa.
+    const $atalhos = el("div", { class: "assist-atalhos" },
+      el("a", { class: "assist-atalho", href: "/ajuda", target: "_blank", rel: "noopener" }, icone("livro", 16), "Central de ajuda"));
+    suporte().then((c) => {
+      const destino = c.whatsapp || c.email;
+      if (destino) $atalhos.append(el("a", { class: "assist-atalho", href: destino, target: "_blank", rel: "noopener" },
+        icone("balao", 16), c.whatsapp ? "Falar com uma pessoa" : "Mandar e-mail ao suporte"));
+    });
     const $botao = el("button", { class: "assist-botao", type: "button", "aria-label": "Abrir ajuda", onclick: () => alternar() },
       icone("balao", 20), el("span", {}, "Ajuda"));
     document.body.append($painel);
@@ -91,6 +99,7 @@ window.EmittaAssistente = (() => {
         itens.push(el("div", { class: "assist-sugestoes" }, ...sugestoes.map((s) => el("button", {
           type: "button", class: "assist-sugestao", onclick: () => enviar(s),
         }, s))));
+        itens.push($atalhos);
       }
       for (const m of mensagens) {
         itens.push(el("div", { class: "assist-msg " + (m.de === "pessoa" ? "minha" : "dela") }, ...(m.de === "pessoa" ? [m.texto] : formatar(m.texto))));

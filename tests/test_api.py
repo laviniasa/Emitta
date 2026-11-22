@@ -508,3 +508,18 @@ def test_documentacao_da_api_so_no_modo_simulacao(servico, auth, anonimo):
                    headers=CSRF, base_url="https://testserver")
     for caminho in ["/docs", "/redoc", "/openapi.json"]:
         assert c.get(caminho).status_code == 404, caminho
+
+
+def test_paginas_de_apoio_e_canais_de_suporte(anonimo, monkeypatch):
+    for caminho, trecho in [("/ajuda", "Como podemos ajudar?"), ("/termos", "Termos de uso"), ("/privacidade", "LGPD")]:
+        r = anonimo.get(caminho)
+        assert r.status_code == 200 and trecho in r.text, caminho
+        assert "<script>" not in r.text  # a CSP só aceita scripts de arquivo
+    monkeypatch.delenv("EMITTA_SUPORTE_WHATSAPP", raising=False)
+    monkeypatch.delenv("EMITTA_SUPORTE_EMAIL", raising=False)
+    assert anonimo.get("/suporte").json() == {"whatsapp": None, "email": None}
+    monkeypatch.setenv("EMITTA_SUPORTE_WHATSAPP", "(11) 98765-4321")
+    monkeypatch.setenv("EMITTA_SUPORTE_EMAIL", "contato@emitta.com.br")
+    assert anonimo.get("/suporte").json() == {"whatsapp": "5511987654321", "email": "contato@emitta.com.br"}
+    monkeypatch.setenv("EMITTA_SUPORTE_EMAIL", "nao-e-email")
+    assert anonimo.get("/suporte").json()["email"] is None

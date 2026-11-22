@@ -147,15 +147,15 @@
     if (perfil === "contador") {
       extras.push(el("div", { class: "separador" }, "Ainda não tem conta?"),
         el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaCadastro("contador") }, "Criar conta de contador"),
-        el("p", { class: "nota-pe" }, "Esqueceu a senha? Fale com o suporte do Emitta."));
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? ", el("a", { href: "/ajuda#esqueci-senha" }, "Veja como recuperar")));
     } else if (perfil === "autonomo") {
       extras.push(el("div", { class: "separador" }, "Ainda não tem conta?"),
         el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaCadastro("autonomo") }, "Criar conta de MEI ou autônomo"),
-        el("p", { class: "nota-pe" }, "Esqueceu a senha? Fale com o suporte do Emitta."));
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? ", el("a", { href: "/ajuda#esqueci-senha" }, "Veja como recuperar")));
     } else if (ehEmpresa) {
       extras.push(el("div", { class: "aviso aviso-info" }, icone("escudo"),
         "Seu acesso é criado pelo seu contador. Ele te passa o e-mail e uma senha provisória, e no primeiro acesso você cria a sua."),
-        el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso."));
+        el("p", { class: "nota-pe" }, "Esqueceu a senha? Peça ao seu contador para redefinir o seu acesso. ", el("a", { href: "/ajuda" }, "Central de ajuda")));
     }
     $caixa.prepend(voltarPara(ehEmpresa || perfil === "autonomo" ? telaTemContador : telaEscolha));
     $caixa.append(...extras);
@@ -183,6 +183,12 @@
       },
     );
     $caixa.prepend(voltarPara(() => telaEntrar(tipo)));
+    const form = $caixa.querySelector("form");
+    const aceite = el("p", { class: "aceite" }, "Ao enviar, você concorda com os ",
+      el("a", { href: "/termos", target: "_blank", rel: "noopener" }, "Termos de uso"), " e a ",
+      el("a", { href: "/privacidade", target: "_blank", rel: "noopener" }, "Política de privacidade"), ".");
+    const enviar = form && form.querySelector('button[type="submit"]');
+    if (enviar) enviar.before(aceite); else $caixa.append(aceite);
     $caixa.append(el("p", { class: "nota-pe" }, "Já tem conta? ",
       el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar(tipo) }, "Entrar")));
   }

@@ -27,6 +27,7 @@ import base64
 import json
 import binascii
 import os
+import re
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -407,6 +408,30 @@ def criar_app(
             return RedirectResponse("/", 307, headers={"Cache-Control": "no-store"})
         # Abertura com a animação da nota; decide para onde levar cada pessoa.
         return FileResponse(PASTA_WEB / "abrir.html", headers={"Cache-Control": "no-cache"})
+
+    @app.get("/ajuda", include_in_schema=False)
+    def pagina_ajuda():
+        return pagina("ajuda.html")
+
+    @app.get("/termos", include_in_schema=False)
+    def pagina_termos():
+        return pagina("termos.html")
+
+    @app.get("/privacidade", include_in_schema=False)
+    def pagina_privacidade():
+        return pagina("privacidade.html")
+
+    @app.get("/suporte", tags=["status"])
+    def suporte():
+        """Canais de atendimento, definidos no servidor (EMITTA_SUPORTE_WHATSAPP e EMITTA_SUPORTE_EMAIL)."""
+        whatsapp = "".join(ch for ch in os.getenv("EMITTA_SUPORTE_WHATSAPP", "") if ch.isdigit())
+        if whatsapp and not whatsapp.startswith("55"):
+            whatsapp = "55" + whatsapp
+        email = os.getenv("EMITTA_SUPORTE_EMAIL", "").strip()
+        return {
+            "whatsapp": whatsapp if 12 <= len(whatsapp) <= 13 else None,
+            "email": email if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) else None,
+        }
 
     @app.get("/offline", include_in_schema=False)
     def pagina_offline():
