@@ -51,7 +51,7 @@ def anonimo(app):
 
 def contador_aprovado(app, auth, nome, email):
     c = novo_cliente(app)
-    resp = c.post("/auth/cadastro", json={"nome": nome, "email": email, "senha": SENHA})
+    resp = c.post("/auth/cadastro", json={"nome": nome, "email": email, "senha": SENHA, "aceite_termos": True})
     assert resp.status_code == 200 and resp.json()["pendente"] is True, resp.text
     assert "set-cookie" not in resp.headers  # sem sessão antes da aprovação
     auth.aprovar(auth.repo.buscar_usuario_por_email(email).id)
@@ -317,8 +317,8 @@ def test_contador_so_ve_as_proprias_empresas(app, auth, contador):
 
 
 def test_cadastro_de_contador_valida(anonimo, contador):
-    assert anonimo.post("/auth/cadastro", json={"nome": "Ana 2", "email": "ana@escritorio.com", "senha": SENHA}).status_code == 400
-    assert anonimo.post("/auth/cadastro", json={"nome": "Curta", "email": "c@c.com", "senha": "123"}).status_code == 400
+    assert anonimo.post("/auth/cadastro", json={"nome": "Ana 2", "email": "ana@escritorio.com", "senha": SENHA, "aceite_termos": True}).status_code == 400
+    assert anonimo.post("/auth/cadastro", json={"nome": "Curta", "email": "c@c.com", "senha": "123", "aceite_termos": True}).status_code == 400
 
 
 # ---------------------------------------------------------------- administração
@@ -399,7 +399,7 @@ def test_admin_acompanha_e_ajuda(app, admin, contador):
 def test_pedido_de_conta_aprovado_pela_administracao(app, admin):
     ativar_2fa(admin)
     caio = novo_cliente(app)
-    assert caio.post("/auth/cadastro", json={"nome": "Caio", "email": "caio@x.com", "senha": SENHA}).json()["pendente"]
+    assert caio.post("/auth/cadastro", json={"nome": "Caio", "email": "caio@x.com", "senha": SENHA, "aceite_termos": True}).json()["pendente"]
     resp = caio.post("/auth/entrar", json={"email": "caio@x.com", "senha": SENHA})
     assert resp.status_code == 401 and "aguardando aprovação" in resp.json()["detail"]
     pedido = next(c for c in admin.get("/admin/contas").json() if c["email"] == "caio@x.com")
@@ -413,7 +413,7 @@ def test_pedido_de_conta_aprovado_pela_administracao(app, admin):
 
 def test_pedido_de_conta_recusado(app, admin):
     ativar_2fa(admin)
-    novo_cliente(app).post("/auth/cadastro", json={"nome": "Intruso", "email": "intruso@x.com", "senha": SENHA})
+    novo_cliente(app).post("/auth/cadastro", json={"nome": "Intruso", "email": "intruso@x.com", "senha": SENHA, "aceite_termos": True})
     pedido = next(c for c in admin.get("/admin/contas").json() if c["email"] == "intruso@x.com")
     assert admin.post(f"/admin/contas/{pedido['id']}/recusar").status_code == 200
     assert all(c["email"] != "intruso@x.com" for c in admin.get("/admin/contas").json())
@@ -523,3 +523,8 @@ def test_paginas_de_apoio_e_canais_de_suporte(anonimo, monkeypatch):
     assert anonimo.get("/suporte").json() == {"whatsapp": "5511987654321", "email": "contato@emitta.com.br"}
     monkeypatch.setenv("EMITTA_SUPORTE_EMAIL", "nao-e-email")
     assert anonimo.get("/suporte").json()["email"] is None
+
+
+def test_cadastro_exige_aceite_dos_termos(anonimo):
+    r = anonimo.post("/auth/cadastro", json={"nome": "Sem Aceite", "email": "sem@aceite.com", "senha": SENHA})
+    assert r.status_code == 400 and "Termos" in r.json()["detail"]

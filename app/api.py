@@ -150,11 +150,15 @@ class Instalacao(BaseModel):
     senha: str
 
 
+VERSAO_TERMOS = "22/11/2026"
+
+
 class Cadastro(BaseModel):
     nome: str = Field(max_length=120)
     email: str = Field(max_length=254)
     senha: str = Field(max_length=200)
     tipo: Literal["contador", "autonomo"] = "contador"  # autonomo = MEI/autônomo sem contador
+    aceite_termos: bool = False  # caixinha "Li e aceito os Termos de uso e a Política de privacidade"
 
 
 class Login(BaseModel):
@@ -497,12 +501,15 @@ def criar_app(
         limitar(request)
         if not limitador_cadastros.permitir(ip_do_pedido(request)):
             raise HTTPException(429, "Muitas contas criadas deste aparelho. Tente mais tarde.")
+        if not dados.aceite_termos:
+            raise HTTPException(400, "Para criar a conta, aceite os Termos de uso e a Política de privacidade.")
         try:
             usuario = auth.cadastrar_contador(dados.nome, dados.email, dados.senha, papel=dados.tipo)
         except ErroAutenticacao as e:
             raise erro_auth(e)
         # Não abre sessão: a conta só funciona depois da aprovação.
-        evento("autonomo_pediu_acesso" if dados.tipo == "autonomo" else "contador_pediu_acesso", request, usuario)
+        evento("autonomo_pediu_acesso" if dados.tipo == "autonomo" else "contador_pediu_acesso", request, usuario,
+               detalhe=f"Aceitou os Termos de uso e a Política de privacidade de {VERSAO_TERMOS}")
         return {"pendente": True, "email": usuario.email}
 
     @app.post("/auth/entrar", tags=["autenticação"])

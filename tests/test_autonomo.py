@@ -12,7 +12,7 @@ CPF = "52998224725"
 
 def autonomo_aprovado(app, auth, email="joana@mei.com"):
     c = novo_cliente(app)
-    r = c.post("/auth/cadastro", json={"nome": "Joana MEI", "email": email, "senha": SENHA, "tipo": "autonomo"})
+    r = c.post("/auth/cadastro", json={"nome": "Joana MEI", "email": email, "senha": SENHA, "tipo": "autonomo", "aceite_termos": True})
     assert r.status_code == 200 and r.json()["pendente"] is True
     assert c.post("/auth/entrar", json={"email": email, "senha": SENHA}).status_code != 200  # antes da aprovação
     auth.aprovar(auth.repo.buscar_usuario_por_email(email).id)
@@ -52,5 +52,5 @@ def test_autonomo_nao_ve_empresas_de_outros(app, auth):
 
 def test_tipo_de_conta_invalido(app):
     c = novo_cliente(app)
-    r = c.post("/auth/cadastro", json={"nome": "X", "email": "x@x.com", "senha": SENHA, "tipo": "admin"})
+    r = c.post("/auth/cadastro", json={"nome": "X", "email": "x@x.com", "senha": SENHA, "tipo": "admin", "aceite_termos": True})
     assert r.status_code == 422

@@ -174,21 +174,21 @@
         el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", inputmode: "email", required: true })),
         campoComAjuda("Senha", senha, ...medidorDeForca(senha)),
         campoSenha("Repita a senha", "repetir", "new-password"),
+        el("label", { class: "aceite" },
+          el("input", { type: "checkbox", name: "aceite", value: "sim" }),
+          el("span", {}, "Li e aceito os ",
+            el("a", { href: "/termos", target: "_blank", rel: "noopener" }, "Termos de uso"), " e a ",
+            el("a", { href: "/privacidade", target: "_blank", rel: "noopener" }, "Política de privacidade"), ".")),
       ],
       "Enviar pedido de conta",
       async (d) => {
         if (d.senha !== d.repetir) throw new Error("As duas senhas não são iguais.");
-        const r = await api("POST", "/auth/cadastro", { nome: d.nome, email: d.email, senha: d.senha, tipo }, { semRedirecionar: true });
+        if (d.aceite !== "sim") throw new Error("Para criar a conta, marque que aceita os Termos de uso e a Política de privacidade.");
+        const r = await api("POST", "/auth/cadastro", { nome: d.nome, email: d.email, senha: d.senha, tipo, aceite_termos: true }, { semRedirecionar: true });
         telaPedidoEnviado(r.email, tipo);
       },
     );
     $caixa.prepend(voltarPara(() => telaEntrar(tipo)));
-    const form = $caixa.querySelector("form");
-    const aceite = el("p", { class: "aceite" }, "Ao enviar, você concorda com os ",
-      el("a", { href: "/termos", target: "_blank", rel: "noopener" }, "Termos de uso"), " e a ",
-      el("a", { href: "/privacidade", target: "_blank", rel: "noopener" }, "Política de privacidade"), ".");
-    const enviar = form && form.querySelector('button[type="submit"]');
-    if (enviar) enviar.before(aceite); else $caixa.append(aceite);
     $caixa.append(el("p", { class: "nota-pe" }, "Já tem conta? ",
       el("button", { type: "button", class: "botao-link", onclick: () => telaEntrar(tipo) }, "Entrar")));
   }
