@@ -252,7 +252,10 @@ def criar_app(
     limitador_cadastros = LimitadorTentativas(limite=5, janela=60 * 60)
     consulta_cnpj = consulta_cnpj or ConsultaCnpj()
 
-    app = FastAPI(title="Emitta", version="0.2.0")
+    # A documentação técnica da API (/docs, /redoc, /openapi.json) só existe no modo simulação.
+    docs = servico.config.ambiente == "simulacao"
+    app = FastAPI(title="Emitta", version="0.2.0", docs_url="/docs" if docs else None,
+                  redoc_url="/redoc" if docs else None, openapi_url="/openapi.json" if docs else None)
 
     # ------------------------------------------------------------ proteções gerais
 

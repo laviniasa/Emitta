@@ -278,3 +278,13 @@ def test_recusar_apaga_o_pedido(auth):
     pedido = auth.cadastrar_contador("Caio", "caio@x.com", SENHA)
     auth.recusar(pedido.id)
     assert auth.repo.buscar_usuario(pedido.id) is None
+
+
+def test_segredo_2fa_fica_cifrado_no_banco(auth, contador, relogio, monkeypatch):
+    from cryptography.fernet import Fernet
+    monkeypatch.setenv("EMITTA_CHAVE_CERTIFICADOS", Fernet.generate_key().decode())
+    segredo, _ = auth.iniciar_2fa(contador)
+    guardado = auth.repo.buscar_usuario(contador.id).totp_segredo
+    assert guardado.startswith("f1:") and segredo not in guardado
+    auth.ativar_2fa(auth.repo.buscar_usuario(contador.id), seg._codigo_totp(segredo, seg.passo_atual(relogio().timestamp())))
+    assert auth.repo.buscar_usuario(contador.id).totp_ativo

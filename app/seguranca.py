@@ -114,7 +114,7 @@ def conferir_totp(segredo: str, codigo: str, ultimo_passo_usado: int | None, ago
     """Confere o código aceitando 30 s de diferença de relógio. Devolve o passo
     usado (para impedir reaproveitar o mesmo código) ou None se inválido."""
     codigo = "".join(ch for ch in (codigo or "") if ch.isdigit())
-    if len(codigo) != 6:
+    if not segredo or len(codigo) != 6:
         return None
     atual = passo_atual(agora)
     for passo in (atual - 1, atual, atual + 1):

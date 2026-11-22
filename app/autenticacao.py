@@ -33,6 +33,39 @@ MSG_LOGIN_INVALIDO = "E-mail ou senha incorretos."
 MSG_BLOQUEADO = "Muitas tentativas. Por segurança, aguarde 15 minutos e tente de novo."
 
 
+PREFIXO_CIFRADO = "f1:"
+
+
+def _chave_cofre():
+    import os
+    from cryptography.fernet import Fernet
+    chave = os.getenv("EMITTA_CHAVE_CERTIFICADOS")
+    if not chave:
+        return None
+    try:
+        return Fernet(chave.encode())
+    except ValueError:
+        return None
+
+
+def _guardar_segredo(segredo: str) -> str:
+    """Segredo do 2FA cifrado com a mesma chave dos certificados (se o servidor tiver a chave)."""
+    cofre = _chave_cofre()
+    return PREFIXO_CIFRADO + cofre.encrypt(segredo.encode()).decode() if cofre else segredo
+
+
+def _abrir_segredo(guardado: str | None) -> str | None:
+    if not guardado or not guardado.startswith(PREFIXO_CIFRADO):
+        return guardado  # segredos antigos, guardados antes da cifragem
+    cofre = _chave_cofre()
+    if not cofre:
+        return None
+    try:
+        return cofre.decrypt(guardado[len(PREFIXO_CIFRADO):].encode()).decode()
+    except Exception:
+        return None
+
+
 class ErroAutenticacao(ErroDeNegocio):
     pass
 
@@ -201,7 +234,7 @@ class ServicoAutenticacao:
             self.repo.apagar_desafio(h)
             raise ErroAutenticacao(MSG_BLOQUEADO)
         usuario = self.repo.buscar_usuario(registro["usuario_id"])
-        passo = seg.conferir_totp(usuario.totp_segredo, codigo, usuario.totp_ultimo_passo, agora.timestamp())
+        passo = seg.conferir_totp(_abrir_segredo(usuario.totp_segredo), codigo, usuario.totp_ultimo_passo, agora.timestamp())
         if passo is None:
             self.repo.contar_tentativa_desafio(h)
             raise ErroAutenticacao("Código incorreto. Confira no aplicativo autenticador.")
@@ -261,7 +294,7 @@ class ServicoAutenticacao:
         if usuario.totp_ativo:
             raise ErroAutenticacao("A verificação em duas etapas já está ativa.")
         segredo = seg.gerar_segredo_totp()
-        self.repo.atualizar_usuario(usuario.id, totp_segredo=segredo, totp_ultimo_passo=None)
+        self.repo.atualizar_usuario(usuario.id, totp_segredo=_guardar_segredo(segredo), totp_ultimo_passo=None)
         return segredo, seg.uri_totp(segredo, usuario.email)
 
     def ativar_2fa(self, usuario: Usuario, codigo: str) -> Usuario:
@@ -269,7 +302,7 @@ class ServicoAutenticacao:
             raise ErroAutenticacao("A verificação em duas etapas já está ativa.")
         if not usuario.totp_segredo:
             raise ErroAutenticacao("Comece a configuração de novo.")
-        passo = seg.conferir_totp(usuario.totp_segredo, codigo, None, self.agora().timestamp())
+        passo = seg.conferir_totp(_abrir_segredo(usuario.totp_segredo), codigo, None, self.agora().timestamp())
         if passo is None:
             raise ErroAutenticacao("Código incorreto. Confira se o relógio do celular está certo e tente de novo.")
         return self.repo.atualizar_usuario(usuario.id, totp_ativo=1, totp_ultimo_passo=passo)

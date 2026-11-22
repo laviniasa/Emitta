@@ -498,3 +498,13 @@ def test_contador_remove_empresa_com_notas_e_acessos(app, auth, contador):
     assert auth.repo.buscar_usuario_por_email("bia@empresa.com") is None
     # dá para cadastrar o mesmo CNPJ de novo
     criar_empresa(contador)
+
+
+def test_documentacao_da_api_so_no_modo_simulacao(servico, auth, anonimo):
+    assert anonimo.get("/openapi.json").status_code == 200
+    import dataclasses
+    servico.config = dataclasses.replace(servico.config, ambiente="homologacao")
+    c = TestClient(criar_app(servico, auth=auth, cookie_seguro=True, consulta_cnpj=ConsultaFalsa()),
+                   headers=CSRF, base_url="https://testserver")
+    for caminho in ["/docs", "/redoc", "/openapi.json"]:
+        assert c.get(caminho).status_code == 404, caminho
