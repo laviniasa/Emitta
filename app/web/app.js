@@ -332,10 +332,26 @@
     ir("automatica");
   }
 
+  // Nota automática do zero (sem partir de uma nota já emitida).
+  function novaAutomatica() {
+    if (!estado.servicos.length) { avisar("Nenhum serviço liberado. Fale com o seu contador."); return; }
+    estado.rec = { novo: true, codigo: estado.servicos.length === 1 ? estado.servicos[0].codigo : null, documento: "", nome: "",
+      valor: "", descricao: "", info_compl: "", iss_retido: false, dia: diaDeHoje() };
+    ir("automatica");
+  }
+
   function cartaoAutomaticas() {
     const ativas = estado.recorrencias.filter((r) => r.ativa);
     const comErro = estado.recorrencias.filter((r) => r.erro);
-    if (!estado.recorrencias.length) return null;
+    if (!estado.recorrencias.length) {
+      if (!estado.servicos.length) return null;
+      return el("button", { type: "button", class: "aviso-guia convite", onclick: () => ir("automaticas") },
+        icone("relogio", 22),
+        el("span", { class: "ag-texto" },
+          el("strong", {}, "Nota automática todo mês"),
+          el("span", {}, "Mensalidade ou contrato? A nota sai sozinha no dia que você escolher")),
+        icone("seta", 18));
+    }
     const proxima = ativas.map((r) => r.proxima).filter(Boolean).sort()[0];
     return el("button", { type: "button", class: "aviso-guia" + (comErro.length ? " atrasada" : ""), onclick: () => ir("automaticas") },
       icone("relogio", 22),
@@ -396,6 +412,50 @@
           if (!window.confirm(`Parar de emitir a nota de ${r.tomador.nome} todo mês? As notas que já saíram continuam valendo.`)) return;
           acao(e.currentTarget, () => api("DELETE", base));
         } }, "Excluir")));
+  }
+
+  function blocoNovaAutomatica(r, $data) {
+    const opcoes = estado.servicos.map((sv) => el("button", {
+      class: "opcao", type: "button", role: "radio", "aria-checked": r.codigo === sv.codigo ? "true" : "false",
+      onclick: (e) => {
+        r.codigo = sv.codigo;
+        e.currentTarget.parentElement.querySelectorAll(".opcao").forEach((b) => b.setAttribute("aria-checked", String(b === e.currentTarget)));
+      },
+    }, el("span", { class: "bolinha" }), el("span", {}, el("span", { class: "opcao-titulo" }, sv.apelido))));
+    const $doc = el("input", { value: r.documento, autocomplete: "off", placeholder: "Só números ou com pontos" });
+    const $nome = el("input", { value: r.nome, autocomplete: "off", oninput: (e) => { r.nome = e.target.value; } });
+    const $dica = el("span", { class: "ajuda", "aria-live": "polite" });
+    $doc.addEventListener("input", async () => {
+      r.documento = $doc.value;
+      const doc = limparDoc(r.documento);
+      if (doc.length !== 14) { $dica.textContent = ""; return; }
+      $dica.textContent = "Buscando o nome na Receita...";
+      try {
+        const c = await api("GET", `/consulta/cnpj/${doc}`, null, { semRedirecionar: true });
+        if (limparDoc(r.documento) !== doc) return;
+        if (!r.nome.trim()) { r.nome = c.razao_social; $nome.value = c.razao_social; }
+        $dica.textContent = "Nome preenchido com os dados da Receita.";
+      } catch (erro) { $dica.textContent = erro.status === 404 ? "CNPJ não encontrado na Receita. Confira os números." : ""; }
+    });
+    const recentes = clientesRecentes();
+    return [
+      el("section", { class: "card secao" },
+        el("div", { style: "display:flex;justify-content:space-between;gap:12px;align-items:flex-start" },
+          el("h2", { style: "font-size:15px" }, "Qual serviço?"), $data),
+        el("div", { role: "radiogroup", "aria-label": "Serviço", class: "secao" }, ...opcoes)),
+      el("section", { class: "card secao" },
+        el("h2", { style: "font-size:15px" }, "Para quem?"),
+        recentes.length > 0 && el("div", { class: "chips-clientes" }, ...recentes.map((n) => el("button", {
+          type: "button", class: "chip-cliente", onclick: () => {
+            Object.assign(r, dadosDe(n));
+            $doc.value = r.documento; $nome.value = r.nome;
+            avisar("Dados da última nota para este cliente. Confira o valor.");
+            desenhar();
+          },
+        }, el("strong", {}, n.tomador.nome), el("span", {}, `${formatarDocumento(n.tomador.documento)} · ${dinheiro(n.valor)}`)))),
+        el("div", { class: "campo" }, el("label", { class: "campo" }, "CNPJ ou CPF do cliente", $doc), $dica),
+        el("label", { class: "campo" }, "Nome ou razão social", $nome)),
+    ];
   }
 
   // Escolha do dia (inspirado no "Day Picker" do 21st.dev): os 28 dias em grade, o escolhido em destaque.
@@ -655,12 +715,12 @@
       };
       atualizar();
       return [
-        barra(editando ? "Editar nota automática" : "Nota automática", editando ? "automaticas" : "inicio", estado.empresa.razao_social),
+        barra(editando ? "Editar nota automática" : "Nota automática", editando || r.novo ? "automaticas" : "inicio", estado.empresa.razao_social),
         el("main", { class: "conteudo" },
           !editando && el("div", { class: "aviso aviso-info" }, icone("relogio"),
             "O Emitta emite esta nota sozinho, todo mês, no dia que você escolher. O PDF e o XML ficam aqui, como nas outras."),
           $erro,
-          el("section", { class: "card automatica" },
+          r.novo ? blocoNovaAutomatica(r, $data) : el("section", { class: "card automatica" },
             el("div", { class: "auto-topo" },
               el("div", { class: "auto-quem" },
                 el("span", { class: "auto-rotulo" }, icone("relogio", 14), "Nota automática"),
@@ -679,7 +739,11 @@
               el("input", { value: r.descricao, placeholder: "Ex.: Mensalidade de manutenção", oninput: (e) => { r.descricao = e.target.value; } })))),
         el("footer", { class: "rodape" },
           el("button", { class: "botao botao-grande", type: "button", onclick: async (e) => {
-            if (numeroDigitado(r.valor) <= 0) { $erro.textContent = "Informe o valor."; $erro.hidden = false; return; }
+            const falta = !r.codigo ? "Escolha o serviço."
+              : !limparDoc(r.documento) ? "Informe o CNPJ ou CPF do cliente."
+              : !(r.nome || "").trim() ? "Informe o nome do cliente."
+              : numeroDigitado(r.valor) <= 0 ? "Informe o valor." : null;
+            if (falta) { $erro.textContent = falta; $erro.hidden = false; $erro.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
             e.currentTarget.disabled = true;
             try {
               if (editando) {
@@ -705,7 +769,11 @@
         estado.recorrencias.length
           ? [el("p", { class: "sub", style: "margin:0" }, "Saem sozinhas todo mês, no dia marcado. Se a prefeitura recusar, aparece aqui o motivo."),
             ...estado.recorrencias.map(itemAutomatica)]
-          : el("div", { class: "card vazio" }, "Nenhuma nota automática. Abra uma nota já emitida e toque em \"Todo mês\".")),
+          : el("div", { class: "card vazio" }, "Nenhuma nota automática ainda. Crie uma para um cliente que você atende todo mês, como uma mensalidade ou um contrato."),
+        estado.servicos.length > 0 && el("button", { class: "botao botao-grande", type: "button", onclick: novaAutomatica },
+          icone("relogio", 20), "Criar nota automática"),
+        estado.recorrencias.length === 0 && el("p", { class: "ajuda-pequena", style: "text-align:center;margin:0" },
+          "Dica: numa nota já emitida, o botão \"Todo mês\" cria a automática com os mesmos dados.")),
       menu("inicio"),
     ],
 

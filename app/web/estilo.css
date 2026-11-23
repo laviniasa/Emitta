@@ -551,3 +551,4 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .recorrente-linha .sub2 { font-size: 13px; }
 .form-escritorio { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
 .form-escritorio > div { grid-column: 1 / -1; }
+.aviso-guia.convite { background: var(--verde-claro); border-color: transparent; }
