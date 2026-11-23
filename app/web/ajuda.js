@@ -24,7 +24,8 @@
         "Siga as três etapas que aparecem: certificado, serviços e acesso ao app." ] } ] },
     { id: "liberar-servicos", cat: "comecar", q: "Como escolho os serviços que a empresa pode emitir?", r: [
       "Na aba \"Serviços\" da empresa aparecem primeiro os sugeridos pela atividade (CNAE) do cartão CNPJ, com base na tabela oficial. Toque em \"Liberar\" nos que ela realmente presta.",
-      "Se precisar de outro, use \"Todos os serviços\" para buscar na lista nacional completa. A empresa só vê, na hora de emitir, o que você liberou." ] },
+      "Se precisar de outro, use \"Todos os serviços\": a busca entende o jeito que o cliente fala (\"conserto de carro\", \"salão de beleza\", \"frete\") e também o código (ex.: 17.19). A empresa só vê, na hora de emitir, o que você liberou.",
+      "Dois atalhos: \"Importar de notas antigas\" lê XMLs de notas que a empresa já emitiu e mostra os serviços dela; \"Mais usados no seu escritório\" mostra os serviços que você mais libera, para liberar com um toque." ] },
     { id: "acesso-empresa", cat: "comecar", q: "Como a empresa recebe o acesso ao app?", r: [
       "Na aba \"Acesso ao app\", informe o nome e o e-mail de quem vai emitir. O Emitta mostra uma senha provisória uma única vez: passe para a pessoa por um canal seguro.",
       "No primeiro acesso ela cria a própria senha. Se esquecer, é só criar o acesso de novo com o mesmo e-mail que uma nova senha provisória é gerada." ] },

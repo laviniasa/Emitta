@@ -183,7 +183,13 @@
   "moto",
   "conserto",
   "manutenção de veículo",
-  "ar condicionado"
+  "ar condicionado",
+  "lavagem",
+  "lava jato",
+  "lava-rapido",
+  "estetica automotiva",
+  "mecanica",
+  "conserto de celular"
  ],
  "140601": [
   "instalação",
@@ -262,5 +268,33 @@
   "motoboy",
   "entregador",
   "entrega"
+ ],
+ "071102": [
+  "jardineiro",
+  "poda"
+ ],
+ "070104": [
+  "arquiteto",
+  "arquiteta"
+ ],
+ "070101": [
+  "engenheiro",
+  "engenheira"
+ ],
+ "040601": [
+  "cuidador",
+  "cuidadora de idosos",
+  "home care"
+ ],
+ "150307": [
+  "aluguel de equipamento"
+ ],
+ "160201": [
+  "transporte escolar",
+  "van escolar",
+  "frete",
+  "mudanca",
+  "carreto",
+  "motorista"
  ]
 }

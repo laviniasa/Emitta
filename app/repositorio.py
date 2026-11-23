@@ -429,6 +429,13 @@ class Repositorio:
                 (contador_id, nome, telefone, email))
         return self.escritorio(contador_id)
 
+    def servicos_mais_usados(self, contador_id: int, limite: int = 12) -> list[dict]:
+        """Serviços que o contador mais libera nas empresas dele (para aparecerem primeiro)."""
+        return [dict(l) for l in self.con.execute(
+            "SELECT s.codigo AS codigo, COUNT(*) AS empresas FROM servicos_liberados s "
+            "JOIN clientes c ON c.id = s.cliente_id WHERE c.contador_id = ? "
+            "GROUP BY s.codigo ORDER BY empresas DESC, s.codigo LIMIT ?", (contador_id, limite))]
+
     def contar_notas(self, cliente_id: int) -> int:
         return int(self.con.execute("SELECT COUNT(*) FROM notas WHERE cliente_id = ?", (cliente_id,)).fetchone()[0])
 

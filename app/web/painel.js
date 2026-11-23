@@ -193,6 +193,7 @@
   }
 
   async function salvarServicos(botao) {
+    estado.maisUsados = null; // a lista do escritório muda depois de salvar
     const servicos = estado.servicos
       .filter((s) => s.liberado)
       .map((s) => ({ codigo: s.codigo, apelido: (s.apelido || "").trim() || s.descricao,
@@ -528,22 +529,62 @@
 
   const semAcento = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const codigoBonito = (c) => (c && c.length === 6 ? `${c.slice(0, 2)}.${c.slice(2, 4)}.${c.slice(4)}` : c);
+  // Palavras do dia a dia → termos da lista oficial (a busca aceita qualquer um deles).
+  const SINONIMOS = {
+    frete: ["transporte"], fretes: ["transporte"], mudanca: ["transporte"], mudancas: ["transporte"], carreto: ["transporte"],
+    motorista: ["transporte"], van: ["transporte"], escolar: ["transporte", "ensino"],
+    jardineiro: ["jardinagem", "paisagismo"], jardim: ["jardinagem", "paisagismo"], poda: ["jardinagem"],
+    engenheiro: ["engenharia"], arquiteto: ["arquitetura"], arquiteta: ["arquitetura"],
+    lavagem: ["lavagem", "limpeza", "lustracao"], "lava": ["limpeza", "lustracao"], jato: ["limpeza"], polimento: ["lustracao", "polimento"],
+    idoso: ["repouso", "enfermagem"], idosos: ["repouso", "enfermagem"], cuidador: ["enfermagem", "repouso"], cuidadora: ["enfermagem", "repouso"],
+    creche: ["creches"], bercario: ["creches"], aluguel: ["cessao", "locacao"], locacao: ["cessao", "locacao"],
+    conserto: ["manutencao", "reparacao", "conserto", "revisao"], consertos: ["manutencao", "reparacao"], reparo: ["reparacao", "manutencao"],
+    carro: ["veiculos", "automotores"], carros: ["veiculos"], moto: ["veiculos"], motos: ["veiculos"], automovel: ["veiculos"],
+    computador: ["informatica", "computadores"], pc: ["informatica"], celular: ["aparelhos", "equipamentos"],
+    medica: ["medicina"], enfermeira: ["enfermagem"], enfermeiro: ["enfermagem"], psicologa: ["psicologia"],
+    advogada: ["advocacia"], contadora: ["contabilidade"], professor: ["ensino", "instrucao"], professora: ["ensino", "instrucao"],
+    aula: ["ensino", "instrucao"], aulas: ["ensino", "instrucao"], reforco: ["ensino", "instrucao"],
+  };
+
   function buscarServicos(lista, termo) {
     const digitos = termo.replace(/\D/g, "");
     const soCodigo = /^[\d.\s]+$/.test(termo);
     if (soCodigo && digitos) return lista.filter((s) => s.codigo.startsWith(digitos));
-    const palavras = semAcento(termo).split(/\s+/).filter((p) => p.length > 1);
+    const ignorar = new Set(["de", "da", "do", "das", "dos", "e", "em", "para", "com", "a", "o", "as", "os", "na", "no"]);
+    const palavras = semAcento(termo).split(/[^a-z0-9]+/).filter((p) => p.length > 1 && !ignorar.has(p));
     if (!palavras.length) return [];
     // Compara pelo começo das palavras ("unha" não acha "testemunhagem").
     const texto = (s) => s._busca || (s._busca = " " + semAcento(`${s.descricao} ${s.item_descricao || ""} ${(s.palavras || []).join(" ")}`).replace(/[^a-z0-9]+/g, " "));
-    const casa = (ps) => lista.filter((s) => ps.every((p) => texto(s).includes(" " + p)));
-    let achados = casa(palavras);
+    const encurtar = (p) => (p.length > 5 ? p.slice(0, p.length - 2) : p.length > 4 ? p.slice(0, 4) : p);
+    // cada palavra vale se ela, um sinônimo ou o começo dela aparecer
+    const variantes = (p) => [p, ...(SINONIMOS[p] || [])];
+    const bate = (s, p, curta) => variantes(p).some((v) => texto(s).includes(" " + (curta ? encurtar(v) : v)));
+    const casa = (curta) => lista.filter((s) => palavras.every((p) => bate(s, p, curta)));
+    let achados = casa(false);
     // "cabelo" acha "cabeleireiros", "contador" acha "contabilidade": tenta pelo começo da palavra
-    if (!achados.length) achados = casa(palavras.map((p) => (p.length > 5 ? p.slice(0, p.length - 2) : p.length > 4 ? p.slice(0, 4) : p)));
+    if (!achados.length) achados = casa(true);
+    // nenhuma bate com todas ("transporte escolar"): mostra as que batem com mais palavras
+    if (!achados.length && palavras.length > 1) {
+      const pontos = (s) => palavras.filter((p) => bate(s, p, false) || bate(s, p, true)).length;
+      const comPontos = lista.map((s) => [s, pontos(s)]).filter(([, n]) => n > 0);
+      const melhor = Math.max(0, ...comPontos.map(([, n]) => n));
+      achados = comPontos.filter(([, n]) => n === melhor).map(([s]) => s);
+    }
+    // Ordem: palavra-chave exata, depois o nome do serviço (começo, depois meio), por último só a área.
     const termoTodo = semAcento(termo).trim();
-    const nota = (s) => ((s.palavras || []).some((w) => semAcento(w) === termoTodo) ? 0
-      : semAcento(s.descricao).startsWith(palavras[0]) ? 1
-      : (" " + semAcento(s.descricao).replace(/[^a-z0-9]+/g, " ")).includes(" " + palavras[0]) ? 2 : 3);
+    const nome = (s) => s._nome || (s._nome = " " + semAcento(s.descricao).replace(/[^a-z0-9]+/g, " "));
+    const nota = (s) => {
+      if ((s.palavras || []).some((w) => semAcento(w) === termoTodo)) return 0;
+      let total = 0;
+      for (const p of palavras) {
+        const vs = variantes(p);
+        total += vs.some((v) => nome(s).startsWith(" " + v)) ? 1
+          : vs.some((v) => nome(s).includes(" " + v)) ? 2
+          : vs.some((v) => (s.palavras || []).some((w) => semAcento(w).startsWith(v))) ? 2
+          : vs.some((v) => nome(s).includes(" " + encurtar(v))) ? 3 : 5;
+      }
+      return total;
+    };
     return achados.sort((a, b) => nota(a) - nota(b) || a.codigo.localeCompare(b.codigo));
   }
 
@@ -745,7 +786,7 @@
         : liberados.length ? liberados.map(cartaoServico)
         : [el("div", { class: "vazio-servicos" },
           el("p", {}, "Nenhum serviço liberado ainda."),
-          el("p", { class: "sub2" }, "Abra \"Todos os serviços\": o Emitta já sugere os que combinam com a atividade (CNAE) da empresa."),
+          el("p", { class: "sub2" }, "Abra \"Todos os serviços\": dá para buscar do jeito que o cliente fala, importar de XMLs de notas antigas e ver os sugeridos pela atividade (CNAE) da empresa."),
           el("button", { class: "botao", type: "button", style: "align-self:center;margin-top:8px",
             onclick: () => { estado.vistaServicos = "todos"; desenharPrincipal(); } }, "Ver serviços sugeridos"))]),
     );
@@ -841,7 +882,87 @@
       oninput: (e) => { estado.buscaServico = e.target.value; desenhar(); },
     });
     desenhar();
-    return [blocoSugeridos(linha), el("div", { class: "busca-servico-campo" }, icone("busca", 18), $busca), $resultados];
+    return [
+      blocoMaisUsados(linha), blocoSugeridos(linha), blocoImportarXml(linha),
+      el("div", { class: "busca-servico-campo" }, icone("busca", 18), $busca),
+      el("p", { class: "sub2 dica-busca" }, "Pode escrever do jeito que o cliente fala: \"conserto de carro\", \"salão de beleza\", \"aula particular\", \"frete\"..."),
+      $resultados];
+  }
+
+  // Importar serviços de notas antigas: o contador escolhe XMLs e o Emitta mostra o que a empresa já emitia.
+  function blocoImportarXml(linha) {
+    const id = estado.selecionado;
+    const caixa = el("section", { class: "sugeridos importar-xml" });
+    const porCodigo = new Map(estado.servicos.map((x) => [x.codigo, x]));
+    const $entrada = el("input", { type: "file", accept: ".xml,text/xml,application/xml", multiple: true, hidden: true });
+    const $res = el("div", { "aria-live": "polite" });
+    const desenhar = () => {
+      const r = estado.importacaoXml && estado.importacaoXml.cliente === id ? estado.importacaoXml : null;
+      if (!r) { $res.replaceChildren(); return; }
+      if (r.carregando) { $res.replaceChildren(el("p", { class: "sub2" }, "Lendo as notas...")); return; }
+      $res.replaceChildren(
+        el("p", { class: "sub2" }, r.servicos.length
+          ? `${r.lidos} nota${r.lidos === 1 ? "" : "s"} lida${r.lidos === 1 ? "" : "s"}. Serviços encontrados (libere os que ela ainda presta):`
+          : "Não encontramos serviços nessas notas."),
+        ...r.servicos.map((x) => {
+          const sv = porCodigo.get(x.codigo);
+          if (!sv) return null;
+          return el("div", { class: "importado" }, linha(sv),
+            el("span", { class: "sub2 importado-ex" }, `${x.notas} nota${x.notas === 1 ? "" : "s"}${x.exemplo ? ` · "${x.exemplo}"` : ""}`));
+        }),
+        ...(r.avisos || []).map((a) => el("p", { class: "sub2 importado-aviso" }, a)));
+    };
+    $entrada.addEventListener("change", async () => {
+      const arquivos = [...$entrada.files].slice(0, 30);
+      if (!arquivos.length) return;
+      if (arquivos.some((f) => f.size > 1_000_000)) { avisar("Cada XML pode ter até 1 MB."); return; }
+      estado.importacaoXml = { cliente: id, carregando: true };
+      desenhar();
+      try {
+        const lidos = await Promise.all(arquivos.map((f) => new Promise((ok, erro) => {
+          const leitor = new FileReader();
+          leitor.onload = () => ok({ nome: f.name, conteudo_base64: String(leitor.result).split(",")[1] || "" });
+          leitor.onerror = erro;
+          leitor.readAsDataURL(f);
+        })));
+        const r = await api("POST", `/contador/clientes/${id}/servicos/importar-xml`, { arquivos: lidos });
+        estado.importacaoXml = { cliente: id, ...r };
+      } catch (erro) { estado.importacaoXml = null; avisar(erro.message); }
+      $entrada.value = "";
+      desenhar();
+    });
+    caixa.append(
+      el("div", { class: "sugeridos-topo importar-topo" },
+        el("div", {},
+          el("h3", {}, "Importar de notas antigas"),
+          el("p", { class: "sub2" }, "Escolha XMLs de notas que a empresa já emitiu (nacional ou da prefeitura). O Emitta mostra os serviços que ela usava.")),
+        el("button", { class: "botao botao-secundario", type: "button", onclick: () => $entrada.click() }, icone("documento", 18), "Escolher XMLs")),
+      $entrada, $res);
+    desenhar();
+    return caixa;
+  }
+
+  // Os serviços que o escritório mais libera aparecem primeiro, para liberar com um toque.
+  function blocoMaisUsados(linha) {
+    const caixa = el("section", { class: "sugeridos" });
+    const desenhar = () => {
+      const lista = (estado.maisUsados || []).filter((x) => x.empresas >= 1);
+      const porCodigo = new Map(estado.servicos.map((x) => [x.codigo, x]));
+      const itens = lista.map((x) => [porCodigo.get(x.codigo), x.empresas]).filter(([sv]) => sv);
+      if (!itens.length) { caixa.hidden = true; return; }
+      caixa.hidden = false;
+      caixa.replaceChildren(
+        el("div", { class: "sugeridos-topo" },
+          el("h3", {}, "Mais usados no seu escritório"),
+          el("p", { class: "sub2" }, "Os serviços que você mais libera nas suas empresas.")),
+        ...itens.map(([sv, n]) => el("div", { class: "importado" }, linha(sv),
+          el("span", { class: "sub2 importado-ex" }, `liberado em ${n} empresa${n === 1 ? "" : "s"}`))));
+    };
+    if (!estado.maisUsados) {
+      api("GET", "/contador/servicos/mais-usados").then((r) => { estado.maisUsados = r; desenhar(); }).catch(() => { estado.maisUsados = []; });
+      caixa.hidden = true;
+    } else desenhar();
+    return caixa;
   }
 
   // Serviços que combinam com as atividades (CNAE) da empresa na Receita.

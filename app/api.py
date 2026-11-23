@@ -51,6 +51,7 @@ from .autenticacao import (
 )
 from . import assistente
 from . import recorrentes
+from . import importar_xml
 from .assinatura import ErroCertificado
 from .catalogo import carregar_catalogo, ibscbs_sugerido, opcoes_ibscbs, servicos_por_cnae
 from .certificados import ProvedorCertificados, preparar_certificado
@@ -128,6 +129,15 @@ class NovaNota(BaseModel):
     iss_retido: bool = False
     chave_envio: str | None = Field(None, max_length=64, description="Identificador único deste envio (evita nota duplicada)")
     informacoes_complementares: str | None = Field(None, max_length=2000)
+
+
+class ArquivoXml(BaseModel):
+    nome: str = Field(max_length=200)
+    conteudo_base64: str = Field(max_length=1_400_000)
+
+
+class ArquivosXml(BaseModel):
+    arquivos: list[ArquivoXml] = Field(min_length=1, max_length=30)
 
 
 class NovaRecorrencia(BaseModel):
@@ -902,6 +912,30 @@ def criar_app(
              **({k: liberados[s["codigo"]].get(k) for k in ("nbs", "cind_op", "cclass_trib")} if s["codigo"] in liberados else {})}
             for s in carregar_catalogo().values()
         ]
+
+    @app.get("/contador/servicos/mais-usados", tags=["contador"])
+    def servicos_mais_usados(usuario: Usuario = Depends(contador_atual)):
+        """Os serviços que o escritório mais libera nas suas empresas (aparecem primeiro)."""
+        return repo.servicos_mais_usados(usuario.id)
+
+    @app.post("/contador/clientes/{cliente_id}/servicos/importar-xml", tags=["contador"])
+    def importar_servicos_xml(cliente_id: int, dados: ArquivosXml, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
+        """Lê XMLs de notas antigas da empresa e devolve os serviços que ela já emitia (nada é liberado sozinho)."""
+        if not limitador_consultas.permitir(f"xml:{usuario.id}"):
+            raise HTTPException(429, "Muitas importações seguidas. Espere um minuto.")
+        cliente = cliente_ou_404(cliente_id)
+        arquivos = []
+        for a in dados.arquivos:
+            try:
+                conteudo = base64.b64decode(a.conteudo_base64, validate=True)
+            except (binascii.Error, ValueError):
+                raise HTTPException(400, f"{a.nome}: arquivo inválido.")
+            if len(conteudo) > importar_xml.LIMITE_BYTES:
+                raise HTTPException(413, f"{a.nome}: arquivo grande demais (máximo 1 MB).")
+            arquivos.append((a.nome, conteudo))
+        resultado = importar_xml.analisar(arquivos, carregar_catalogo(), cliente.cnpj)
+        evento("servicos_importados_xml", request, usuario, detalhe=f"empresa {cliente_id} · {len(arquivos)} XML · {len(resultado['servicos'])} serviço(s)")
+        return resultado
 
     @app.get("/contador/clientes/{cliente_id}/servicos/sugeridos", tags=["contador"])
     def servicos_sugeridos(cliente_id: int, usuario: Usuario = Depends(dono_do_cliente)):

@@ -552,3 +552,12 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .form-escritorio { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
 .form-escritorio > div { grid-column: 1 / -1; }
 .aviso-guia.convite { background: var(--verde-claro); border-color: transparent; }
+
+/* serviços: importar de XML e mais usados */
+.importar-xml { border-style: dashed; }
+.importar-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.importar-topo .botao { width: auto; }
+.importado { display: flex; flex-direction: column; gap: 2px; }
+.importado-ex { padding: 0 12px 6px; font-size: 12.5px; }
+.importado-aviso { color: #92400E; font-size: 13px; }
+.dica-busca { margin: -4px 0 0; font-size: 13px; }
