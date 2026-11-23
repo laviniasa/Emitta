@@ -509,3 +509,27 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
   color: var(--texto-2); font-size: 13px; font-weight: 500; text-decoration: none; background: #fff; }
 .assist-atalho:hover { border-color: var(--verde); color: var(--texto); }
 .gaveta-item[hidden] { display: none; }
+
+/* ---------- clientes salvos (nova nota) ---------- */
+.chips-clientes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.chip-cliente { flex: none; scroll-snap-align: start; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 220px;
+  border: 1px solid var(--borda-forte); background: var(--card); border-radius: 14px; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; color: var(--texto); }
+.chip-cliente strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 196px; }
+.chip-cliente span { font-size: 12px; color: var(--texto-3); white-space: nowrap; }
+.chip-cliente:hover { border-color: var(--verde); }
+.chip-cliente.ativo { border-color: var(--verde); background: var(--verde-claro); }
+
+/* ---------- notas automáticas ---------- */
+.automatica { display: flex; flex-direction: column; gap: 10px; }
+.automatica.com-erro { border-color: #F4C7C3; }
+.auto-topo { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.auto-topo .selo { margin-top: 4px; }
+.auto-acoes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.auto-acoes .botao { min-height: 40px; padding: 0 14px; font-size: 14px; width: auto; }
+.botao-link.perigo { color: var(--vermelho); }
+.lista-recorrentes { display: flex; flex-direction: column; }
+.recorrente-linha { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--borda); }
+.recorrente-linha:first-child { border-top: 0; padding-top: 0; }
+.recorrente-linha .sub2 { font-size: 13px; }
+.form-escritorio { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
+.form-escritorio > div { grid-column: 1 / -1; }

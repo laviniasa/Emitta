@@ -144,6 +144,37 @@ CREATE TABLE IF NOT EXISTS notas_recebidas (
 );
 CREATE INDEX IF NOT EXISTS notas_recebidas_cliente ON notas_recebidas (cliente_id, emitida_em DESC);
 
+-- Nota recorrente: emitida sozinha todo mês, no dia escolhido
+CREATE TABLE IF NOT EXISTS recorrencias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    codigo_servico TEXT NOT NULL,
+    tomador_documento TEXT NOT NULL,
+    tomador_nome TEXT NOT NULL,
+    valor_centavos INTEGER NOT NULL,
+    descricao TEXT,
+    info_compl TEXT,
+    iss_retido INTEGER NOT NULL DEFAULT 0,
+    dia INTEGER NOT NULL CHECK (dia BETWEEN 1 AND 28),
+    ativa INTEGER NOT NULL DEFAULT 1,
+    criada_em TEXT NOT NULL,
+    criada_por INTEGER,
+    ultimo_mes TEXT,          -- AAAA-MM do último mês já resolvido (emitida ou com erro)
+    ultima_nota_id INTEGER,
+    ultimo_erro TEXT,
+    ultima_tentativa_em TEXT,
+    tentativa INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS recorrencias_cliente ON recorrencias (cliente_id);
+
+-- Contato do escritório de contabilidade que aparece no PDF das notas
+CREATE TABLE IF NOT EXISTS escritorios (
+    contador_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+    nome TEXT,
+    telefone TEXT,
+    email TEXT
+);
+
 CREATE TABLE IF NOT EXISTS desafios_2fa (
     token_hash TEXT PRIMARY KEY,
     usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -344,6 +375,59 @@ class Repositorio:
                 (pfx_cifrado, senha_cifrada, validade, titular, cliente_id),
             )
         return self.buscar_cliente(cliente_id)
+
+    # ------------------------------------------------------------ notas recorrentes
+
+    _CAMPOS_RECORRENCIA = ("codigo_servico", "tomador_documento", "tomador_nome", "valor_centavos", "descricao",
+                           "info_compl", "iss_retido", "dia", "ativa")
+
+    def criar_recorrencia(self, cliente_id: int, criada_por: int | None, **campos) -> dict:
+        nomes = [c for c in self._CAMPOS_RECORRENCIA if c in campos]
+        with self.con:
+            cur = self.con.execute(
+                f"INSERT INTO recorrencias (cliente_id, criada_por, criada_em, {', '.join(nomes)}) "
+                f"VALUES (?, ?, ?, {', '.join('?' for _ in nomes)})",
+                (cliente_id, criada_por, datetime.now().astimezone().isoformat(), *[campos[c] for c in nomes]))
+        return self.buscar_recorrencia(cur.lastrowid)
+
+    def buscar_recorrencia(self, recorrencia_id: int) -> dict | None:
+        linha = self.con.execute("SELECT * FROM recorrencias WHERE id = ?", (recorrencia_id,)).fetchone()
+        return dict(linha) if linha else None
+
+    def recorrencias(self, cliente_id: int | None = None, so_ativas: bool = False) -> list[dict]:
+        sql, args = "SELECT * FROM recorrencias WHERE 1=1", []
+        if cliente_id is not None:
+            sql += " AND cliente_id = ?"; args.append(cliente_id)
+        if so_ativas:
+            sql += " AND ativa = 1"
+        return [dict(l) for l in self.con.execute(sql + " ORDER BY dia, id", args)]
+
+    def atualizar_recorrencia(self, recorrencia_id: int, **campos) -> dict:
+        permitidos = set(self._CAMPOS_RECORRENCIA) | {"ultimo_mes", "ultima_nota_id", "ultimo_erro", "ultima_tentativa_em", "tentativa"}
+        nomes = [c for c in campos if c in permitidos]
+        if nomes:
+            with self.con:
+                self.con.execute(f"UPDATE recorrencias SET {', '.join(f'{c} = ?' for c in nomes)} WHERE id = ?",
+                                 (*[campos[c] for c in nomes], recorrencia_id))
+        return self.buscar_recorrencia(recorrencia_id)
+
+    def apagar_recorrencia(self, recorrencia_id: int) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM recorrencias WHERE id = ?", (recorrencia_id,))
+
+    # ------------------------------------------------------------ contato do escritório
+
+    def escritorio(self, contador_id: int) -> dict:
+        linha = self.con.execute("SELECT nome, telefone, email FROM escritorios WHERE contador_id = ?", (contador_id,)).fetchone()
+        return dict(linha) if linha else {"nome": None, "telefone": None, "email": None}
+
+    def salvar_escritorio(self, contador_id: int, nome: str | None, telefone: str | None, email: str | None) -> dict:
+        with self.con:
+            self.con.execute(
+                "INSERT INTO escritorios (contador_id, nome, telefone, email) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT (contador_id) DO UPDATE SET nome = excluded.nome, telefone = excluded.telefone, email = excluded.email",
+                (contador_id, nome, telefone, email))
+        return self.escritorio(contador_id)
 
     def contar_notas(self, cliente_id: int) -> int:
         return int(self.con.execute("SELECT COUNT(*) FROM notas WHERE cliente_id = ?", (cliente_id,)).fetchone()[0])

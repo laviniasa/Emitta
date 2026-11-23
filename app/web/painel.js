@@ -101,7 +101,7 @@
     }
     grupos.push(el("div", { class: "gaveta-grupo" },
       el("p", { class: "gaveta-titulo" }, "Conta"),
-      item("Segurança", "escudo", abrirSeguranca, { atual: estado.modo === "seguranca" }),
+      item("Minha conta", "escudo", abrirSeguranca, { atual: estado.modo === "seguranca" }),
       item("Assistente", "balao", () => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Ajuda" && !x.closest(".gaveta")); if (b) b.click(); }),
       el("a", { class: "gaveta-item", href: "/ajuda", target: "_blank", rel: "noopener" }, icone("livro", 18), el("span", {}, "Central de ajuda")),
       $itemSuporte,
@@ -170,12 +170,14 @@
     desenharLista();
     desenharPrincipal();
     try {
-      const [servicos, notas, acessos, documentos] = await Promise.all([
+      const [servicos, notas, acessos, documentos, recorrencias] = await Promise.all([
         api("GET", `/contador/clientes/${id}/servicos`),
         api("GET", `/contador/clientes/${id}/notas`),
         api("GET", `/contador/clientes/${id}/acessos`),
         autonomo() ? [] : api("GET", `/contador/clientes/${id}/documentos`),
+        api("GET", `/app/${id}/recorrencias`).catch(() => []),
       ]);
+      estado.recorrencias = recorrencias;
       estado.documentos = documentos;
       carregarResumo(true);
       estado.servicos = servicos.map((s) => ({ ...s, apelido: s.apelido || s.descricao }));
@@ -612,7 +614,7 @@
 
     let conteudo;
     if (autonomo() && (estado.aba === "acesso" || estado.aba === "impostos")) estado.aba = "servicos";
-    if (estado.aba === "notas") conteudo = [secaoNotas()];
+    if (estado.aba === "notas") conteudo = [secaoRecorrentes(c), secaoNotas()].filter(Boolean);
     else if (estado.aba === "impostos") conteudo = secaoImpostos(c);
     else if (estado.aba === "ano") conteudo = [secaoAno(c)];
     else if (estado.aba === "recebidas") conteudo = [secaoRecebidas(c)];
@@ -880,6 +882,36 @@
   }
 
   // ------------------------------------------------------------ abas Notas e Dados
+
+  // Notas que saem sozinhas todo mês (criadas pela empresa no app). O contador acompanha e vê falhas.
+  function secaoRecorrentes(c) {
+    const lista = estado.recorrencias || [];
+    if (!lista.length) return null;
+    const dataBr = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
+    const com_erro = lista.filter((r) => r.erro).length;
+    return el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:12px" },
+      el("div", { style: "display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap" },
+        el("h2", { class: "titulo" }, "Notas automáticas"),
+        com_erro ? el("span", { class: "selo selo-vermelho" }, `${com_erro} com problema`) : el("span", { class: "sub2" }, "Saem sozinhas todo mês")),
+      el("div", { class: "lista-recorrentes" }, ...lista.map((r) => el("div", { class: "recorrente-linha" + (r.erro ? " com-erro" : "") },
+        el("div", {},
+          el("strong", {}, r.tomador.nome),
+          el("div", { class: "sub2" }, [dinheiro(r.valor), `todo dia ${r.dia}`,
+            !r.ativa ? "pausada" : r.erro ? "não saiu este mês" : r.proxima ? `próxima em ${dataBr(r.proxima)}` : ""].filter(Boolean).join(" · ")),
+          r.erro && el("div", { class: "sub2", style: "color:#B42318" }, r.erro)),
+        el("div", { style: "display:flex;gap:8px;align-items:center" },
+          r.erro && el("button", { class: "botao botao-secundario", type: "button", onclick: async (e) => {
+            e.currentTarget.disabled = true;
+            try {
+              await api("POST", `/app/${c.id}/recorrencias/${r.id}/tentar`);
+              estado.recorrencias = await api("GET", `/app/${c.id}/recorrencias`);
+              estado.notas = await api("GET", `/contador/clientes/${c.id}/notas`);
+              desenharPrincipal();
+            } catch (erro) { avisar(erro.message); e.currentTarget.disabled = false; }
+          } }, "Tentar de novo"),
+          r.ativa ? el("span", { class: "selo selo-verde" }, "Ativa") : el("span", { class: "selo selo-cinza" }, "Pausada"))))),
+      el("p", { class: "sub2", style: "margin:0" }, "A empresa cria, pausa e muda essas notas no app, em \"Notas automáticas\"."));
+  }
 
   function secaoNotas() {
     return el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:12px" },
@@ -1392,6 +1424,37 @@
 
   // ------------------------------------------------------------ segurança da conta
 
+  // Nome, telefone e e-mail do escritório: aparecem no PDF das notas das empresas.
+  function contatoEscritorio() {
+    const $form = el("form", { class: "form-escritorio", novalidate: true });
+    const campo = (rotulo, nome, attrs = {}) => el("label", { class: "campo" }, rotulo, el("input", { name: nome, ...attrs }));
+    const $msg = el("p", { class: "sub2", "aria-live": "polite", style: "margin:0" });
+    $form.append(
+      campo("Nome do escritório", "nome", { maxlength: 120, placeholder: "Ex.: Silva Contabilidade" }),
+      campo("Telefone ou WhatsApp", "telefone", { maxlength: 30, inputmode: "tel", placeholder: "(11) 99999-9999" }),
+      campo("E-mail", "email", { maxlength: 120, type: "email", inputmode: "email", placeholder: "contato@escritorio.com.br" }),
+      el("div", { style: "display:flex;gap:12px;align-items:center;flex-wrap:wrap" },
+        el("button", { class: "botao", type: "submit" }, "Salvar contato"), $msg));
+    api("GET", "/contador/escritorio").then((d) => {
+      ["nome", "telefone", "email"].forEach((k) => { $form.elements[k].value = d[k] || ""; });
+    }).catch(() => {});
+    $form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const botao = $form.querySelector("button");
+      botao.disabled = true;
+      try {
+        const dados = Object.fromEntries(["nome", "telefone", "email"].map((k) => [k, $form.elements[k].value.trim() || null]));
+        await api("PUT", "/contador/escritorio", dados);
+        $msg.textContent = Object.values(dados).some(Boolean) ? "Salvo. Já aparece nos PDFs das notas." : "Salvo. O PDF fica sem o contato do escritório.";
+      } catch (erro) { $msg.textContent = erro.message; }
+      botao.disabled = false;
+    });
+    return el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
+      el("h2", { class: "titulo" }, "Contato do escritório na nota"),
+      el("p", { class: "sub2", style: "margin:0" }, "Aparece no PDF das notas das suas empresas, no quadro \"Contabilidade responsável\". Deixe em branco para não mostrar."),
+      $form);
+  }
+
   function abrirSeguranca() {
     if (!confirmarSaida()) return;
     estado.modo = "seguranca";
@@ -1484,9 +1547,11 @@
       ];
     }
 
+    const cartaoEscritorio = eu.papel === "contador" && contatoEscritorio();
     return [
       el("section", { class: "card cabecalho-cliente" },
-        el("div", {}, el("h1", {}, "Segurança da conta"), el("p", { class: "sub" }, `${eu.nome} · ${eu.email}`))),
+        el("div", {}, el("h1", {}, "Minha conta"), el("p", { class: "sub" }, `${eu.nome} · ${eu.email}`))),
+      cartaoEscritorio,
       el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
         el("h2", { class: "titulo" }, "Verificação em duas etapas"), ...blocoDoisFatores),
       el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
@@ -1501,7 +1566,7 @@
       estado.eu = await exigirLogin("contador");
       document.getElementById("topo-acoes").append(
         el("span", { class: "quem" }, estado.eu.nome),
-        el("button", { class: "topo-botao topo-acoes-largas", type: "button", onclick: abrirSeguranca }, icone("escudo", 16), "Segurança"),
+        el("button", { class: "topo-botao topo-acoes-largas", type: "button", onclick: abrirSeguranca }, icone("escudo", 16), "Minha conta"),
         el("button", { class: "topo-botao topo-acoes-largas", type: "button", onclick: sairDoPainel }, icone("sair", 16), "Sair"),
       );
       const status = await api("GET", "/status");

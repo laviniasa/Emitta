@@ -24,6 +24,7 @@ Segurança:
 """
 
 import base64
+from contextlib import asynccontextmanager
 import json
 import binascii
 import os
@@ -49,6 +50,7 @@ from .autenticacao import (
     ServicoAutenticacao,
 )
 from . import assistente
+from . import recorrentes
 from .assinatura import ErroCertificado
 from .catalogo import carregar_catalogo, ibscbs_sugerido, opcoes_ibscbs, servicos_por_cnae
 from .certificados import ProvedorCertificados, preparar_certificado
@@ -126,6 +128,30 @@ class NovaNota(BaseModel):
     iss_retido: bool = False
     chave_envio: str | None = Field(None, max_length=64, description="Identificador único deste envio (evita nota duplicada)")
     informacoes_complementares: str | None = Field(None, max_length=2000)
+
+
+class NovaRecorrencia(BaseModel):
+    codigo_servico: str
+    tomador_documento: str
+    tomador_nome: str = Field(min_length=1, max_length=150)
+    valor: str = Field(examples=["1500,00"])
+    descricao: str | None = Field(None, max_length=2000)
+    informacoes_complementares: str | None = Field(None, max_length=2000)
+    iss_retido: bool = False
+    dia: int = Field(ge=1, le=28, description="Dia do mês em que a nota sai (1 a 28)")
+
+
+class MudancaRecorrencia(BaseModel):
+    ativa: bool | None = None
+    dia: int | None = Field(None, ge=1, le=28)
+    valor: str | None = None
+    descricao: str | None = Field(None, max_length=2000)
+
+
+class ContatoEscritorio(BaseModel):
+    nome: str | None = Field(None, max_length=120)
+    telefone: str | None = Field(None, max_length=30, pattern=r"^[0-9()+\-. ]*$")
+    email: str | None = Field(None, max_length=120, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class MensagemAssistente(BaseModel):
@@ -236,6 +262,7 @@ def criar_app(
     auth: ServicoAutenticacao | None = None,
     cookie_seguro: bool | None = None,
     consulta_cnpj: ConsultaCnpj | None = None,
+    agendador: bool = False,
 ) -> FastAPI:
     if servico is None:
         config = carregar_config()
@@ -259,8 +286,17 @@ def criar_app(
 
     # A documentação técnica da API (/docs, /redoc, /openapi.json) só existe no modo simulação.
     docs = servico.config.ambiente == "simulacao"
+    @asynccontextmanager
+    async def ciclo_de_vida(app_: FastAPI):
+        ligar = getattr(app_.state, "ligar_agendador", None)
+        agendador_ = ligar() if ligar else None
+        yield
+        if agendador_ is not None:
+            agendador_.parar.set()
+
     app = FastAPI(title="Emitta", version="0.2.0", docs_url="/docs" if docs else None,
-                  redoc_url="/redoc" if docs else None, openapi_url="/openapi.json" if docs else None)
+                  redoc_url="/redoc" if docs else None, openapi_url="/openapi.json" if docs else None,
+                  lifespan=ciclo_de_vida)
 
     # ------------------------------------------------------------ proteções gerais
 
@@ -965,17 +1001,20 @@ def criar_app(
         cliente_ou_404(cliente_id)
         return [{"codigo": s["codigo"], "apelido": s["apelido"]} for s in repo.servicos_liberados(cliente_id)]
 
-    @app.post("/app/{cliente_id}/notas", status_code=201, tags=["app da empresa"])
-    def emitir_nota(cliente_id: int, dados: NovaNota, request: Request, usuario: Usuario = Depends(autorizar_empresa)):
+    def endereco_do_tomador(documento: str | None) -> dict | None:
         # Tomador com CNPJ: o endereço vem da Receita. Ele é exigido para o grupo IBS/CBS ir
         # na nota (E0239). Se a consulta falhar, a nota sai sem esse grupo (opcional em 2026).
-        tomador_endereco = None
-        doc_tomador = regras.somente_digitos(dados.tomador_documento) if dados.tomador_documento else ""
-        if len(doc_tomador) == 14:
-            try:
-                tomador_endereco = consulta_cnpj.consultar(doc_tomador).get("endereco")
-            except Exception as erro:  # consulta é ajuda, nunca impede a emissão
-                print(f"[emissao] endereço do tomador indisponível: {erro}", flush=True)
+        doc_tomador = regras.somente_digitos(documento) if documento else ""
+        if len(doc_tomador) != 14:
+            return None
+        try:
+            return consulta_cnpj.consultar(doc_tomador).get("endereco")
+        except Exception as erro:  # consulta é ajuda, nunca impede a emissão
+            print(f"[emissao] endereço do tomador indisponível: {erro}", flush=True)
+            return None
+
+    @app.post("/app/{cliente_id}/notas", status_code=201, tags=["app da empresa"])
+    def emitir_nota(cliente_id: int, dados: NovaNota, request: Request, usuario: Usuario = Depends(autorizar_empresa)):
         try:
             nota = servico.emitir(
                 cliente_id,
@@ -988,7 +1027,7 @@ def criar_app(
                 iss_retido=dados.iss_retido,
                 chave_envio=dados.chave_envio,
                 info_compl=dados.informacoes_complementares,
-                tomador_endereco=tomador_endereco,
+                tomador_endereco=endereco_do_tomador(dados.tomador_documento),
             )
         except NotaEmProcessamento as erro:
             return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)
@@ -996,6 +1035,160 @@ def criar_app(
             raise traduzir_erro(erro)
         evento("nota_emitida", request, usuario, detalhe=f"nº {nota.numero_dps}, R$ {regras.centavos_para_texto(nota.valor_centavos).replace('.', ',')}")
         return nota_json(nota)
+
+    # ------------------------------------------------------------ notas recorrentes
+
+    def emitir_recorrente(rec: dict, chave: str) -> tuple[str, int | None]:
+        try:
+            nota = servico.emitir(
+                rec["cliente_id"],
+                codigo_servico=rec["codigo_servico"],
+                tomador_documento=rec["tomador_documento"],
+                tomador_nome=rec["tomador_nome"],
+                valor=regras.centavos_para_texto(rec["valor_centavos"]),
+                descricao=rec["descricao"],
+                competencia=None,  # hoje
+                iss_retido=bool(rec["iss_retido"]),
+                chave_envio=chave,
+                info_compl=rec["info_compl"],
+                tomador_endereco=endereco_do_tomador(rec["tomador_documento"]),
+            )
+        except NotaEmProcessamento as erro:
+            return "processando", erro.nota.id
+        except regras.ErroDeNegocio as erro:
+            raise RuntimeError(str(erro)) from erro
+        if nota.situacao == "rejeitada":
+            raise RuntimeError(nota.mensagem or "A prefeitura recusou a nota.")
+        return nota.situacao, nota.id
+
+    def registrar_recorrente(rec: dict, situacao: str, mensagem: str) -> None:
+        detalhe = f"empresa {rec['cliente_id']} · {rec['tomador_nome']} · R$ {regras.centavos_para_texto(rec['valor_centavos']).replace('.', ',')}"
+        evento("nota_recorrente_emitida" if situacao != "erro" else "nota_recorrente_falhou",
+               detalhe=detalhe + (f" · {mensagem}" if mensagem else ""))
+
+    def rodar_recorrentes(cliente_id: int | None = None) -> list[dict]:
+        return recorrentes.processar(repo, emitir_recorrente, cliente_id=cliente_id, avisar=registrar_recorrente)
+
+    def recorrencia_json(rec: dict) -> dict:
+        hoje = recorrentes.agora_brasil()
+        nota = repo.buscar_nota(rec["ultima_nota_id"]) if rec.get("ultima_nota_id") else None
+        erro_do_mes = rec.get("ultimo_erro") if rec.get("ultimo_mes") == recorrentes.mes_de(hoje) else None
+        return {
+            "id": rec["id"], "codigo_servico": rec["codigo_servico"],
+            "tomador": {"documento": rec["tomador_documento"], "nome": rec["tomador_nome"]},
+            "valor": regras.centavos_para_texto(rec["valor_centavos"]),
+            "descricao": rec["descricao"], "informacoes_complementares": rec["info_compl"],
+            "iss_retido": bool(rec["iss_retido"]), "dia": rec["dia"], "ativa": bool(rec["ativa"]),
+            "proxima": recorrentes.proxima_data(rec, hoje) if not erro_do_mes else None,
+            "erro": erro_do_mes,
+            "ultima_nota": {"id": nota.id, "numero": nota.numero_dps, "emitida_em": nota.emitida_em, "situacao": nota.situacao} if nota else None,
+        }
+
+    def recorrencia_da_empresa(cliente_id: int, recorrencia_id: int) -> dict:
+        rec = repo.buscar_recorrencia(recorrencia_id)
+        if not rec or rec["cliente_id"] != cliente_id:
+            raise HTTPException(404, "Nota automática não encontrada.")
+        return rec
+
+    @app.get("/app/{cliente_id}/recorrencias", tags=["app da empresa"])
+    def listar_recorrencias(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
+        # Abrir a lista também emite as que já venceram (o servidor pode ter ficado parado).
+        rodar_recorrentes(cliente_id)
+        return [recorrencia_json(r) for r in repo.recorrencias(cliente_id)]
+
+    @app.post("/app/{cliente_id}/recorrencias", status_code=201, tags=["app da empresa"])
+    def criar_recorrencia(cliente_id: int, dados: NovaRecorrencia, request: Request, usuario: Usuario = Depends(autorizar_empresa)):
+        if len(repo.recorrencias(cliente_id)) >= 50:
+            raise HTTPException(400, "Limite de 50 notas automáticas por empresa.")
+        try:
+            regras.verificar_servico_liberado({x["codigo"] for x in repo.servicos_liberados(cliente_id)}, dados.codigo_servico)
+            tomador = regras.validar_documento(dados.tomador_documento)
+            centavos = regras.valor_em_centavos(dados.valor)
+        except regras.ErroDeNegocio as erro:
+            raise traduzir_erro(erro)
+        if centavos <= 0:
+            raise HTTPException(400, "Informe o valor do serviço.")
+        rec = repo.criar_recorrencia(
+            cliente_id, usuario.id, codigo_servico=dados.codigo_servico, tomador_documento=tomador.numero,
+            tomador_nome=dados.tomador_nome.strip(), valor_centavos=centavos, descricao=(dados.descricao or "").strip() or None,
+            info_compl=(dados.informacoes_complementares or "").strip() or None, iss_retido=int(dados.iss_retido), dia=dados.dia)
+        repo.atualizar_recorrencia(rec["id"], ultimo_mes=recorrentes.mes_inicial(dados.dia, recorrentes.agora_brasil()))
+        evento("nota_recorrente_criada", request, usuario, detalhe=f"{dados.tomador_nome.strip()} · todo dia {dados.dia}")
+        return recorrencia_json(repo.buscar_recorrencia(rec["id"]))
+
+    @app.patch("/app/{cliente_id}/recorrencias/{recorrencia_id}", tags=["app da empresa"])
+    def mudar_recorrencia(cliente_id: int, recorrencia_id: int, dados: MudancaRecorrencia, request: Request,
+                          usuario: Usuario = Depends(autorizar_empresa)):
+        rec = recorrencia_da_empresa(cliente_id, recorrencia_id)
+        campos: dict = {}
+        if dados.ativa is not None:
+            campos["ativa"] = int(dados.ativa)
+            if dados.ativa and not rec["ativa"]:  # ao reativar, não emite o mês que já passou
+                campos["ultimo_mes"] = recorrentes.mes_inicial(dados.dia or rec["dia"], recorrentes.agora_brasil())
+        if dados.dia is not None and dados.dia != rec["dia"]:
+            campos["dia"] = dados.dia
+            hoje = recorrentes.agora_brasil()
+            tentou_este_mes = (rec["ultima_tentativa_em"] or "").startswith(recorrentes.mes_de(hoje))
+            if not tentou_este_mes:  # a nota deste mês ainda não saiu: vale o novo dia
+                campos["ultimo_mes"] = recorrentes.mes_inicial(dados.dia, hoje)
+        if dados.valor is not None:
+            try:
+                campos["valor_centavos"] = regras.valor_em_centavos(dados.valor)
+            except regras.ErroDeNegocio as erro:
+                raise traduzir_erro(erro)
+            if campos["valor_centavos"] <= 0:
+                raise HTTPException(400, "Informe o valor do serviço.")
+        if dados.descricao is not None:
+            campos["descricao"] = dados.descricao.strip() or None
+        rec = repo.atualizar_recorrencia(recorrencia_id, **campos)
+        evento("nota_recorrente_alterada", request, usuario, detalhe=f"{rec['tomador_nome']} · {'ativa' if rec['ativa'] else 'pausada'} · dia {rec['dia']}")
+        return recorrencia_json(rec)
+
+    @app.delete("/app/{cliente_id}/recorrencias/{recorrencia_id}", status_code=204, tags=["app da empresa"])
+    def apagar_recorrencia(cliente_id: int, recorrencia_id: int, request: Request, usuario: Usuario = Depends(autorizar_empresa)):
+        rec = recorrencia_da_empresa(cliente_id, recorrencia_id)
+        repo.apagar_recorrencia(recorrencia_id)
+        evento("nota_recorrente_apagada", request, usuario, detalhe=rec["tomador_nome"])
+        return Response(status_code=204)
+
+    @app.post("/app/{cliente_id}/recorrencias/{recorrencia_id}/tentar", tags=["app da empresa"])
+    def tentar_recorrencia(cliente_id: int, recorrencia_id: int, _: Usuario = Depends(autorizar_empresa)):
+        """Depois de corrigir o problema: tenta emitir de novo a nota deste mês."""
+        rec = recorrencia_da_empresa(cliente_id, recorrencia_id)
+        if not rec["ultimo_erro"] or rec["ultimo_mes"] != recorrentes.mes_de(recorrentes.agora_brasil()):
+            raise HTTPException(409, "Não há nota com erro para tentar de novo neste mês.")
+        repo.atualizar_recorrencia(recorrencia_id, tentativa=rec["tentativa"] + 1, ultimo_mes=None, ultimo_erro=None)
+        rodar_recorrentes(cliente_id)
+        return recorrencia_json(repo.buscar_recorrencia(recorrencia_id))
+
+    if agendador:  # notas recorrentes: roda ao ligar o servidor e a cada 20 minutos
+        app.state.ligar_agendador = lambda: recorrentes.iniciar_agendador(rodar_recorrentes)
+
+    # ------------------------------------------------------------ contato do escritório (PDF)
+
+    @app.get("/contador/escritorio", tags=["contador"])
+    def ver_escritorio(usuario: Usuario = Depends(usuario_atual)):
+        if usuario.papel != "contador":
+            raise HTTPException(403, "Só para contadores.")
+        return repo.escritorio(usuario.id)
+
+    @app.put("/contador/escritorio", tags=["contador"])
+    def salvar_escritorio(dados: ContatoEscritorio, request: Request, usuario: Usuario = Depends(usuario_atual)):
+        if usuario.papel != "contador":
+            raise HTTPException(403, "Só para contadores.")
+        limpo = lambda t: (t or "").strip() or None
+        salvo = repo.salvar_escritorio(usuario.id, limpo(dados.nome), limpo(dados.telefone), limpo(dados.email))
+        evento("escritorio_atualizado", request, usuario)
+        return salvo
+
+    def contato_do_escritorio(cliente) -> dict | None:
+        if not getattr(cliente, "contador_id", None):
+            return None
+        dono = repo.buscar_usuario(cliente.contador_id)
+        if not dono or dono.papel != "contador":
+            return None
+        c = repo.escritorio(dono.id)
+        return c if any(c.values()) else None
 
     @app.post("/app/{cliente_id}/notas/{nota_id}/verificar", tags=["app da empresa"])
     def verificar_nota(cliente_id: int, nota_id: int, _: Usuario = Depends(autorizar_empresa)):
@@ -1019,7 +1212,8 @@ def criar_app(
         nota = nota_da_empresa(cliente_id, nota_id)
         if nota.situacao not in ("autorizada", "cancelada"):
             raise HTTPException(409, "Só há PDF de nota autorizada ou cancelada.")
-        pdf = gerar_pdf(nota, cliente_ou_404(cliente_id), servico.config.ambiente)
+        cliente = cliente_ou_404(cliente_id)
+        pdf = gerar_pdf(nota, cliente, servico.config.ambiente, contato=contato_do_escritorio(cliente))
         return RespostaBruta(pdf, media_type="application/pdf", headers={
             "Content-Disposition": f'attachment; filename="nota-{nota.numero_dps:06d}.pdf"',
             "Cache-Control": "no-store",
@@ -1135,7 +1329,7 @@ def criar_app(
                 pasta = re.sub(r"[^\w\- ]", "", c.razao_social).strip()[:60] or f"empresa-{c.id}"
                 base = f"{pasta}/nota-{n.numero_dps:06d}" + ("-cancelada" if n.situacao == "cancelada" else "")
                 if tipo in ("pdf", "ambos"):
-                    z.writestr(base + ".pdf", gerar_pdf(n, c, servico.config.ambiente))
+                    z.writestr(base + ".pdf", gerar_pdf(n, c, servico.config.ambiente, contato=contato_do_escritorio(c)))
                 if tipo in ("xml", "ambos"):
                     try:
                         _, conteudo = xml_para_download(n, servico.config.ambiente)
@@ -1437,4 +1631,4 @@ def criar_app(
     return app
 
 
-app = criar_app()
+app = criar_app(agendador=True)

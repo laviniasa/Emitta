@@ -72,12 +72,24 @@
     { id: "resumo-ano", cat: "impostos", q: "Onde vejo o faturamento do ano?", r: [
       "Na aba \"Resumo do ano\" da empresa (e no cartão do ano, no app da empresa), com o total por mês, a média mensal e uma planilha para baixar." ] },
 
+    { id: "repetir", cat: "notas", q: "Dá para repetir uma nota que já emiti?", r: [
+      "Sim. Na tela inicial, toque em \"Repetir a última\". Ou abra qualquer nota e toque em \"Emitir de novo\": a nota nova vem preenchida igual, com a data de hoje, para você conferir e emitir.",
+      "Na tela de nova nota também aparecem os clientes que você já atendeu. Um toque preenche os dados da última nota para aquele cliente." ] },
+    { id: "automatica", cat: "notas", q: "Como faço uma nota sair sozinha todo mês?", r: [
+      { ol: [
+        "Abra uma nota já emitida para o cliente.",
+        "Toque em \"Todo mês\".",
+        "Confira o valor e a descrição e escolha o dia do mês (1 a 28).",
+        "Toque em \"Ativar nota automática\"." ] },
+      "No dia marcado o Emitta emite a nota sozinho e ela aparece nas suas notas. Se a prefeitura recusar, o aviso aparece na tela inicial com o motivo e o botão \"Tentar de novo\". Você pode pausar, mudar o valor ou excluir em \"Notas automáticas\"." ] },
+    { id: "contato-pdf", cat: "comecar", q: "Como coloco o contato do escritório no PDF das notas?", r: [
+      "No painel, abra \"Minha conta\" e preencha \"Contato do escritório na nota\": nome, telefone e e-mail. Eles aparecem no PDF das notas das suas empresas, no quadro \"Contabilidade responsável\"." ] },
     { id: "esqueci-senha", cat: "conta", q: "Esqueci a minha senha.", r: [
       { ul: [
         "Empresa: peça ao seu contador para criar o seu acesso de novo. Você recebe uma senha provisória.",
         "Contador ou MEI: fale com o suporte do Emitta pelo contato no fim desta página." ] } ] },
     { id: "duas-etapas", cat: "conta", q: "Como ativo a verificação em duas etapas?", r: [
-      "Em \"Segurança\", toque em ativar e leia o QR code com um aplicativo autenticador (Google Authenticator, Microsoft Authenticator ou similar). Depois disso, além da senha, o Emitta pede o código de 6 dígitos do aplicativo." ] },
+      "Em \"Minha conta\" (no menu do painel), toque em ativar e leia o QR code com um aplicativo autenticador (Google Authenticator, Microsoft Authenticator ou similar). Depois disso, além da senha, o Emitta pede o código de 6 dígitos do aplicativo." ] },
     { id: "remover-empresa", cat: "conta", q: "Como removo uma empresa?", r: [
       "Abra a empresa, vá em \"Dados da empresa\" e toque em \"Remover esta empresa\". Serviços, acessos, certificado, guias e as notas guardadas no Emitta são apagados.",
       "As notas emitidas continuam no Emissor Nacional. Se precisar dos XML e PDF, baixe antes em \"Notas do escritório\"." ] },

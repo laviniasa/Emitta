@@ -101,7 +101,7 @@ def _info_pdf(texto: str) -> str:
     return t.replace("R$ ", "R$\u00a0")
 
 
-def gerar_pdf(nota, cliente, ambiente: str) -> bytes:
+def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> bytes:
     buffer = BytesIO()
     largura = A4[0] - 30 * mm
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
@@ -205,6 +205,11 @@ def gerar_pdf(nota, cliente, ambiente: str) -> bytes:
         partes.append(Paragraph(escape(f"Cancelada em {datetime.fromisoformat(nota.cancelada_em):%d/%m/%Y %H:%M}. "
                                        f"Motivo: {nota.motivo_cancelamento}."), _E["sub"]))
         partes.append(Spacer(1, 6))
+
+    if contato and any(contato.values()):
+        linha = [_campo("Escritório", contato.get("nome") or "", "forte"),
+                 _campo("Contato", " · ".join(x for x in (contato.get("telefone"), contato.get("email")) if x))]
+        partes += _bloco("CONTABILIDADE RESPONSÁVEL", [linha], [meia, meia])
 
     partes.append(Paragraph("Gerado pelo Emitta", _E["rodape"]))
 
