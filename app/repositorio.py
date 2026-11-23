@@ -167,6 +167,23 @@ CREATE TABLE IF NOT EXISTS recorrencias (
 );
 CREATE INDEX IF NOT EXISTS recorrencias_cliente ON recorrencias (cliente_id);
 
+-- Notas emitidas fora do Emitta, importadas de XML (faturamento do ano e clientes salvos)
+CREATE TABLE IF NOT EXISTS notas_externas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    chave TEXT NOT NULL,
+    numero TEXT,
+    data TEXT NOT NULL,
+    valor_centavos INTEGER NOT NULL,
+    tomador_documento TEXT,
+    tomador_nome TEXT,
+    codigo_servico TEXT,
+    descricao TEXT,
+    importada_em TEXT NOT NULL,
+    UNIQUE (cliente_id, chave)
+);
+CREATE INDEX IF NOT EXISTS notas_externas_cliente ON notas_externas (cliente_id, data);
+
 -- Contato do escritório de contabilidade que aparece no PDF das notas
 CREATE TABLE IF NOT EXISTS escritorios (
     contador_id INTEGER PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -552,21 +569,64 @@ class Repositorio:
     # ---------------------------------------------------------------- resumo do escritório
     # ------------------------------------------------------------ resumo do ano
 
+    # Notas importadas de XML entram no faturamento, menos as que já existem no Emitta (mesma chave).
+    _EXTERNAS_VALIDAS = ("SELECT cliente_id, data, valor_centavos FROM notas_externas e WHERE NOT EXISTS ("
+                         "SELECT 1 FROM notas n WHERE n.cliente_id = e.cliente_id AND n.chave_acesso = e.chave)")
+
     def faturamento_por_mes(self, cliente_id: int, ano: int) -> list[dict]:
-        """Notas autorizadas (sem as canceladas) de cada mês do ano: [{mes, notas, valor_centavos}] x 12."""
-        meses = {m: [0, 0] for m in range(1, 13)}
+        """Notas autorizadas (sem as canceladas) de cada mês do ano: [{mes, notas, valor_centavos, importadas}] x 12."""
+        meses = {m: [0, 0, 0] for m in range(1, 13)}
         for r in self.con.execute(
             "SELECT CAST(substr(emitida_em, 6, 2) AS INTEGER) AS mes, COUNT(*) AS q, SUM(valor_centavos) AS v FROM notas"
             " WHERE cliente_id = ? AND situacao = 'autorizada' AND substr(emitida_em, 1, 4) = ? GROUP BY mes",
                 (cliente_id, f"{ano:04d}")):
-            meses[r["mes"]] = [r["q"], r["v"] or 0]
-        return [{"mes": m, "notas": q, "valor_centavos": v} for m, (q, v) in meses.items()]
+            meses[r["mes"]][0] += r["q"]; meses[r["mes"]][1] += r["v"] or 0
+        for r in self.con.execute(
+            f"SELECT CAST(substr(data, 6, 2) AS INTEGER) AS mes, COUNT(*) AS q, SUM(valor_centavos) AS v FROM ({self._EXTERNAS_VALIDAS})"
+            " WHERE cliente_id = ? AND substr(data, 1, 4) = ? GROUP BY mes", (cliente_id, f"{ano:04d}")):
+            meses[r["mes"]][0] += r["q"]; meses[r["mes"]][1] += r["v"] or 0; meses[r["mes"]][2] += r["q"]
+        return [{"mes": m, "notas": q, "valor_centavos": v, "importadas": i} for m, (q, v, i) in meses.items()]
 
     def faturamento_ano_por_cliente(self, contador_id: int, ano: int) -> dict[int, int]:
-        return {r["cliente_id"]: r["v"] or 0 for r in self.con.execute(
+        total: dict[int, int] = {}
+        for r in self.con.execute(
             "SELECT n.cliente_id, SUM(n.valor_centavos) AS v FROM notas n JOIN clientes c ON c.id = n.cliente_id"
             " WHERE c.contador_id = ? AND n.situacao = 'autorizada' AND substr(n.emitida_em, 1, 4) = ?"
-            " GROUP BY n.cliente_id", (contador_id, f"{ano:04d}"))}
+            " GROUP BY n.cliente_id", (contador_id, f"{ano:04d}")):
+            total[r["cliente_id"]] = total.get(r["cliente_id"], 0) + (r["v"] or 0)
+        for r in self.con.execute(
+            f"SELECT e.cliente_id, SUM(e.valor_centavos) AS v FROM ({self._EXTERNAS_VALIDAS}) e JOIN clientes c ON c.id = e.cliente_id"
+            " WHERE c.contador_id = ? AND substr(e.data, 1, 4) = ? GROUP BY e.cliente_id", (contador_id, f"{ano:04d}")):
+            total[r["cliente_id"]] = total.get(r["cliente_id"], 0) + (r["v"] or 0)
+        return total
+
+    def guardar_notas_externas(self, cliente_id: int, notas: list[dict]) -> int:
+        """Grava notas importadas (ignora as que já estavam). Devolve quantas entraram."""
+        agora = datetime.now().astimezone().isoformat()
+        novas = 0
+        with self.con:
+            for n in notas:
+                cur = self.con.execute(
+                    "INSERT OR IGNORE INTO notas_externas (cliente_id, chave, numero, data, valor_centavos, tomador_documento,"
+                    " tomador_nome, codigo_servico, descricao, importada_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cliente_id, n["chave"], n.get("numero"), n["data"], n["valor_centavos"], n.get("tomador_documento"),
+                     n.get("tomador_nome"), n.get("codigo_servico"), n.get("descricao"), agora))
+                novas += cur.rowcount
+        return novas
+
+    def contar_notas_externas(self, cliente_id: int) -> int:
+        return int(self.con.execute("SELECT COUNT(*) FROM notas_externas WHERE cliente_id = ?", (cliente_id,)).fetchone()[0])
+
+    def apagar_notas_externas(self, cliente_id: int) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM notas_externas WHERE cliente_id = ?", (cliente_id,))
+
+    def clientes_das_notas_externas(self, cliente_id: int, limite: int = 30) -> list[dict]:
+        """Último registro de cada tomador das notas importadas (mais recentes primeiro)."""
+        return [dict(l) for l in self.con.execute(
+            "SELECT tomador_documento AS documento, tomador_nome AS nome, valor_centavos, codigo_servico, descricao, MAX(data) AS data"
+            " FROM notas_externas WHERE cliente_id = ? AND tomador_documento IS NOT NULL AND tomador_documento != ''"
+            " GROUP BY tomador_documento ORDER BY data DESC LIMIT ?", (cliente_id, limite))]
 
     def definir_abertura(self, cliente_id: int, abertura: str) -> None:
         with self.con:

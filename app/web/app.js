@@ -117,6 +117,7 @@
       estado.documentos = estado.eu.papel === "autonomo" ? [] : await api("GET", `/app/${id}/documentos`).catch(() => []);
       estado.ano = await api("GET", `/app/${id}/resumo-ano`).catch(() => null);
       estado.recorrencias = await api("GET", `/app/${id}/recorrencias`).catch(() => []);
+      estado.clientesSalvos = await api("GET", `/app/${id}/clientes-salvos`).catch(() => []);
       if (estado.recorrencias.some((r) => r.ultima_nota && !notas.some((n) => n.id === r.ultima_nota.id))) {
         estado.notas = await api("GET", `/app/${id}/notas`); // uma automática acabou de sair
       }
@@ -291,11 +292,17 @@
   // ------------------------------------------------------------ repetir e clientes salvos
 
   // Clientes para quem a empresa já emitiu (mais recentes primeiro), com a última nota de cada um.
-  function clientesRecentes(max = 8) {
+  function clientesRecentes(max = 10) {
     const vistos = new Map();
     for (const n of estado.notas) {
       if (n.situacao !== "autorizada" && n.situacao !== "cancelada") continue;
       if (!vistos.has(n.tomador.documento)) vistos.set(n.tomador.documento, n);
+    }
+    // depois, os clientes das notas antigas que o contador importou (XML de outro sistema)
+    for (const c of estado.clientesSalvos || []) {
+      if (vistos.has(c.documento)) continue;
+      vistos.set(c.documento, { tomador: { documento: c.documento, nome: c.nome }, valor: c.valor, servico: c.codigo_servico,
+        descricao: c.descricao || "", informacoes_complementares: "", iss_retido: false, importado: true });
     }
     return [...vistos.values()].slice(0, max);
   }

@@ -896,21 +896,87 @@
     const porCodigo = new Map(estado.servicos.map((x) => [x.codigo, x]));
     const $entrada = el("input", { type: "file", accept: ".xml,text/xml,application/xml", multiple: true, hidden: true });
     const $res = el("div", { "aria-live": "polite" });
+    const c = estado.clientes.find((x) => x.id === id) || {};
+    const reais = (centavos) => dinheiro((centavos || 0) / 100);
+    const mesAno = (iso) => (iso ? `${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
     const desenhar = () => {
       const r = estado.importacaoXml && estado.importacaoXml.cliente === id ? estado.importacaoXml : null;
       if (!r) { $res.replaceChildren(); return; }
       if (r.carregando) { $res.replaceChildren(el("p", { class: "sub2" }, "Lendo as notas...")); return; }
-      $res.replaceChildren(
-        el("p", { class: "sub2" }, r.servicos.length
-          ? `${r.lidos} nota${r.lidos === 1 ? "" : "s"} lida${r.lidos === 1 ? "" : "s"}. Serviços encontrados (libere os que ela ainda presta):`
-          : "Não encontramos serviços nessas notas."),
+      const partes = [];
+      // 1) serviços
+      partes.push(el("h4", { class: "imp-titulo" }, "Serviços"),
+        r.servicos.length
+          ? el("p", { class: "sub2" }, "Libere os que ela ainda presta:")
+          : el("p", { class: "sub2" }, "Não encontramos o código do serviço nessas notas."),
         ...r.servicos.map((x) => {
           const sv = porCodigo.get(x.codigo);
           if (!sv) return null;
           return el("div", { class: "importado" }, linha(sv),
             el("span", { class: "sub2 importado-ex" }, `${x.notas} nota${x.notas === 1 ? "" : "s"}${x.exemplo ? ` · "${x.exemplo}"` : ""}`));
-        }),
-        ...(r.avisos || []).map((a) => el("p", { class: "sub2 importado-aviso" }, a)));
+        }));
+      // 2) alíquota
+      if (r.aliquota) {
+        partes.push(el("div", { class: "aviso aviso-alerta imp-aviso" }, icone("alerta"),
+          el("span", {}, `As notas antigas usam ISS de ${r.aliquota.nas_notas.replace(".", ",")}%, mas no Emitta está ${r.aliquota.no_emitta.replace(".", ",")}%. `,
+            el("button", { type: "button", class: "botao-link", onclick: () => irParaAba("dados") }, "Conferir em Dados da empresa"))));
+      }
+      // 3) notas: faturamento e clientes
+      if (r.notas && r.notas.length) {
+        const f = r.faturamento;
+        partes.push(el("h4", { class: "imp-titulo" }, "Notas e clientes"),
+          el("p", { class: "sub2" }, `${f.notas} nota${f.notas === 1 ? "" : "s"} · ${reais(f.total_centavos)}${f.de ? ` · de ${mesAno(f.de)} a ${mesAno(f.ate)}` : ""}. `
+            + `${r.clientes.length} cliente${r.clientes.length === 1 ? "" : "s"}: ${r.clientes.slice(0, 4).map((x) => x.nome).join(", ")}${r.clientes.length > 4 ? "..." : ""}`),
+          r.salvas != null
+            ? el("p", { class: "imp-ok" }, icone("certo", 16), `${r.salvas} nota${r.salvas === 1 ? "" : "s"} guardada${r.salvas === 1 ? "" : "s"}. Já entram no Resumo do ano${c.opcao_simples === "2" ? " e no limite do MEI" : ""}, e os clientes aparecem prontos no app da empresa.`)
+            : el("div", { class: "imp-acoes" },
+              el("button", { class: "botao", type: "button", onclick: async (e) => {
+                e.currentTarget.disabled = true;
+                try {
+                  const g = await api("POST", `/contador/clientes/${id}/importacao`, { notas: r.notas });
+                  r.salvas = g.novas; r.ja_importadas = g.total; estado.resumoAno = null;
+                  avisar(g.novas ? "Notas guardadas." : "Essas notas já estavam guardadas.");
+                } catch (erro) { avisar(erro.message); }
+                desenhar();
+              } }, "Guardar no Emitta"),
+              el("span", { class: "sub2" }, `Entram no Resumo do ano${c.opcao_simples === "2" ? " e no limite do MEI" : ""}, e os clientes viram "clientes salvos" no app da empresa.`)));
+      }
+      // 4) sugestão de nota automática
+      if (r.automaticas && r.automaticas.length) {
+        partes.push(el("h4", { class: "imp-titulo" }, "Pode virar nota automática"),
+          ...r.automaticas.map((a) => {
+            const sv = a.codigo_servico && porCodigo.get(a.codigo_servico);
+            return el("div", { class: "imp-auto" },
+              el("div", {}, el("strong", {}, a.nome || formatarDocumento(a.documento)),
+                el("span", { class: "sub2" }, `${reais(a.valor_centavos)} em ${a.meses} meses, sempre perto do dia ${a.dia}`)),
+              a.criada ? el("span", { class: "selo selo-verde" }, "Criada")
+                : el("button", { class: "botao botao-secundario", type: "button", onclick: async (e) => {
+                  if (!sv || !sv.liberado) { avisar("Primeiro libere e salve o serviço desta nota" + (sv ? `: ${sv.descricao.slice(0, 60)}.` : ".")); return; }
+                  if (estado.alterado) { avisar("Salve os serviços antes de criar a nota automática."); return; }
+                  e.currentTarget.disabled = true;
+                  try {
+                    await api("POST", `/app/${id}/recorrencias`, { codigo_servico: a.codigo_servico, tomador_documento: a.documento,
+                      tomador_nome: a.nome || a.documento, valor: (a.valor_centavos / 100).toFixed(2).replace(".", ","), descricao: a.descricao || null, dia: a.dia });
+                    a.criada = true;
+                    estado.recorrencias = await api("GET", `/app/${id}/recorrencias`).catch(() => estado.recorrencias);
+                    avisar(`Nota automática criada: todo dia ${a.dia}.`);
+                  } catch (erro) { avisar(erro.message); e.currentTarget.disabled = false; }
+                  desenhar();
+                } }, `Criar (todo dia ${a.dia})`));
+          }));
+      }
+      // 5) avisos dos arquivos
+      partes.push(...(r.avisos || []).map((a) => el("p", { class: "sub2 importado-aviso" }, a)));
+      if (r.ja_importadas) {
+        partes.push(el("p", { class: "sub2" }, `Esta empresa tem ${r.ja_importadas} nota${r.ja_importadas === 1 ? "" : "s"} importada${r.ja_importadas === 1 ? "" : "s"}. `,
+          el("button", { type: "button", class: "botao-link perigo", onclick: async () => {
+            if (!window.confirm("Apagar todas as notas importadas de XML desta empresa? As notas emitidas pelo Emitta não mudam.")) return;
+            try { await api("DELETE", `/contador/clientes/${id}/importacao`); r.ja_importadas = 0; r.salvas = null; estado.resumoAno = null; avisar("Notas importadas apagadas."); }
+            catch (erro) { avisar(erro.message); }
+            desenhar();
+          } }, "Desfazer importação")));
+      }
+      $res.replaceChildren(...partes.filter(Boolean));
     };
     $entrada.addEventListener("change", async () => {
       const arquivos = [...$entrada.files].slice(0, 30);
@@ -935,7 +1001,7 @@
       el("div", { class: "sugeridos-topo importar-topo" },
         el("div", {},
           el("h3", {}, "Importar de notas antigas"),
-          el("p", { class: "sub2" }, "Escolha XMLs de notas que a empresa já emitiu (nacional ou da prefeitura). O Emitta mostra os serviços que ela usava.")),
+          el("p", { class: "sub2" }, "Escolha XMLs de notas que a empresa já emitiu em outro sistema (nacional ou da prefeitura). O Emitta mostra os serviços, os clientes, o faturamento e as notas que se repetem todo mês.")),
         el("button", { class: "botao botao-secundario", type: "button", onclick: () => $entrada.click() }, icone("documento", 18), "Escolher XMLs")),
       $entrada, $res);
     desenhar();
@@ -965,6 +1031,48 @@
     return caixa;
   }
 
+  // Grupo aberto: todos os serviços da mesma "cabeça" (item da lista, ex.: 14), como no Emissor Nacional.
+  // Fica fechado; aberto, mostra o sugerido primeiro, os liberados com ✓, uma busca (grupos grandes) e a planilha.
+  function grupoAberto(item, sugeridos, linha) {
+    const lista = estado.servicos.filter((x) => x.codigo.slice(0, 2) === item)
+      .sort((a, b) => (sugeridos.has(b.codigo) - sugeridos.has(a.codigo)) || a.codigo.localeCompare(b.codigo));
+    if (lista.length < 2) return null;
+    const nome = lista[0].item_descricao || `Item ${item}`;
+    const $lista = el("div", { class: "grupo-lista" });
+    const desenhar = (termo = "") => {
+      const t = semAcento(termo.trim());
+      const vis = t ? lista.filter((x) => semAcento(`${x.descricao} ${codigoBonito(x.codigo)}`).includes(t)) : lista;
+      $lista.replaceChildren(...vis.map((x) => el("div", { class: "grupo-linha" + (sugeridos.has(x.codigo) ? " sugerido" : "") },
+        sugeridos.has(x.codigo) && el("span", { class: "selo-mini" }, "sugerido"), linha(x))),
+        ...(vis.length ? [] : [el("p", { class: "sub2" }, "Nada com essa palavra neste grupo.")]));
+    };
+    const planilha = () => {
+      const linhas = ["Código;Serviço;Liberado", ...lista.map((x) => `${codigoBonito(x.codigo)};"${x.descricao.replace(/"/g, '""')}";${x.liberado ? "sim" : "não"}`)];
+      const url = URL.createObjectURL(new Blob(["\ufeff" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+      const a = el("a", { href: url, download: `grupo-${item}-servicos.csv` });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    };
+    const caixa = el("details", { class: "grupo-aberto" },
+      el("summary", {},
+        el("span", { class: "area-cod" }, item),
+        el("span", { class: "grupo-nome" }, `Ver o grupo ${item} inteiro`, el("span", { class: "sub2" }, nome)),
+        el("span", { class: "area-qtd" }, `${lista.length} serviços`)));
+    caixa.addEventListener("toggle", () => {
+      if (!caixa.open || caixa.dataset.pronto) return;
+      caixa.dataset.pronto = "1";
+      const corpo = el("div", { class: "grupo-corpo" },
+        el("div", { class: "grupo-ferramentas" },
+          lista.length > 8 && el("input", { type: "search", class: "busca-grupo", placeholder: `Buscar no grupo ${item}`, "aria-label": `Buscar no grupo ${item}`,
+            oninput: (e) => desenhar(e.target.value) }),
+          el("button", { type: "button", class: "botao-link", onclick: planilha }, icone("download", 16), "Baixar este grupo (planilha)")),
+        $lista);
+      caixa.append(corpo);
+      desenhar();
+    });
+    return caixa;
+  }
+
   // Serviços que combinam com as atividades (CNAE) da empresa na Receita.
   function blocoSugeridos(linha) {
     const caixa = el("section", { class: "sugeridos", "aria-live": "polite" });
@@ -984,14 +1092,21 @@
         return;
       }
       const porCodigo = new Map(estado.servicos.map((s) => [s.codigo, s]));
+      const gruposMostrados = new Set();
       caixa.replaceChildren(
         el("div", { class: "sugeridos-topo" },
           el("h3", {}, "Sugeridos pela atividade da empresa"),
           el("p", { class: "sub2" }, "Pelos CNAEs do cartão CNPJ e pela tabela CNAE x Item da Lista de Serviços. Confira e libere os que ela realmente presta.")),
-        ...comServico.map((c, i) => el("div", { class: "sugerido-cnae" },
-          el("p", { class: "cnae-nome" }, el("span", { class: "cnae-cod" }, cnaeBonito(c.codigo)), " ", c.descricao,
-            r.cnaes[0] && r.cnaes[0].codigo === c.codigo ? el("span", { class: "selo-mini" }, "principal") : null),
-          ...c.servicos.map((cod) => porCodigo.get(cod)).filter(Boolean).map(linha))));
+        ...comServico.map((c, i) => {
+          const sugeridos = c.servicos.map((cod) => porCodigo.get(cod)).filter(Boolean);
+          // o grupo inteiro (a "cabeça" do item, ex.: 14) de cada sugestão, uma vez só na tela
+          const itens = [...new Set(sugeridos.map((x) => x.codigo.slice(0, 2)))].filter((it) => !gruposMostrados.has(it) && gruposMostrados.add(it));
+          return el("div", { class: "sugerido-cnae" },
+            el("p", { class: "cnae-nome" }, el("span", { class: "cnae-cod" }, cnaeBonito(c.codigo)), " ", c.descricao,
+              r.cnaes[0] && r.cnaes[0].codigo === c.codigo ? el("span", { class: "selo-mini" }, "principal") : null),
+            ...sugeridos.map(linha),
+            ...itens.map((it) => grupoAberto(it, new Set(c.servicos), linha)));
+        }));
     };
     if (!estado.sugeridos) {
       api("GET", `/contador/clientes/${id}/servicos/sugeridos`)

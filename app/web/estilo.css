@@ -561,3 +561,24 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .importado-ex { padding: 0 12px 6px; font-size: 12.5px; }
 .importado-aviso { color: #92400E; font-size: 13px; }
 .dica-busca { margin: -4px 0 0; font-size: 13px; }
+.imp-titulo { margin: 14px 0 4px; font-size: 14px; font-family: var(--titulo); }
+.imp-aviso { margin-top: 10px; }
+.imp-acoes { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.imp-acoes .botao { width: auto; }
+.imp-ok { display: flex; gap: 6px; align-items: flex-start; color: var(--verde-escuro, #145C33); font-size: 14px; margin: 4px 0; }
+.imp-auto { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--borda); }
+.imp-auto > div { display: flex; flex-direction: column; gap: 2px; }
+.imp-auto .botao { width: auto; min-height: 38px; padding: 0 14px; font-size: 14px; }
+/* grupo aberto (todos os serviços da mesma cabeça) */
+.grupo-aberto { margin-top: 8px; border: 1px solid var(--borda); border-radius: 14px; background: #fff; }
+.grupo-aberto > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.grupo-aberto > summary::-webkit-details-marker { display: none; }
+.grupo-aberto[open] > summary { border-bottom: 1px solid var(--borda); }
+.grupo-nome { display: flex; flex-direction: column; flex: 1; font-weight: 600; font-size: 14px; }
+.grupo-nome .sub2 { font-weight: 400; font-size: 12.5px; }
+.grupo-corpo { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.grupo-ferramentas { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.busca-grupo { flex: 1; min-width: 180px; min-height: 38px; border: 1px solid var(--borda-forte); border-radius: 10px; padding: 0 12px; font: inherit; }
+.grupo-ferramentas .botao-link { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
+.grupo-linha.sugerido { background: var(--verde-claro); border-radius: 10px; padding-top: 6px; }
+.grupo-linha .selo-mini { margin-left: 12px; }

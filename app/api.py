@@ -140,6 +140,21 @@ class ArquivosXml(BaseModel):
     arquivos: list[ArquivoXml] = Field(min_length=1, max_length=30)
 
 
+class NotaImportada(BaseModel):
+    chave: str = Field(min_length=3, max_length=80)
+    numero: str | None = Field(None, max_length=30)
+    data: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    valor_centavos: int = Field(ge=0, le=10_000_000_000)
+    tomador_documento: str | None = Field(None, pattern=r"^(\d{11}|\d{14})?$")
+    tomador_nome: str | None = Field(None, max_length=150)
+    codigo_servico: str | None = Field(None, pattern=r"^\d{6}$")
+    descricao: str | None = Field(None, max_length=300)
+
+
+class NotasImportadas(BaseModel):
+    notas: list[NotaImportada] = Field(min_length=1, max_length=3000)
+
+
 class NovaRecorrencia(BaseModel):
     codigo_servico: str
     tomador_documento: str
@@ -933,9 +948,38 @@ def criar_app(
             if len(conteudo) > importar_xml.LIMITE_BYTES:
                 raise HTTPException(413, f"{a.nome}: arquivo grande demais (máximo 1 MB).")
             arquivos.append((a.nome, conteudo))
-        resultado = importar_xml.analisar(arquivos, carregar_catalogo(), cliente.cnpj)
+        resultado = importar_xml.analisar(arquivos, carregar_catalogo(), cliente.cnpj, cliente.aliquota_iss)
+        resultado["ja_importadas"] = repo.contar_notas_externas(cliente_id)
         evento("servicos_importados_xml", request, usuario, detalhe=f"empresa {cliente_id} · {len(arquivos)} XML · {len(resultado['servicos'])} serviço(s)")
         return resultado
+
+    @app.post("/contador/clientes/{cliente_id}/importacao", tags=["contador"])
+    def salvar_importacao(cliente_id: int, dados: NotasImportadas, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
+        """Guarda as notas lidas dos XMLs: entram no faturamento do ano e os clientes viram "clientes salvos" no app."""
+        cliente_ou_404(cliente_id)
+        novas = repo.guardar_notas_externas(cliente_id, [n.model_dump() for n in dados.notas])
+        evento("notas_importadas", request, usuario, detalhe=f"empresa {cliente_id} · {novas} nota(s) importada(s)")
+        return {"novas": novas, "total": repo.contar_notas_externas(cliente_id)}
+
+    @app.delete("/contador/clientes/{cliente_id}/importacao", status_code=204, tags=["contador"])
+    def desfazer_importacao(cliente_id: int, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
+        """Apaga as notas importadas de XML desta empresa (as emitidas pelo Emitta não mudam)."""
+        cliente_ou_404(cliente_id)
+        repo.apagar_notas_externas(cliente_id)
+        evento("notas_importadas_apagadas", request, usuario, detalhe=f"empresa {cliente_id}")
+        return Response(status_code=204)
+
+    @app.get("/contador/clientes/{cliente_id}/importacao", tags=["contador"])
+    def ver_importacao(cliente_id: int, _: Usuario = Depends(dono_do_cliente)):
+        return {"total": repo.contar_notas_externas(cliente_id)}
+
+    @app.get("/app/{cliente_id}/clientes-salvos", tags=["app da empresa"])
+    def clientes_salvos(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
+        """Clientes das notas importadas de XML (os das notas do Emitta o app já conhece)."""
+        servicos = {x["codigo"] for x in repo.servicos_liberados(cliente_id)}
+        return [{**c, "valor": regras.centavos_para_texto(c.pop("valor_centavos")),
+                 "codigo_servico": c["codigo_servico"] if c["codigo_servico"] in servicos else None}
+                for c in repo.clientes_das_notas_externas(cliente_id)]
 
     @app.get("/contador/clientes/{cliente_id}/servicos/sugeridos", tags=["contador"])
     def servicos_sugeridos(cliente_id: int, usuario: Usuario = Depends(dono_do_cliente)):
@@ -1466,7 +1510,9 @@ def criar_app(
             mei = {**regras.situacao_limite(total, limite), "proporcional": proporcional, "abertura": cliente.abertura}
         return {"ano": ano, "total_centavos": total, "notas": notas,
                 "media_mensal_centavos": round(total / meses_ativos), "meses": meses, "mei": mei,
-                "observacao": "Soma das notas autorizadas emitidas pelo Emitta (sem as canceladas)."}
+                "importadas": sum(m.get("importadas", 0) for m in meses),
+                "observacao": "Soma das notas autorizadas emitidas pelo Emitta (sem as canceladas)"
+                + (" e das notas importadas de XML." if any(m.get("importadas") for m in meses) else ".")}
 
     @app.get("/contador/clientes/{cliente_id}/resumo-ano", tags=["contador"])
     def resumo_ano_contador(cliente_id: int, ano: int | None = None, _: Usuario = Depends(dono_do_cliente)):
