@@ -519,13 +519,31 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .chip-cliente:hover { border-color: var(--verde); }
 .chip-cliente.ativo { border-color: var(--verde); background: var(--verde-claro); }
 
-/* ---------- notas automáticas ---------- */
-.automatica { display: flex; flex-direction: column; gap: 10px; }
+/* ---------- notas automáticas (cartão de agenda e grade de dias, a partir de componentes do 21st.dev) ---------- */
+.automatica { display: flex; flex-direction: column; gap: 12px; }
 .automatica.com-erro { border-color: #F4C7C3; }
-.auto-topo { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.auto-topo .selo { margin-top: 4px; }
+.automatica.pausada { opacity: .78; }
+.auto-topo { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+.auto-quem { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.auto-rotulo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--verde); }
+.auto-nome { font-family: var(--titulo); font-size: 19px; line-height: 1.2; }
+.auto-data { flex: none; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+.auto-semana { font-size: 11px; font-weight: 700; letter-spacing: .12em; color: var(--texto-3); }
+.auto-dia { font-family: var(--titulo); font-size: 34px; font-weight: 700; line-height: 1; color: var(--texto); }
+.auto-mes { font-size: 20px; margin-right: 6px; color: var(--texto-2); text-transform: lowercase; }
+.auto-data.vazio .auto-dia { color: var(--texto-3); }
+.auto-faixa { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--fundo); }
+.auto-valor { font-family: var(--titulo); font-size: 20px; font-weight: 700; }
+.auto-ultima { margin: 0; }
 .auto-acoes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .auto-acoes .botao { min-height: 40px; padding: 0 14px; font-size: 14px; width: auto; }
+.grade-dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.grade-dias .dia { aspect-ratio: 1; min-height: 40px; border-radius: 12px; border: 1px solid var(--borda); background: var(--card); font: inherit; font-weight: 600;
+  color: var(--texto-2); cursor: pointer; transition: background .18s, color .18s, transform .18s, border-color .18s; }
+.grade-dias .dia:hover { border-color: var(--verde); color: var(--texto); }
+.grade-dias .dia.hoje { border-style: dashed; }
+.grade-dias .dia[aria-checked="true"] { background: var(--noite); border-color: var(--noite); color: var(--lima); transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .grade-dias .dia { transition: none; } }
 .botao-link.perigo { color: var(--vermelho); }
 .lista-recorrentes { display: flex; flex-direction: column; }
 .recorrente-linha { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--borda); }

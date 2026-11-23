@@ -347,9 +347,20 @@
       icone("seta", 18));
   }
 
+  // Cartão de agenda (inspirado no "Event Scheduler Card" do 21st.dev): a data da próxima nota em destaque.
+  function blocoData(iso, pausada) {
+    if (!iso || pausada) {
+      return el("div", { class: "auto-data vazio" }, el("span", { class: "auto-semana" }, pausada ? "PAUSADA" : "ESTE MÊS"), el("span", { class: "auto-dia" }, "—"));
+    }
+    const d = new Date(iso + "T12:00:00");
+    return el("div", { class: "auto-data", "aria-label": `Próxima em ${d.toLocaleDateString("pt-BR")}` },
+      el("span", { class: "auto-semana" }, d.toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "").toUpperCase()),
+      el("span", { class: "auto-dia" }, el("span", { class: "auto-mes" }, d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")), String(d.getDate())));
+  }
+
   function itemAutomatica(r) {
     const status = !r.ativa ? el("span", { class: "selo selo-cinza" }, "Pausada")
-      : r.erro ? el("span", { class: "selo selo-vermelho" }, "Não saiu")
+      : r.erro ? el("span", { class: "selo selo-vermelho" }, "Não saiu este mês")
       : el("span", { class: "selo selo-verde" }, "Ativa");
     const acao = async (botao, fazer) => {
       botao.disabled = true;
@@ -357,31 +368,51 @@
       catch (erro) { avisar(erro.message); botao.disabled = false; }
     };
     const base = `/app/${estado.empresa.id}/recorrencias/${r.id}`;
-    return el("article", { class: "card automatica" + (r.erro ? " com-erro" : "") },
+    return el("article", { class: "card automatica" + (r.erro ? " com-erro" : "") + (!r.ativa ? " pausada" : "") },
       el("div", { class: "auto-topo" },
-        el("span", {}, el("strong", { style: "display:block" }, r.tomador.nome),
-          el("span", { class: "ajuda-pequena" }, `${nomeServico(r.codigo_servico)} · todo dia ${r.dia}`)),
-        el("span", { style: "text-align:right" }, el("strong", { style: "display:block" }, dinheiro(r.valor)), status)),
-      r.erro && el("div", { class: "aviso aviso-erro" }, r.erro),
-      el("p", { class: "ajuda-pequena", style: "margin:0" },
-        [r.ativa && r.proxima && `Próxima em ${dataBr(r.proxima)}`,
-         r.ultima_nota && `Última: nº ${String(r.ultima_nota.numero).padStart(6, "0")} em ${dataHora(r.ultima_nota.emitida_em)}`].filter(Boolean).join(" · ") || "Ainda não saiu nenhuma"),
+        el("div", { class: "auto-quem" },
+          el("span", { class: "auto-rotulo" }, icone("relogio", 14), `Todo dia ${r.dia}`),
+          el("strong", { class: "auto-nome" }, r.tomador.nome),
+          el("span", { class: "ajuda-pequena" }, nomeServico(r.codigo_servico))),
+        blocoData(r.proxima, !r.ativa)),
+      el("div", { class: "auto-faixa" },
+        el("span", { class: "auto-valor" }, dinheiro(r.valor)), status),
+      r.erro && el("div", { class: "aviso aviso-erro" }, icone("alerta"), r.erro),
+      el("p", { class: "ajuda-pequena auto-ultima" }, r.ultima_nota
+        ? `Última: nº ${String(r.ultima_nota.numero).padStart(6, "0")} em ${dataHora(r.ultima_nota.emitida_em)}`
+        : "Ainda não saiu nenhuma"),
       el("div", { class: "auto-acoes" },
         r.erro && el("button", { class: "botao", type: "button", onclick: (e) => acao(e.currentTarget, () => api("POST", `${base}/tentar`)) },
           icone("trocar", 18), "Tentar de novo"),
-        el("button", { class: "botao botao-secundario", type: "button", onclick: (e) => {
-          const novo = window.prompt(`Novo valor para ${r.tomador.nome} (R$):`, String(r.valor).replace(".", ","));
-          if (novo === null) return;
-          const dia = window.prompt("Em que dia do mês a nota deve sair? (1 a 28)", String(r.dia));
-          if (dia === null) return;
-          acao(e.currentTarget, () => api("PATCH", base, { valor: novo, dia: parseInt(dia, 10) || r.dia }));
-        } }, "Mudar valor ou dia"),
+        el("button", { class: "botao botao-secundario", type: "button", onclick: () => {
+          estado.rec = { editar: r.id, codigo: r.codigo_servico, documento: formatarDocumento(r.tomador.documento), nome: r.tomador.nome,
+            valor: String(r.valor).replace(".", ","), descricao: r.descricao || "", info_compl: r.informacoes_complementares || "",
+            iss_retido: r.iss_retido, dia: r.dia };
+          ir("automatica");
+        } }, "Editar"),
         el("button", { class: "botao botao-secundario", type: "button",
           onclick: (e) => acao(e.currentTarget, () => api("PATCH", base, { ativa: !r.ativa })) }, r.ativa ? "Pausar" : "Retomar"),
         el("button", { class: "botao-link perigo", type: "button", onclick: (e) => {
           if (!window.confirm(`Parar de emitir a nota de ${r.tomador.nome} todo mês? As notas que já saíram continuam valendo.`)) return;
           acao(e.currentTarget, () => api("DELETE", base));
         } }, "Excluir")));
+  }
+
+  // Escolha do dia (inspirado no "Day Picker" do 21st.dev): os 28 dias em grade, o escolhido em destaque.
+  function gradeDias(atual, aoEscolher) {
+    const hoje = new Date().getDate();
+    return el("div", { class: "grade-dias", role: "radiogroup", "aria-label": "Dia do mês" },
+      ...Array.from({ length: 28 }, (_, i) => {
+        const dia = i + 1;
+        return el("button", {
+          type: "button", role: "radio", class: "dia" + (dia === hoje ? " hoje" : ""), "aria-checked": dia === atual ? "true" : "false",
+          onclick: (e) => {
+            e.currentTarget.parentElement.querySelectorAll(".dia").forEach((b) => b.setAttribute("aria-checked", "false"));
+            e.currentTarget.setAttribute("aria-checked", "true");
+            aoEscolher(dia);
+          },
+        }, String(dia));
+      }));
   }
 
   function nomeServico(codigo) {
@@ -607,49 +638,64 @@
 
     automatica: () => {
       const r = estado.rec;
+      const editando = !!r.editar;
       const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
       const hoje = new Date().getDate();
       const primeira = () => {
         const d = new Date(); d.setHours(12, 0, 0, 0);
         if (r.dia <= hoje) d.setMonth(d.getMonth() + 1, r.dia); else d.setDate(r.dia);
-        return d.toLocaleDateString("pt-BR");
+        return d;
       };
-      const $primeira = el("strong", {}, primeira());
+      const $data = el("div");
+      const $texto = el("p", { class: "ajuda-pequena", style: "margin:0" });
+      const atualizar = () => {
+        const d = primeira();
+        $data.replaceChildren(blocoData(d.toISOString().slice(0, 10)));
+        $texto.textContent = `${editando ? "A próxima" : "A primeira"} sai em ${d.toLocaleDateString("pt-BR")}, e depois todo dia ${r.dia}.`;
+      };
+      atualizar();
       return [
-        barra("Nota automática", "inicio", estado.empresa.razao_social),
+        barra(editando ? "Editar nota automática" : "Nota automática", editando ? "automaticas" : "inicio", estado.empresa.razao_social),
         el("main", { class: "conteudo" },
-          el("div", { class: "aviso aviso-info" }, icone("relogio"),
-            "O Emitta emite esta nota sozinho, todo mês, no dia que você escolher. Você recebe o PDF e o XML aqui, como nas outras."),
+          !editando && el("div", { class: "aviso aviso-info" }, icone("relogio"),
+            "O Emitta emite esta nota sozinho, todo mês, no dia que você escolher. O PDF e o XML ficam aqui, como nas outras."),
           $erro,
-          el("section", { class: "card detalhes" },
-            el("div", { class: "linha" }, el("span", {}, "Cliente"), el("strong", {}, r.nome)),
-            el("div", { class: "linha" }, el("span", {}, "CNPJ/CPF"), el("span", {}, r.documento)),
-            el("div", { class: "linha" }, el("span", {}, "Serviço"), el("span", {}, nomeServico(r.codigo)))),
+          el("section", { class: "card automatica" },
+            el("div", { class: "auto-topo" },
+              el("div", { class: "auto-quem" },
+                el("span", { class: "auto-rotulo" }, icone("relogio", 14), "Nota automática"),
+                el("strong", { class: "auto-nome" }, r.nome),
+                el("span", { class: "ajuda-pequena" }, `${r.documento} · ${nomeServico(r.codigo)}`)),
+              $data)),
+          el("section", { class: "card secao" },
+            el("h2", { style: "font-size:15px" }, "Em que dia do mês?"),
+            gradeDias(r.dia, (dia) => { r.dia = dia; atualizar(); }),
+            $texto,
+            el("p", { class: "ajuda-pequena", style: "margin:0" }, "Vai até o dia 28 porque nem todo mês tem 29, 30 e 31.")),
           el("section", { class: "card secao" },
             el("label", { class: "campo" }, "Valor todo mês (R$)",
               el("input", { value: r.valor, inputmode: "decimal", style: "font-size:18px;font-weight:600", oninput: (e) => { r.valor = e.target.value; } })),
             el("label", { class: "campo" }, "Descrição",
-              el("input", { value: r.descricao, placeholder: "Ex.: Mensalidade de manutenção", oninput: (e) => { r.descricao = e.target.value; } })),
-            el("label", { class: "campo" }, "Dia do mês em que a nota sai",
-              el("select", { onchange: (e) => { r.dia = parseInt(e.target.value, 10); $primeira.textContent = primeira(); } },
-                ...Array.from({ length: 28 }, (_, i) => el("option", { value: String(i + 1), selected: r.dia === i + 1 }, `Dia ${i + 1}`)))),
-            el("p", { class: "ajuda-pequena", style: "margin:0" }, "A primeira sai em ", $primeira,
-              ". Dias 29, 30 e 31 não existem em todo mês, por isso vão até o dia 28."))),
+              el("input", { value: r.descricao, placeholder: "Ex.: Mensalidade de manutenção", oninput: (e) => { r.descricao = e.target.value; } })))),
         el("footer", { class: "rodape" },
           el("button", { class: "botao botao-grande", type: "button", onclick: async (e) => {
             if (numeroDigitado(r.valor) <= 0) { $erro.textContent = "Informe o valor."; $erro.hidden = false; return; }
             e.currentTarget.disabled = true;
             try {
-              await api("POST", `/app/${estado.empresa.id}/recorrencias`, {
-                codigo_servico: r.codigo, tomador_documento: r.documento, tomador_nome: r.nome, valor: r.valor,
-                descricao: r.descricao || null, informacoes_complementares: r.info_compl || null, iss_retido: !!r.iss_retido, dia: r.dia,
-              });
+              if (editando) {
+                await api("PATCH", `/app/${estado.empresa.id}/recorrencias/${r.editar}`, { valor: r.valor, dia: r.dia, descricao: r.descricao || "" });
+              } else {
+                await api("POST", `/app/${estado.empresa.id}/recorrencias`, {
+                  codigo_servico: r.codigo, tomador_documento: r.documento, tomador_nome: r.nome, valor: r.valor,
+                  descricao: r.descricao || null, informacoes_complementares: r.info_compl || null, iss_retido: !!r.iss_retido, dia: r.dia,
+                });
+              }
               await recarregarRecorrencias();
-              avisar("Pronto! Esta nota vai sair sozinha todo mês.");
+              avisar(editando ? "Alterações salvas." : "Pronto! Esta nota vai sair sozinha todo mês.");
               ir("automaticas");
             } catch (erro) { $erro.textContent = erro.message; $erro.hidden = false; e.currentTarget.disabled = false; }
-          } }, icone("certo"), "Ativar nota automática"),
-          el("p", { class: "ajuda-pequena", style: "text-align:center" }, "Você pode pausar ou excluir quando quiser.")),
+          } }, icone("certo"), editando ? "Salvar alterações" : "Ativar nota automática"),
+          !editando && el("p", { class: "ajuda-pequena", style: "text-align:center" }, "Você pode pausar, editar ou excluir quando quiser.")),
       ];
     },
 
