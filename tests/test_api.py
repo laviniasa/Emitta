@@ -528,3 +528,22 @@ def test_paginas_de_apoio_e_canais_de_suporte(anonimo, monkeypatch):
 def test_cadastro_exige_aceite_dos_termos(anonimo):
     r = anonimo.post("/auth/cadastro", json={"nome": "Sem Aceite", "email": "sem@aceite.com", "senha": SENHA})
     assert r.status_code == 400 and "Termos" in r.json()["detail"]
+
+
+def test_pagina_nao_encontrada(app, anonimo):
+    navegador = TestClient(app)
+    r = navegador.get("/endereco-que-nao-existe", headers={"accept": "text/html"})
+    assert r.status_code == 404 and "Não encontramos esta página" in r.text
+    # a API continua respondendo JSON
+    r = navegador.get("/endereco-que-nao-existe", headers={"accept": "application/json"})
+    assert r.status_code == 404 and r.json()["detail"]
+    r = anonimo.get("/endereco-que-nao-existe", headers={"accept": "text/html"})  # fetch do próprio app (X-Emitta)
+    assert r.status_code == 404 and r.json()["detail"]
+    r = navegador.get("/static/nao-existe.js", headers={"accept": "*/*"})
+    assert r.status_code == 404 and "Não encontramos" not in r.text
+
+
+def test_previa_ao_compartilhar(anonimo):
+    html = anonimo.get("/").text
+    assert 'property="og:image" content="https://emitta.onrender.com/static/site/img/compartilhar.jpg"' in html
+    assert anonimo.get("/static/site/img/compartilhar.jpg").status_code == 200

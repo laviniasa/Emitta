@@ -408,6 +408,18 @@ def criar_app(
         # no-store: o navegador nunca guarda a página, então sempre pega a versão atual.
         return FileResponse(PASTA_WEB / nome, headers={"Cache-Control": "no-store"})
 
+    # Endereço que não existe, aberto no navegador: página com a cara do Emitta (status 404).
+    # Chamadas da API (fetch, JSON) continuam recebendo o erro em JSON.
+    from starlette.exceptions import HTTPException as ErroHttp
+
+    @app.exception_handler(ErroHttp)
+    async def nao_encontrado(request: Request, erro: ErroHttp):
+        aceita = request.headers.get("accept", "")
+        if (erro.status_code == 404 and request.method == "GET" and "text/html" in aceita
+                and request.headers.get("x-emitta") is None):
+            return FileResponse(PASTA_WEB / "nao-encontrado.html", status_code=404, headers={"Cache-Control": "no-store"})
+        return JSONResponse({"detail": erro.detail}, status_code=erro.status_code, headers=getattr(erro, "headers", None))
+
     @app.get("/", include_in_schema=False)
     def pagina_inicial():
         return pagina("index.html")

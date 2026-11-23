@@ -788,7 +788,7 @@
             icone("trocar"), "Verificar com a prefeitura"),
           n.situacao === "rejeitada" && n.mensagem && el("div", { class: "aviso aviso-erro" }, n.mensagem),
           (n.situacao === "autorizada" || n.situacao === "cancelada") && el("div", { style: "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px" },
-            el("button", { class: "botao", type: "button", onclick: () => repetir(n) }, icone("trocar", 18), "Emitir de novo"),
+            el("button", { class: "botao botao-secundario", type: "button", onclick: () => repetir(n) }, icone("trocar", 18), "Emitir de novo"),
             n.situacao === "autorizada" && el("button", { class: "botao botao-secundario", type: "button", onclick: () => automatica(n) }, icone("relogio", 18), "Todo mês")),
           n.situacao === "cancelada" && el("div", { class: "aviso aviso-info" },
             `Cancelada em ${dataHora(n.cancelada_em)}. Motivo: ${n.motivo_cancelamento}.`)),
@@ -910,9 +910,39 @@
     }
   }
 
+  // "Enviar ao cliente": abre o compartilhar do celular com o PDF anexado (WhatsApp, e-mail...).
+  // Onde não dá para anexar (computador), baixa o PDF e explica o próximo passo.
+  async function enviarAoCliente(e, n) {
+    const botao = e.currentTarget;
+    const numero = String(n.numero || n.numero_dps || "").padStart(6, "0");
+    const texto = `Olá! Segue a nota fiscal nº ${numero} de ${estado.empresa.razao_social}, no valor de ${dinheiro(n.valor)}.`;
+    botao.classList.add("carregando");
+    try {
+      const resp = await fetch(n.pdf, { credentials: "same-origin" });
+      if (!resp.ok) throw new Error("Não foi possível preparar o PDF. Tente de novo.");
+      const arquivo = new File([await resp.blob()], `nota-${numero}.pdf`, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        await navigator.share({ files: [arquivo], title: `Nota fiscal nº ${numero}`, text: texto });
+      } else {
+        const url = URL.createObjectURL(arquivo);
+        const a = el("a", { href: url, download: arquivo.name });
+        document.body.append(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        avisar("PDF baixado. Abra a conversa com o cliente e anexe o arquivo.");
+      }
+    } catch (erro) {
+      if (erro && erro.name === "AbortError") return; // fechou o compartilhar
+      avisar(erro.message || "Não foi possível enviar.");
+    } finally {
+      botao.classList.remove("carregando");
+    }
+  }
+
   function botoesDownload(n) {
     const numero = String(n.numero || n.numero_dps || "").padStart(6, "0");
     return el("div", { style: "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px" },
+      n.situacao === "autorizada" && el("button", { class: "botao", type: "button", style: "grid-column:1/-1", onclick: (e) => enviarAoCliente(e, n) },
+        icone("enviar", 18), "Enviar ao cliente"),
       el("a", { class: "botao botao-secundario", href: n.pdf, download: "", target: "_blank", rel: "noopener",
         onclick: (e) => baixarArquivo(e, n.pdf, `nota-${numero}.pdf`, "application/pdf") },
         icone("download", 18), "Baixar PDF"),
