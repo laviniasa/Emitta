@@ -195,9 +195,11 @@ class ServicoEmissao:
                 nbs=rtc.get("nbs"), cind_op=rtc.get("cind_op"), cclass_trib=rtc.get("cclass_trib"),
                 info_compl=info_compl,
                 tomador_end=tomador_endereco,
+                leiaute=self.config.leiaute,
             ))
             assinar(xml, "infDPS", cert)
-            self._validar_xsd(xml, "DPS_v1.01.xsd")
+            if self.config.leiaute == "nt009":  # o XSD local é o da NT 009; na NT 004 quem valida é o governo
+                self._validar_xsd(xml, "DPS_v1.01.xsd")
             xml_bytes = para_bytes(xml)
 
             # 3. Grava ANTES de enviar (se a resposta se perder, sabemos o que conferir)
@@ -320,10 +322,12 @@ class ServicoEmissao:
             chave_acesso=nota.chave_acesso,
             codigo_motivo=codigo_motivo,
             texto_motivo=descricao_motivo,
+            leiaute=self.config.leiaute,
         ))
         cert = self.certificados.para(cliente)
         assinar(xml, "infPedReg", cert)
-        self._validar_xsd(xml, "pedRegEvento_v1.01.xsd")
+        if self.config.leiaute == "nt009":
+            self._validar_xsd(xml, "pedRegEvento_v1.01.xsd")
 
         try:
             resposta = self.sefin.enviar_evento(nota.chave_acesso, para_bytes(xml), cert)

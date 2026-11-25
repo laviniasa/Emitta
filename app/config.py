@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date, datetime, timedelta, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,8 @@ URLS_ADN = {
 }
 
 AMBIENTES = ("simulacao", "homologacao", "producao")
+# NT 009 (leiaute com finNFSe) entra na produção do governo nesta data
+INICIO_NT009_PRODUCAO = date(2026, 12, 1)
 
 
 @dataclass(frozen=True)
@@ -36,6 +39,24 @@ class Config:
     @property
     def url_adn(self) -> str | None:
         return URLS_ADN.get(self.ambiente)
+
+    @property
+    def leiaute(self) -> str:
+        """Leiaute da DPS aceito pelo ambiente do governo hoje.
+
+        "nt009": leiaute novo (NT 009, com finNFSe), na produção restrita (homologação) e,
+        a partir de 01/12/2026, também na produção.
+        "nt004": leiaute anterior, o único aceito na produção até 30/11/2026: sem finNFSe,
+        sem o grupo IBS/CBS (opcional) e com nPedRegEvento no cancelamento.
+        NFSE_LEIAUTE=nt004|nt009 força um dos dois (caso o governo mude o cronograma).
+        """
+        forcado = os.getenv("NFSE_LEIAUTE", "").lower()
+        if forcado in ("nt004", "nt009"):
+            return forcado
+        if self.ambiente != "producao":
+            return "nt009"
+        hoje = datetime.now(timezone(timedelta(hours=-3))).date()
+        return "nt009" if hoje >= INICIO_NT009_PRODUCAO else "nt004"
 
     @property
     def tp_amb(self) -> str:

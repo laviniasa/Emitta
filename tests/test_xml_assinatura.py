@@ -189,3 +189,43 @@ def test_sem_endereco_do_tomador_o_grupo_ibscbs_nao_vai():
     assert xml.find(f".//{N}toma/{N}end/{N}endNac/{N}CEP").text == "01310100"
     assert xml.find(f".//{N}toma/{N}end/{N}nro").text == "S/N"
     assert xml.find(f".//{N}IBSCBS") is not None
+
+
+def test_leiaute_nt004_na_producao_ate_30_11(monkeypatch):
+    """Produção do governo usa a NT 004 até 30/11/2026: sem finNFSe e sem grupo IBS/CBS;
+    cancelamento com nPedRegEvento e Id de 62 caracteres."""
+    from datetime import date as _date
+    from app import config as cfg
+    from app.dps import DadosCancelamento, DadosDPS, montar_dps, montar_pedido_cancelamento
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
+    class Hoje(_dt):
+        dia = _dt(2026, 11, 25, 12, 0, tzinfo=_tz(_td(hours=-3)))
+        @classmethod
+        def now(cls, tz=None):
+            return cls.dia
+    monkeypatch.setattr(cfg, "datetime", Hoje)
+    monkeypatch.delenv("NFSE_LEIAUTE", raising=False)
+    base = dict(banco=None, pasta_certificados=None, pasta_xsd=None)
+    assert cfg.Config(ambiente="producao", **base).leiaute == "nt004"
+    assert cfg.Config(ambiente="homologacao", **base).leiaute == "nt009"
+    Hoje.dia = _dt(2026, 12, 1, 0, 1, tzinfo=_tz(_td(hours=-3)))
+    assert cfg.Config(ambiente="producao", **base).leiaute == "nt009"
+    monkeypatch.setenv("NFSE_LEIAUTE", "nt004")
+    assert cfg.Config(ambiente="producao", **base).leiaute == "nt004"
+
+    comum = dict(tp_amb="1", versao_aplicativo="t", emitida_em=_dt(2026, 11, 25, 10, tzinfo=_tz(_td(hours=-3))),
+                 serie="1", numero=7, municipio_ibge="3550308", prestador_cnpj="11222333000181", opcao_simples="2",
+                 tomador_tipo="CNPJ", tomador_documento="11444777000161", tomador_nome="Cliente", codigo_servico="010101",
+                 descricao="Serviço", valor="100.00")
+    antigo = montar_dps(DadosDPS(**comum, leiaute="nt004"))
+    novo = montar_dps(DadosDPS(**comum, leiaute="nt009"))
+    ns = {"n": "http://www.sped.fazenda.gov.br/nfse"}
+    assert not antigo.xpath("//n:finNFSe", namespaces=ns) and novo.xpath("//n:finNFSe", namespaces=ns)
+
+    canc = dict(tp_amb="1", versao_aplicativo="t", quando=_dt(2026, 11, 25, 10, tzinfo=_tz(_td(hours=-3))),
+                autor_cnpj="11222333000181", chave_acesso="3" * 50, codigo_motivo="1", texto_motivo="Erro na emissão")
+    c4 = montar_pedido_cancelamento(DadosCancelamento(**canc, leiaute="nt004"))
+    c9 = montar_pedido_cancelamento(DadosCancelamento(**canc, leiaute="nt009"))
+    assert len(c4.find("n:infPedReg", ns).get("Id")) == 62 and c4.xpath("//n:nPedRegEvento", namespaces=ns)
+    assert len(c9.find("n:infPedReg", ns).get("Id")) == 59 and not c9.xpath("//n:nPedRegEvento", namespaces=ns)
