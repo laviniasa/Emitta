@@ -1,6 +1,6 @@
 // App do cliente: início, nova nota, resultado e cancelamento.
 (() => {
-  const { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, sair, exigirLogin } = Emitta;
+  const { api, el, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, sair, exigirLogin, iniciais, cartaoContato } = Emitta;
   const $tela = document.getElementById("tela");
 
   const estado = {
@@ -118,6 +118,7 @@
       estado.ano = await api("GET", `/app/${id}/resumo-ano`).catch(() => null);
       estado.recorrencias = await api("GET", `/app/${id}/recorrencias`).catch(() => []);
       estado.clientesSalvos = await api("GET", `/app/${id}/clientes-salvos`).catch(() => []);
+      estado.escritorio = estado.eu.papel === "autonomo" ? null : await api("GET", `/app/${id}/escritorio`).catch(() => null);
       if (estado.recorrencias.some((r) => r.ultima_nota && !notas.some((n) => n.id === r.ultima_nota.id))) {
         estado.notas = await api("GET", `/app/${id}/notas`); // uma automática acabou de sair
       }
@@ -307,6 +308,33 @@
     return [...vistos.values()].slice(0, max);
   }
 
+  // Atalhos de clientes salvos (base: Chip Group do 21st.dev, no visual do EmitHub): avatar com as iniciais,
+  // o escolhido ganha um "certo" que se desenha; os 4 primeiros à vista e o resto atrás de "+N clientes".
+  function chipsClientes(docAtivo, aoEscolher, redesenhar) {
+    const lista = clientesRecentes();
+    if (!lista.length) return null;
+    const MAX = 4;
+    const abertos = !!estado.chipsAbertos;
+    const visiveis = abertos ? lista : lista.filter((n, i) => i < MAX || n.tomador.documento === docAtivo);
+    const resto = lista.length - visiveis.length;
+    const certo = () => { const s = icone("certo", 16, "#fff"); s.setAttribute("stroke-width", "3"); return s; };
+    return el("div", { class: "chips-clientes", role: "group", "aria-label": "Clientes salvos" },
+      ...visiveis.map((n, i) => {
+        const ativo = n.tomador.documento === docAtivo;
+        return el("button", {
+          type: "button", class: "chip-cliente" + (ativo ? " ativo" : ""), style: `--i:${Math.max(0, i - (abertos ? MAX : 0))}`,
+          "aria-pressed": String(ativo), onclick: () => aoEscolher(n),
+        },
+        el("span", { class: "chip-av", "aria-hidden": "true" }, el("span", { class: "ini" }, iniciais(n.tomador.nome)), certo()),
+        el("span", { class: "chip-txt" }, el("strong", {}, n.tomador.nome),
+          el("span", {}, `${formatarDocumento(n.tomador.documento)} · ${dinheiro(n.valor)}`)));
+      }),
+      lista.length > MAX && (abertos || resto > 0) && el("button", {
+        type: "button", class: "chip-mais", "aria-expanded": String(abertos),
+        onclick: () => { estado.chipsAbertos = !abertos; redesenhar(); },
+      }, abertos ? "Mostrar menos" : `+${resto} ${resto === 1 ? "cliente" : "clientes"}`));
+  }
+
   const ultimaNota = () => estado.notas.find((n) => n.situacao === "autorizada");
 
   function dadosDe(n) {
@@ -452,14 +480,12 @@
         el("div", { role: "radiogroup", "aria-label": "Serviço", class: "secao" }, ...opcoes)),
       el("section", { class: "card secao" },
         el("h2", { style: "font-size:15px" }, "Para quem?"),
-        recentes.length > 0 && el("div", { class: "chips-clientes" }, ...recentes.map((n) => el("button", {
-          type: "button", class: "chip-cliente", onclick: () => {
-            Object.assign(r, dadosDe(n));
-            $doc.value = r.documento; $nome.value = r.nome;
-            avisar("Dados da última nota para este cliente. Confira o valor.");
-            desenhar();
-          },
-        }, el("strong", {}, n.tomador.nome), el("span", {}, `${formatarDocumento(n.tomador.documento)} · ${dinheiro(n.valor)}`)))),
+        recentes.length > 0 && chipsClientes(limparDoc(r.documento), (n) => {
+          Object.assign(r, dadosDe(n));
+          $doc.value = r.documento; $nome.value = r.nome;
+          avisar("Dados da última nota para este cliente. Confira o valor.");
+          desenhar();
+        }, desenhar),
         el("div", { class: "campo" }, el("label", { class: "campo" }, "CNPJ ou CPF do cliente", $doc), $dica),
         el("label", { class: "campo" }, "Nome ou razão social", $nome)),
     ];
@@ -537,6 +563,8 @@
             el("a", { class: "atalho", href: "/escritorio?aba=dados" }, icone("engrenagem", 20), "Dados")),
           cartaoAutomaticas(),
           cartaoAno(),
+          estado.escritorio && (estado.escritorio.telefone || estado.escritorio.email)
+            && cartaoContato(estado.escritorio, { rotulo: "Seu contador", sub: "Contabilidade responsável pela sua empresa", mensagem: `Olá! Sou da ${estado.empresa.razao_social} e tenho uma dúvida.` }),
           el("h2", { style: "font-size:15px;margin-top:8px" }, "Últimas notas"),
           ...(estado.notas.length
             ? estado.notas.slice(0, 20).map(itemNota)
@@ -660,16 +688,13 @@
             el("h2", { style: "font-size:15px" }, "Para quem?"),
             clientesRecentes().length > 0 && el("div", { class: "secao", style: "gap:8px" },
               el("span", { class: "ajuda-pequena" }, "Clientes que você já atendeu"),
-              el("div", { class: "chips-clientes" }, ...clientesRecentes().map((n) => el("button", {
-                type: "button", class: "chip-cliente" + (limparDoc(f.documento) === n.tomador.documento ? " ativo" : ""),
-                onclick: () => {
-                  Object.assign(f, dadosDe(n));
-                  f.nomeAuto = false;
-                  estado.ultimaConsulta = n.tomador.documento;
-                  avisar("Preenchido com a última nota para este cliente. Confira o valor.");
-                  desenhar();
-                },
-              }, el("strong", {}, n.tomador.nome), el("span", {}, `${formatarDocumento(n.tomador.documento)} · ${dinheiro(n.valor)}`))))),
+              chipsClientes(limparDoc(f.documento), (n) => {
+                Object.assign(f, dadosDe(n));
+                f.nomeAuto = false;
+                estado.ultimaConsulta = n.tomador.documento;
+                avisar("Preenchido com a última nota para este cliente. Confira o valor.");
+                desenhar();
+              }, desenhar)),
             el("div", { class: "campo" }, el("label", { class: "campo" }, "CNPJ ou CPF do cliente", $doc), $dicaDoc),
             el("label", { class: "campo" }, "Nome ou razão social", $nome),
             $retencao),

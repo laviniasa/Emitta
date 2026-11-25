@@ -182,7 +182,68 @@ const Emitta = (() => {
     engrenagem: "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
     brilho: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z",
     documento: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6",
+    // cartão de contato (base: Contact Card do 21st.dev)
+    fone: "M19 21A16 16 0 0 1 3 5a2 2 0 0 1 2-2h2.33a1.5 1.5 0 0 1 1.45 1.14L9.5 7a1.5 1.5 0 0 1-.6 1.59L7.25 9.75a12.67 12.67 0 0 0 7 7l1.16-1.65a1.5 1.5 0 0 1 1.59-.6l2.86.72A1.5 1.5 0 0 1 21 16.67V19a2 2 0 0 1-2 2",
+    email: "M5.75 5h12.5a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H5.75a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3M3.75 7.5l6.86 4.58a2.5 2.5 0 0 0 2.78 0l6.86-4.58",
+    copiar: "M11.5 9h7a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 9 18.5v-7A2.5 2.5 0 0 1 11.5 9M6 15h-.5A2.5 2.5 0 0 1 3 12.5v-7A2.5 2.5 0 0 1 5.5 3h7A2.5 2.5 0 0 1 15 5.5V6",
+    zap: "M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z",
+    lapis: "M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4",
   };
+
+  // Iniciais para avatar ("Silva Contabilidade" -> "SC").
+  function iniciais(nome) {
+    const p = String(nome || "").trim().split(/\s+/).filter((x) => !/^(de|da|do|das|dos|e|ltda|me|epp|s\/?a)$/i.test(x));
+    return ((p[0] || "")[0] || "" ) .concat(p.length > 1 ? (p[p.length - 1][0] || "") : "").toUpperCase() || "?";
+  }
+
+  // Número para o WhatsApp: só dígitos, com o 55 do Brasil quando faltar.
+  function numeroZap(telefone) {
+    const d = String(telefone || "").replace(/\D/g, "");
+    if (d.length === 10 || d.length === 11) return "55" + d;
+    if ((d.length === 12 || d.length === 13) && d.startsWith("55")) return d;
+    return null;
+  }
+
+  // Botão de copiar: o ícone vira um "certo" por 1,5 s (troca com desfoque, como no Contact Card do 21st.dev).
+  function botaoCopiar(valor, rotulo, comTexto = false) {
+    const b = el("button", { type: "button", class: "contato-copiar" + (comTexto ? " com-texto" : ""), "aria-label": comTexto ? null : rotulo, title: rotulo },
+      el("span", { class: "troca" }, icone("copiar", 16), icone("certo", 16)), comTexto && el("span", {}, "Copiar"),
+      el("span", { class: "sr-only", "aria-live": "polite" }));
+    let timer;
+    b.addEventListener("click", () => {
+      const texto = typeof valor === "function" ? valor() : valor;
+      (navigator.clipboard ? navigator.clipboard.writeText(texto) : Promise.reject()).then(() => {
+        b.classList.add("copiado"); b.querySelector(".sr-only").textContent = "Copiado";
+        clearTimeout(timer);
+        timer = setTimeout(() => { b.classList.remove("copiado"); b.querySelector(".sr-only").textContent = ""; }, 1500);
+      }).catch(() => avisar("Não deu para copiar neste aparelho."));
+    });
+    return b;
+  }
+
+  // Cartão de contato do escritório (base: Contact Card do 21st.dev): quem é, telefone e e-mail com
+  // copiar, e os botões WhatsApp, E-mail e Copiar contato. `c` = { nome, telefone, email }.
+  function cartaoContato(c, { sub = "Contabilidade responsável", rotulo = null, aoEditar = null, mensagem = "Olá! Vim pelo EmitHub." } = {}) {
+    const zap = numeroZap(c.telefone);
+    const linha = (nomeIcone, rotuloCampo, conteudo, valor) => el("div", { class: "contato-linha" },
+      el("span", { class: "contato-ico", "aria-hidden": "true" }, icone(nomeIcone, 16)),
+      el("span", { class: "sr-only" }, rotuloCampo + ": "),
+      el("div", { class: "contato-valor" }, conteudo),
+      botaoCopiar(valor, "Copiar " + rotuloCampo.toLowerCase()));
+    return el("section", { class: "contato-card" },
+      rotulo && el("p", { class: "contato-rotulo" }, rotulo),
+      el("div", { class: "contato-quem" },
+        el("span", { class: "contato-avatar", "aria-hidden": "true" }, iniciais(c.nome || "Escritório")),
+        el("div", { class: "contato-nome" }, el("h3", {}, c.nome || "Seu escritório"), el("p", {}, sub)),
+        aoEditar && el("button", { type: "button", class: "contato-editar", onclick: aoEditar }, icone("lapis", 15), "Editar")),
+      (c.telefone || c.email) && el("div", { class: "contato-campos" },
+        c.telefone && linha("fone", "Telefone", el("a", { href: "tel:" + String(c.telefone).replace(/[^\d+]/g, "") }, c.telefone), c.telefone),
+        c.email && linha("email", "E-mail", el("a", { href: "mailto:" + c.email, title: c.email }, c.email), c.email)),
+      (c.telefone || c.email) && el("div", { class: "contato-acoes" },
+        zap && el("a", { class: "contato-acao cheio", href: `https://wa.me/${zap}?text=${encodeURIComponent(mensagem)}`, target: "_blank", rel: "noopener" }, icone("zap", 16), "WhatsApp"),
+        c.email && el("a", { class: "contato-acao", href: "mailto:" + c.email }, icone("email", 16), "E-mail"),
+        botaoCopiar(() => [c.nome, sub, c.telefone, c.email].filter(Boolean).join("\n"), "Copiar contato", true)));
+  }
   // Logo imprimindo em loop (tela de carregamento). SVG fixo, sem dados de fora.
   function logoCarregando(texto = "Carregando...") {
     const caixa = el("div", { class: "logo-carregando", role: "status" });
@@ -287,5 +348,5 @@ const Emitta = (() => {
     return _suporte;
   }
 
-  return { suporte, api, el, zonaArquivo, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, guardar, ler, sair, exigirLogin };
+  return { cartaoContato, iniciais, suporte, api, el, zonaArquivo, dinheiro, numeroDigitado, dataHora, formatarDocumento, seloSituacao, avisar, icone, logoCarregando, guardar, ler, sair, exigirLogin };
 })();

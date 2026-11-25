@@ -511,13 +511,34 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .gaveta-item[hidden] { display: none; }
 
 /* ---------- clientes salvos (nova nota) ---------- */
-.chips-clientes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
-.chip-cliente { flex: none; scroll-snap-align: start; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 220px;
-  border: 1px solid var(--borda-forte); background: var(--card); border-radius: 14px; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; color: var(--texto); }
-.chip-cliente strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 196px; }
-.chip-cliente span { font-size: 12px; color: var(--texto-3); white-space: nowrap; }
-.chip-cliente:hover { border-color: var(--verde); }
+/* ---------- Clientes salvos (base: Chip Group do 21st.dev, no visual do EmitHub) ---------- */
+.chips-clientes { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-cliente { --i: 0; position: relative; display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-height: 48px;
+  padding: 6px 14px 6px 6px; border-radius: 999px; border: 1px solid var(--borda-forte); background: var(--card); color: var(--texto);
+  cursor: pointer; text-align: left; font: inherit;
+  transition: border-color .18s, background-color .18s, box-shadow .18s, transform .12s;
+  animation: chip-entra .32s var(--mola) both; animation-delay: calc(var(--i) * 35ms); }
+.chip-cliente:hover { border-color: var(--verde); box-shadow: 0 4px 14px rgba(15,42,36,.08); }
+.chip-cliente:active { transform: scale(.97); }
+.chip-cliente:focus-visible { outline: 3px solid rgba(28,122,67,.35); outline-offset: 2px; }
+.chip-av { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--verde-claro); color: var(--verde-escuro); font-weight: 700; font-size: 12.5px; letter-spacing: .02em; overflow: hidden; }
+.chip-av .ini, .chip-av svg { grid-area: 1 / 1; transition: opacity .18s, transform .28s var(--mola), filter .18s; }
+.chip-av svg { opacity: 0; transform: scale(.5); filter: blur(2px); }
+.chip-av svg path { stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset .32s var(--suave) .06s; }
+.chip-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.chip-txt strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+.chip-txt span { font-size: 12px; color: var(--texto-3); white-space: nowrap; }
 .chip-cliente.ativo { border-color: var(--verde); background: var(--verde-claro); }
+.chip-cliente.ativo .chip-av { background: var(--verde); color: #fff; }
+.chip-cliente.ativo .chip-av .ini { opacity: 0; transform: scale(.6); filter: blur(2px); }
+.chip-cliente.ativo .chip-av svg { opacity: 1; transform: scale(1); filter: none; }
+.chip-cliente.ativo .chip-av svg path { stroke-dashoffset: 0; }
+.chip-mais { display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 0 16px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600;
+  border: 1px dashed var(--borda-forte); background: transparent; color: var(--texto-2); cursor: pointer; transition: border-color .18s, color .18s, background-color .18s; }
+.chip-mais:hover { border-color: var(--verde); color: var(--texto); background: var(--card); }
+@keyframes chip-entra { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .chip-cliente, .chip-av .ini, .chip-av svg, .chip-av svg path { animation: none; transition: none; } }
 
 /* ---------- notas automáticas (cartão de agenda e grade de dias, a partir de componentes do 21st.dev) ---------- */
 .automatica { display: flex; flex-direction: column; gap: 12px; }
@@ -582,3 +603,44 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .grupo-ferramentas .botao-link { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
 .grupo-linha.sugerido { background: var(--verde-claro); border-radius: 10px; padding-top: 6px; }
 .grupo-linha .selo-mini { margin-left: 12px; }
+
+/* ---------- Contato do escritório (base: Contact Card do 21st.dev, no visual do EmitHub) ---------- */
+.contato-card { background: var(--card); border: 1px solid var(--borda); border-radius: 18px; box-shadow: 0 1px 2px rgba(15,42,36,.04), 0 8px 24px rgba(15,42,36,.05); overflow: hidden; }
+.contato-rotulo { margin: 0; padding: 14px 18px 0; font-size: 12px; font-weight: 700; color: var(--texto-3); text-transform: uppercase; letter-spacing: .06em; }
+.contato-quem { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+.contato-avatar { flex: none; width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--noite); color: var(--lima);
+  font-family: var(--titulo); font-weight: 700; font-size: 17px; letter-spacing: .02em; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.contato-nome { min-width: 0; flex: 1; }
+.contato-nome h3 { margin: 0; font-size: 16px; line-height: 1.3; overflow-wrap: anywhere; }
+.contato-nome p { margin: 2px 0 0; font-size: 13px; color: var(--texto-3); }
+.contato-editar { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--borda);
+  background: var(--card); color: var(--texto-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.contato-editar:hover { border-color: var(--verde); color: var(--texto); }
+.contato-campos { display: flex; flex-direction: column; padding: 0 18px 8px; }
+.contato-linha { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+.contato-ico { flex: none; color: var(--texto-3); display: grid; }
+.contato-valor { flex: 1; min-width: 0; font-size: 14px; }
+.contato-valor a { color: var(--texto-2); text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contato-valor a:hover { color: var(--texto); text-decoration: underline; text-underline-offset: 2px; }
+.contato-copiar { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 34px; height: 34px; border-radius: 9px;
+  border: 0; background: transparent; color: var(--texto-3); cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; transition: background-color .15s, color .15s, transform .1s; }
+.contato-copiar:hover { background: var(--fundo); color: var(--texto); }
+.contato-copiar:active { transform: scale(.94); }
+.contato-copiar.com-texto { width: auto; padding: 0 12px; margin-left: auto; }
+.contato-copiar .troca { position: relative; width: 16px; height: 16px; display: grid; }
+.contato-copiar .troca svg { grid-area: 1 / 1; transition: opacity .15s, transform .15s, filter .15s; }
+.contato-copiar .troca svg + svg { opacity: 0; transform: scale(.75); filter: blur(2px); color: var(--verde); }
+.contato-copiar.copiado .troca svg:first-child { opacity: 0; transform: scale(.75); filter: blur(2px); }
+.contato-copiar.copiado .troca svg + svg { opacity: 1; transform: none; filter: none; }
+@media (hover: hover) { .contato-linha .contato-copiar { opacity: 0; } .contato-linha:hover .contato-copiar, .contato-linha .contato-copiar:focus-visible, .contato-linha .contato-copiar.copiado { opacity: 1; } }
+.contato-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--borda); background: #FBFCF8; }
+.contato-acao { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--borda-forte);
+  background: var(--card); color: var(--texto); text-decoration: none; font-size: 14px; font-weight: 600; transition: border-color .15s, filter .15s, transform .1s; }
+.contato-acao:hover { border-color: var(--verde); }
+.contato-acao:active { transform: scale(.97); }
+.contato-acao.cheio { background: var(--noite); border-color: var(--noite); color: #fff; }
+.contato-acao.cheio:hover { filter: brightness(1.15); }
+.contato-vazio { display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px dashed var(--borda-forte); border-radius: 18px; background: rgba(255,255,255,.6); }
+.contato-vazio .contato-avatar { background: var(--fundo); color: var(--texto-3); box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .contato-copiar .troca svg { transition: opacity .15s; transform: none !important; filter: none !important; } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

@@ -1,13 +1,13 @@
 // Service worker do EmitHub: deixa o app instalável e abre rápido.
 // Segurança: só guarda arquivos visuais (estilos, scripts, ícones) e as telas
 // de abertura e "sem internet". Nunca guarda notas, logins nem dados de empresas.
-const VERSAO = "emitta-v54";
+const VERSAO = "emitta-v55";
 const ESSENCIAIS = [
   "/abrir",
   "/offline",
-  "/static/estilo.css?v=54",
-  "/static/abrir.js?v=54",
-  "/static/pwa.js?v=54",
+  "/static/estilo.css?v=55",
+  "/static/abrir.js?v=55",
+  "/static/pwa.js?v=55",
   "/static/icone.svg",
   "/static/icones/icone-192.png",
   "/static/icones/icone-512.png",

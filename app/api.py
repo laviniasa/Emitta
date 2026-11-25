@@ -1280,6 +1280,14 @@ def criar_app(
         c = repo.escritorio(dono.id)
         return c if any(c.values()) else None
 
+    @app.get("/app/{cliente_id}/escritorio", tags=["app da empresa"])
+    def escritorio_da_empresa(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
+        """Contato do escritório de contabilidade da empresa (vazio se o contador não preencheu)."""
+        cliente = repo.buscar_cliente(cliente_id)
+        if not cliente:
+            raise HTTPException(404, "Empresa não encontrada.")
+        return contato_do_escritorio(cliente) or {}
+
     @app.post("/app/{cliente_id}/notas/{nota_id}/verificar", tags=["app da empresa"])
     def verificar_nota(cliente_id: int, nota_id: int, _: Usuario = Depends(autorizar_empresa)):
         """Para nota que ficou "processando": confere com a prefeitura."""

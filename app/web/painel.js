@@ -1,6 +1,6 @@
 // Painel do contador: empresas, serviços liberados e notas.
 (() => {
-  const { api, el, zonaArquivo, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin, suporte } = Emitta;
+  const { api, el, zonaArquivo, dinheiro, dataHora, formatarDocumento, seloSituacao, avisar, icone, guardar, ler, sair, exigirLogin, suporte, cartaoContato } = Emitta;
 
   const estado = {
     clientes: [],
@@ -1661,34 +1661,57 @@
   // ------------------------------------------------------------ segurança da conta
 
   // Nome, telefone e e-mail do escritório: aparecem no PDF das notas das empresas.
+  // Contato do escritório: mostra o cartão como a empresa vê (base: Contact Card do 21st.dev) e abre o
+  // formulário em "Editar". O mesmo contato vai para o PDF das notas e para o app das empresas.
   function contatoEscritorio() {
-    const $form = el("form", { class: "form-escritorio", novalidate: true });
-    const campo = (rotulo, nome, attrs = {}) => el("label", { class: "campo" }, rotulo, el("input", { name: nome, ...attrs }));
+    const $area = el("div", { style: "display:flex;flex-direction:column;gap:14px" });
     const $msg = el("p", { class: "sub2", "aria-live": "polite", style: "margin:0" });
-    $form.append(
-      campo("Nome do escritório", "nome", { maxlength: 120, placeholder: "Ex.: Silva Contabilidade" }),
-      campo("Telefone ou WhatsApp", "telefone", { maxlength: 30, inputmode: "tel", placeholder: "(11) 99999-9999" }),
-      campo("E-mail", "email", { maxlength: 120, type: "email", inputmode: "email", placeholder: "contato@escritorio.com.br" }),
-      el("div", { style: "display:flex;gap:12px;align-items:center;flex-wrap:wrap" },
-        el("button", { class: "botao", type: "submit" }, "Salvar contato"), $msg));
-    api("GET", "/contador/escritorio").then((d) => {
-      ["nome", "telefone", "email"].forEach((k) => { $form.elements[k].value = d[k] || ""; });
-    }).catch(() => {});
-    $form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const botao = $form.querySelector("button");
-      botao.disabled = true;
-      try {
-        const dados = Object.fromEntries(["nome", "telefone", "email"].map((k) => [k, $form.elements[k].value.trim() || null]));
-        await api("PUT", "/contador/escritorio", dados);
-        $msg.textContent = Object.values(dados).some(Boolean) ? "Salvo. Já aparece nos PDFs das notas." : "Salvo. O PDF fica sem o contato do escritório.";
-      } catch (erro) { $msg.textContent = erro.message; }
-      botao.disabled = false;
-    });
+    let dados = { nome: "", telefone: "", email: "" };
+    const temAlgo = () => Object.values(dados).some(Boolean);
+
+    function ver() {
+      $area.replaceChildren(
+        temAlgo()
+          ? cartaoContato(dados, { aoEditar: editar })
+          : el("div", { class: "contato-vazio" },
+            el("span", { class: "contato-avatar", "aria-hidden": "true" }, icone("usuario", 22)),
+            el("div", { style: "flex:1;min-width:0" }, el("strong", {}, "Nenhum contato ainda"),
+              el("p", { class: "sub2", style: "margin:2px 0 0" }, "Adicione o telefone e o e-mail do escritório para as empresas falarem com você.")),
+            el("button", { type: "button", class: "botao", onclick: editar }, icone("mais", 16), "Adicionar")),
+        $msg);
+    }
+
+    function editar() {
+      const campo = (rotulo, nome, attrs = {}) => el("label", { class: "campo" }, rotulo, el("input", { name: nome, value: dados[nome] || "", ...attrs }));
+      const $form = el("form", { class: "form-escritorio", novalidate: true },
+        campo("Nome do escritório", "nome", { maxlength: 120, placeholder: "Ex.: Silva Contabilidade", autocomplete: "organization" }),
+        campo("Telefone ou WhatsApp", "telefone", { maxlength: 30, inputmode: "tel", placeholder: "(11) 99999-9999", autocomplete: "tel" }),
+        campo("E-mail", "email", { maxlength: 120, type: "email", inputmode: "email", placeholder: "contato@escritorio.com.br", autocomplete: "email" }),
+        el("div", { style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" },
+          el("button", { class: "botao", type: "submit" }, "Salvar contato"),
+          el("button", { class: "botao botao-secundario", type: "button", onclick: () => { $msg.textContent = ""; ver(); } }, "Cancelar")));
+      $form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const botao = $form.querySelector("button[type=submit]");
+        botao.disabled = true;
+        try {
+          const novos = Object.fromEntries(["nome", "telefone", "email"].map((k) => [k, $form.elements[k].value.trim() || null]));
+          await api("PUT", "/contador/escritorio", novos);
+          dados = { nome: novos.nome || "", telefone: novos.telefone || "", email: novos.email || "" };
+          $msg.textContent = temAlgo() ? "Salvo. Já aparece no app das suas empresas e nos PDFs das notas." : "Salvo. As empresas e o PDF ficam sem o contato do escritório.";
+          ver();
+        } catch (erro) { $msg.textContent = erro.message; botao.disabled = false; }
+      });
+      $area.replaceChildren($form, $msg);
+      $form.elements.nome.focus();
+    }
+
+    api("GET", "/contador/escritorio").then((d) => { dados = { nome: d.nome || "", telefone: d.telefone || "", email: d.email || "" }; ver(); }).catch(() => ver());
+    $area.append(el("div", { class: "contato-card", style: "height:150px;opacity:.5" }));
     return el("section", { class: "card", style: "padding:20px 24px;display:flex;flex-direction:column;gap:14px" },
-      el("h2", { class: "titulo" }, "Contato do escritório na nota"),
-      el("p", { class: "sub2", style: "margin:0" }, "Aparece no PDF das notas das suas empresas, no quadro \"Contabilidade responsável\". Deixe em branco para não mostrar."),
-      $form);
+      el("h2", { class: "titulo" }, "Contato do escritório"),
+      el("p", { class: "sub2", style: "margin:0" }, "As suas empresas veem este cartão no app (com botão de WhatsApp) e ele sai no PDF das notas, no quadro \"Contabilidade responsável\"."),
+      $area);
   }
 
   function abrirSeguranca() {

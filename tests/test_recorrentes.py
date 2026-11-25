@@ -134,6 +134,16 @@ def test_contato_do_escritorio_no_pdf(empresa, contador, monkeypatch):
     assert "CONTABILIDADE RESPONSÁVEL" in texto and "Contabilidade Exemplo" in texto and "3333-4444" in texto
 
 
+
+def test_empresa_ve_o_contato_do_escritorio(empresa, contador):
+    cid, c = empresa
+    assert c.get(f"/app/{cid}/escritorio").json() == {}
+    contador.put("/contador/escritorio", json={"nome": "Contabilidade Exemplo", "telefone": "(11) 98888-7777", "email": None})
+    r = c.get(f"/app/{cid}/escritorio").json()
+    assert r["nome"] == "Contabilidade Exemplo" and r["telefone"] == "(11) 98888-7777"
+    assert c.get(f"/app/{cid + 999}/escritorio").status_code in (403, 404)
+
+
 def test_proxima_data():
     hoje = datetime(2026, 12, 20, tzinfo=recorrentes.FUSO)
     assert recorrentes.proxima_data({"ativa": 1, "dia": 5, "ultimo_mes": "2026-12"}, hoje) == "2027-01-05"
