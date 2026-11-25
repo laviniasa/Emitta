@@ -187,9 +187,14 @@ def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> byte
                 linhas.append([_campo(r, v.replace(".", ",")) for r, v in par] + ([""] if len(par) == 1 else []))
         partes += _bloco("TRIBUTAÇÃO IBS / CBS · REFORMA TRIBUTÁRIA", linhas, [meia, meia])
     else:
-        partes += _bloco("TRIBUTAÇÃO IBS / CBS · REFORMA TRIBUTÁRIA", [[_campo(
-            "CST / cClassTrib", "Não informados nesta nota (grupo opcional em 2026). "
-            "Para informar, o tomador precisa ter CNPJ com endereço na Receita.")]], [largura])
+        xml_dps = getattr(nota, "xml_dps", None) or ""
+        if xml_dps and "finNFSe" not in xml_dps:  # leiaute anterior (produção até 30/11/2026)
+            motivo = ("Não informados nesta nota (grupo opcional em 2026). Até 30/11/2026 a produção do governo "
+                      "usa o leiaute anterior, sem este grupo; a partir de 01/12/2026 ele passa a ser enviado.")
+        else:
+            motivo = ("Não informados nesta nota (grupo opcional em 2026). "
+                      "Para informar, o tomador precisa ter CNPJ com endereço na Receita.")
+        partes += _bloco("TRIBUTAÇÃO IBS / CBS · REFORMA TRIBUTÁRIA", [[_campo("CST / cClassTrib", motivo)]], [largura])
 
     if getattr(nota, "info_compl", None):
         partes += _bloco("INFORMAÇÕES COMPLEMENTARES", [[Paragraph(_info_pdf(nota.info_compl), _E["valor"])]], [largura])
