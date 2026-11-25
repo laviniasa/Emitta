@@ -167,8 +167,9 @@ class ServicoEmissao:
         percentual_sn = self._percentual_simples(cliente)
         federais, estaduais, municipais = regras.tributos_aproximados(
             valor_centavos, cliente.opcao_simples, percentual_sn, iss)
-        info_compl = regras.info_complementar_com_tributos(
-            regras.texto_tributos(federais, estaduais, municipais), info_compl)
+        texto_trib = (regras.texto_tributos_simples(valor_centavos, percentual_sn) if cliente.opcao_simples == "3"
+                      else regras.texto_tributos(federais, estaduais, municipais))
+        info_compl = regras.info_complementar_com_tributos(texto_trib, info_compl)
         cert = self.certificados.para(cliente)
         codigo_municipal = self._conferir_na_prefeitura(cliente, codigo_servico, codigo_municipal, cert)
 

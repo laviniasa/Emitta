@@ -131,7 +131,10 @@ def test_contato_do_escritorio_no_pdf(empresa, contador, monkeypatch):
     except ImportError:
         pytest.skip("pypdf indisponível")
     texto = "".join(p.extract_text() for p in PdfReader(BytesIO(pdf)).pages)
-    assert "CONTABILIDADE RESPONSÁVEL" in texto and "Contabilidade Exemplo" in texto and "3333-4444" in texto
+    # o PDF é o DANFSe oficial (NT 008): só o que está no XML; o contato do escritório fica no app
+    assert "DANFSe v2.0" in texto and "Documento Auxiliar da NFS-e" in texto
+    assert "CONTABILIDADE RESPONSÁVEL" not in texto
+    assert "NFS-e SEM VALIDADE JURÍDICA" in texto  # fora da produção
 
 
 

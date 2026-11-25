@@ -162,8 +162,15 @@ def test_soma_dos_tributos_lei_12741():
 def test_nota_leva_soma_dos_tributos_nas_informacoes(servico, cliente, sefin):
     from app.dps import texto_leiaute
     nota = emitir(servico, cliente, info_compl="Pagamento via Pix")
-    assert nota.info_compl.startswith("Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: Federais: R$")
+    # ME/EPP do Simples: total único pelo % do Simples (tributos unificados), sem separar por esfera
+    assert nota.info_compl.startswith("Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: R$")
+    assert "Simples Nacional - tributos unificados;" in nota.info_compl and "Federais" not in nota.info_compl
     assert nota.info_compl.endswith(" / Pagamento via Pix")
     assert "<xInfComp>" + nota.info_compl.replace("&", "&amp;") in nota.xml_dps
     sem = emitir(servico, cliente)
-    assert sem.info_compl.endswith("Municipais: R$ 0,00;") or "Municipais: R$" in sem.info_compl
+    assert sem.info_compl.endswith("tributos unificados;")
+    # corrigir a nota não duplica a soma
+    from app import regras
+    de_novo = regras.info_complementar_com_tributos(regras.texto_tributos_simples(10000, "6"), nota.info_compl)
+    assert de_novo.count("Totais aproximados") == 1 and de_novo.startswith(
+        "Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: R$ 6,00 (6,00%)") and de_novo.endswith("/ Pagamento via Pix")

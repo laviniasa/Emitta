@@ -102,6 +102,14 @@ def _info_pdf(texto: str) -> str:
 
 
 def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> bytes:
+    """PDF da nota: DANFSe v2.0 no modelo oficial (NT 008/2026). O `contato` do escritório
+    não entra: o modelo oficial só traz o que está no XML da NFS-e."""
+    from .danfse import gerar_danfse
+    return gerar_danfse(nota, cliente, ambiente)
+
+
+def gerar_pdf_resumo(nota, cliente, ambiente: str, contato: dict | None = None) -> bytes:
+    """Modelo simplificado antigo (não é o DANFSe oficial; mantido só para referência)."""
     buffer = BytesIO()
     largura = A4[0] - 30 * mm
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,

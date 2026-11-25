@@ -248,12 +248,22 @@ def texto_tributos(federais: int, estaduais: int, municipais: int) -> str:
             f"Municipais: {_reais(municipais)};")
 
 
+def texto_tributos_simples(valor_centavos: int, p_tot_trib_sn) -> str:
+    """ME/EPP do Simples: os tributos são unificados no DAS, então vai um total só,
+    pelo percentual do Simples da empresa (sem separar federal, estadual e municipal)."""
+    p = Decimal(str(p_tot_trib_sn or "0"))
+    total = int((Decimal(valor_centavos) * p / 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    pct = f"{p.quantize(Decimal('0.01'))}".replace(".", ",")
+    return f"{PREFIXO_TRIBUTOS} {_reais(total)} ({pct}%), Simples Nacional - tributos unificados;"
+
+
 def info_complementar_com_tributos(texto_tributos_: str, info: str | None) -> str:
     """Soma dos tributos + o que a empresa escreveu (sem repetir a soma de uma nota corrigida)."""
     info = (info or "").strip()
     if info.startswith(PREFIXO_TRIBUTOS):
-        resto = info.split(";", 3)[-1] if info.count(";") >= 3 else ""
-        info = resto.lstrip(" /").strip()
+        # tira a soma antiga, nos dois formatos (separado por esfera ou total do Simples)
+        m = re.match(re.escape(PREFIXO_TRIBUTOS) + r"(?:.*?Municipais: [^;]*;|[^;]*tributos unificados;)", info)
+        info = info[m.end():].lstrip(" /").strip() if m else ""
     return (texto_tributos_ + (" / " + info if info else ""))[:2000]
 
 

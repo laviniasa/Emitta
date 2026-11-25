@@ -616,8 +616,10 @@
       function atualizarTotais() {
         const v = numeroDigitado(f.valor);
         const i = v * parseFloat(estado.empresa.aliquota_iss) / 100;
+        // no Simples (MEI ou ME/EPP) o ISS vem unificado no DAS: não aparece separado
+        const issSeparado = estado.empresa.opcao_simples === "1" || f.iss_retido;
         $totais.replaceChildren(
-          el("div", { class: "linha", style: "color:var(--texto-2)" },
+          issSeparado && el("div", { class: "linha", style: "color:var(--texto-2)" },
             el("span", {}, `ISS ${estado.empresa.aliquota_iss.replace(".", ",")}% (${estado.eu.papel === "autonomo" ? "dos seus ajustes" : "definido pelo contador"})`), el("span", {}, dinheiro(i))),
           el("div", { class: "linha total" }, el("span", {}, "Total da nota"), el("span", {}, dinheiro(v))));
       }
@@ -640,7 +642,7 @@
       const $nome = el("input", { value: f.nome, autocomplete: "off", oninput: (e) => { f.nome = e.target.value; f.nomeAuto = false; } });
       const podeReter = () => limparDoc(f.documento).length === 14 && estado.empresa.opcao_simples !== "2";
       const $retencao = el("label", { class: "campo-check", hidden: !podeReter() },
-        el("input", { type: "checkbox", checked: f.iss_retido, onchange: (e) => { f.iss_retido = e.target.checked; } }),
+        el("input", { type: "checkbox", checked: f.iss_retido, onchange: (e) => { f.iss_retido = e.target.checked; atualizarTotais(); } }),
         el("span", {}, el("strong", { style: "display:block;font-size:14px;color:var(--texto)" }, "O cliente vai reter o ISS"),
           el("span", { class: "ajuda" }, "Marque só se o cliente (empresa) informou que retém o imposto. Na dúvida, pergunte ao seu contador.")));
       const $doc = el("input", {
@@ -974,7 +976,8 @@
       el("div", { class: "linha" }, el("span", {}, "Serviço"), el("span", {}, nomeServico(n.servico))),
       n.competencia && el("div", { class: "linha" }, el("span", {}, "Data do serviço"),
         el("span", {}, new Date(n.competencia + "T12:00:00").toLocaleDateString("pt-BR"))),
-      el("div", { class: "linha" }, el("span", {}, n.iss_retido ? "ISS (retido pelo cliente)" : "ISS"), el("span", {}, dinheiro(n.iss))),
+      (n.iss_retido || estado.empresa.opcao_simples === "1")
+        && el("div", { class: "linha" }, el("span", {}, n.iss_retido ? "ISS (retido pelo cliente)" : "ISS"), el("span", {}, dinheiro(n.iss))),
       el("div", { style: "height:1px;background:var(--borda)" }),
       el("div", { class: "linha", style: "font-size:17px;font-weight:700" }, el("span", { style: "color:var(--texto)" }, "Total"), el("span", {}, dinheiro(n.valor))),
       n.ibscbs && el("div", { class: "linha" }, el("span", {}, "IBS/CBS"),

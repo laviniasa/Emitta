@@ -246,3 +246,33 @@ def test_numero_da_nfse_vem_do_governo_e_nao_da_dps():
     n = Nota(**base, chave_acesso=None, xml_nfse='<NFSe><infNFSe><nNFSe>42</nNFSe></infNFSe></NFSe>')
     assert n.numero == 42
     assert Nota(**base, chave_acesso=None, xml_nfse=None).numero == 7
+
+
+def test_danfse_no_modelo_oficial_nt008():
+    """DANFSe v2.0 a partir do XML autorizado (nota real da Marília, NT 004)."""
+    from io import BytesIO
+    from pathlib import Path
+    from types import SimpleNamespace
+    import pytest
+    from app.danfse import URL_CONSULTA, gerar_danfse
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        pytest.skip("pypdf indisponível")
+    xml = (Path(__file__).parent / "dados" / "nfse_marilia_simples.xml").read_text(encoding="utf-8")
+    chave = "35503082266248732000103000000000000126114597430184"
+    n = SimpleNamespace(xml_nfse=xml, xml_dps=None, chave_acesso=chave, numero_nfse=1, numero_dps=7,
+                        situacao="autorizada", codigo_servico="171901", valor_centavos=52400)
+    texto = PdfReader(BytesIO(gerar_danfse(n))).pages[0].extract_text()
+    for esperado in ("DANFSe v2.0", "Documento Auxiliar da NFS-e", "CHAVE DE ACESSO DA NFS-e", chave,
+                     "PRESTADOR / FORNECEDOR", "66.248.732/0001-03", "TOMADOR / ADQUIRENTE", "69.324.657/0001-00",
+                     "Belo Horizonte / MG", "3106200 / 30.640-495", "DESTINATÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e",
+                     "17.19.01 / 001", "1.1302.21.00", "TRIBUTAÇÃO MUNICIPAL (ISSQN)", "Operação Tributável", "Não Retido",
+                     "TRIBUTAÇÃO IBS / CBS", "VALOR TOTAL DA NFS-e", "R$ 524,00", "INFORMAÇÕES COMPLEMENTARES",
+                     "Simples Nacional (tributos unificados): 6,00%"):
+        assert esperado in texto, esperado
+    assert "SEM VALIDADE JURÍDICA" not in texto  # produção
+    assert "ISS (2%)" not in texto  # no Simples o ISS não sai separado
+    assert URL_CONSULTA.startswith("https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave=")
+    n.situacao = "cancelada"
+    assert "CANCELADA" in PdfReader(BytesIO(gerar_danfse(n))).pages[0].extract_text()
