@@ -170,7 +170,7 @@ def test_trocar_senha_encerra_outras_sessoes(auth, contador):
 
 def test_fluxo_2fa(auth, contador, relogio):
     segredo, uri = auth.iniciar_2fa(contador)
-    assert uri.startswith("otpauth://totp/Emitta%C3%AA")
+    assert uri.startswith("otpauth://totp/EmitHub")
     passo = seg.passo_atual(relogio().timestamp())
     with pytest.raises(ErroAutenticacao):
         auth.ativar_2fa(auth.repo.buscar_usuario(contador.id), "123456" if seg._codigo_totp(segredo, passo) != "123456" else "654321")

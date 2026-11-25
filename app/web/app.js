@@ -68,7 +68,7 @@
     });
   }
 
-  // Confete nas cores do Emittaê quando a nota é autorizada.
+  // Confete nas cores do EmitHub quando a nota é autorizada.
   function confete() {
     if (calmo) return;
     const cores = ["#C6F36B", "#0F2A24", "#2BB673", "#FFFFFF", "#B2E24B"];
@@ -140,7 +140,7 @@
     estado.ano = await api("GET", `/app/${estado.empresa.id}/resumo-ano`).catch(() => estado.ano);
   }
 
-  // Faturamento do ano (soma das notas autorizadas no Emittaê) e, no MEI, o uso do limite.
+  // Faturamento do ano (soma das notas autorizadas no EmitHub) e, no MEI, o uso do limite.
   function cartaoAno() {
     const a = estado.ano;
     if (!a || (!a.notas && !a.mei)) return null;
@@ -193,7 +193,7 @@
         ? item("painel", "Voltar ao painel", "voltar", () => { location.href = "/escritorio"; })
         : estado.eu.papel === "autonomo"
         ? item("ajustes", "Ajustes", "engrenagem", () => { location.href = "/escritorio"; })
-        : item("sair", "Sair", "sair", () => { if (window.confirm("Sair do Emittaê neste aparelho?")) sair(); }),
+        : item("sair", "Sair", "sair", () => { if (window.confirm("Sair do EmitHub neste aparelho?")) sair(); }),
     );
   }
 
@@ -495,7 +495,7 @@
     ],
 
     semAcesso: () => [
-      el("div", { class: "heroi" }, el("span", { class: "ola" }, "Emittaê"), el("h1", {}, "Não foi possível abrir")),
+      el("div", { class: "heroi" }, el("span", { class: "ola" }, "EmitHub"), el("h1", {}, "Não foi possível abrir")),
       el("main", { class: "conteudo" },
         el("div", { class: "aviso aviso-erro" }, estado.erroCarga || "Empresa não encontrada."),
         el("button", { class: "botao botao-secundario", type: "button", onclick: sair }, "Sair e entrar com outra conta")),
@@ -558,7 +558,7 @@
             ...a.meses.filter((m) => m.mes <= mesHoje || m.notas).map((m) => el("div", { class: m.notas ? "" : "vazio" },
               el("span", {}, nomes[m.mes - 1]),
               el("span", { class: "num" }, m.notas ? `${dinheiro(m.valor_centavos / 100)} · ${m.notas} nota${m.notas === 1 ? "" : "s"}` : "—")))),
-          el("p", { class: "sub", style: "margin:0" }, "Soma das notas autorizadas emitidas pelo Emittaê, sem as canceladas. Notas emitidas em outro lugar não entram nesta conta.")),
+          el("p", { class: "sub", style: "margin:0" }, "Soma das notas autorizadas emitidas pelo EmitHub, sem as canceladas. Notas emitidas em outro lugar não entram nesta conta.")),
         menu("inicio"),
       ];
     },
@@ -685,7 +685,7 @@
             el("label", { class: "campo" }, el("span", {}, "Informações complementares ", el("span", { class: "ajuda-pequena" }, "(opcional)")),
               el("textarea", { rows: 2, maxlength: 2000, placeholder: "Ex.: Pagamento via Pix. Pedido nº 123.",
                 oninput: (e) => { f.info_compl = e.target.value; } }, f.info_compl || "")),
-            el("span", { class: "ajuda-pequena" }, "Aparece na nota logo depois da soma aproximada dos tributos (Lei 12.741), que o Emittaê coloca sozinho.")),
+            el("span", { class: "ajuda-pequena" }, "Aparece na nota logo depois da soma aproximada dos tributos (Lei 12.741), que o EmitHub coloca sozinho.")),
         ),
         el("footer", { class: "rodape" },
           $totais,
@@ -725,7 +725,7 @@
         barra(editando ? "Editar nota automática" : "Nota automática", editando || r.novo ? "automaticas" : "inicio", estado.empresa.razao_social),
         el("main", { class: "conteudo" },
           !editando && el("div", { class: "aviso aviso-info" }, icone("relogio"),
-            "O Emittaê emite esta nota sozinho, todo mês, no dia que você escolher. O PDF e o XML ficam aqui, como nas outras."),
+            "O EmitHub emite esta nota sozinho, todo mês, no dia que você escolher. O PDF e o XML ficam aqui, como nas outras."),
           $erro,
           r.novo ? blocoNovaAutomatica(r, $data) : el("section", { class: "card automatica" },
             el("div", { class: "auto-topo" },
@@ -843,7 +843,7 @@
           el("span", { class: "circulo balanca", style: "background:var(--amarelo-claro)" }, icone("relogio", 32, "#92400E")),
           el("p", { class: "grande" }, "A prefeitura ainda não respondeu"),
           el("p", { class: "ajuda-pequena", style: "font-size:14px" },
-            "Pode ser instabilidade na internet ou no sistema do governo. Não emita a nota de novo: o Emittaê confere sozinho se ela foi gerada, sem duplicar.")),
+            "Pode ser instabilidade na internet ou no sistema do governo. Não emita a nota de novo: o EmitHub confere sozinho se ela foi gerada, sem duplicar.")),
         detalhesNota(estado.nota)),
       el("footer", { class: "rodape" },
         el("button", { class: "botao botao-grande", type: "button", onclick: (e) => verificar(e.currentTarget) }, icone("trocar"), "Verificar agora"),

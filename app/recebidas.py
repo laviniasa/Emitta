@@ -3,8 +3,8 @@
 O ADN (Ambiente de Dados Nacional) entrega, em lotes de até 50, os documentos ligados
 ao CNPJ do certificado: GET /contribuintes/DFe/{NSU}?cnpjConsulta=...  Cada item traz
 NSU, ChaveAcesso, TipoDocumento (NFSE ou EVENTO) e ArquivoXml (gzip + base64).
-O Emittaê guarda só as notas em que a empresa é a tomadora (as que ela emitiu já estão
-no próprio Emittaê) e marca como canceladas as que receberem evento de cancelamento.
+O EmitHub guarda só as notas em que a empresa é a tomadora (as que ela emitiu já estão
+no próprio EmitHub) e marca como canceladas as que receberem evento de cancelamento.
 """
 
 from __future__ import annotations

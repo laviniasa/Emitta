@@ -106,7 +106,7 @@ def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> byte
     largura = A4[0] - 30 * mm
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
                             topMargin=15 * mm, bottomMargin=15 * mm,
-                            title=f"NFS-e {nota.numero_dps:06d} - {cliente.razao_social}", author="Emittaê")
+                            title=f"NFS-e {nota.numero_dps:06d} - {cliente.razao_social}", author="EmitHub")
     sem_valor = ambiente != "producao"
     cancelada = nota.situacao == "cancelada"
 
@@ -211,7 +211,7 @@ def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> byte
                  _campo("Contato", " · ".join(x for x in (contato.get("telefone"), contato.get("email")) if x))]
         partes += _bloco("CONTABILIDADE RESPONSÁVEL", [linha], [meia, meia])
 
-    partes.append(Paragraph("Gerado pelo Emittaê", _E["rodape"]))
+    partes.append(Paragraph("Gerado pelo EmitHub", _E["rodape"]))
 
     def marca_dagua(canvas, _doc):
         if not (sem_valor or cancelada):

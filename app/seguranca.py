@@ -125,7 +125,7 @@ def conferir_totp(segredo: str, codigo: str, ultimo_passo_usado: int | None, ago
     return None
 
 
-def uri_totp(segredo: str, email: str, emissor: str = "Emittaê") -> str:
+def uri_totp(segredo: str, email: str, emissor: str = "EmitHub") -> str:
     rotulo = quote(f"{emissor}:{email}")
     return f"otpauth://totp/{rotulo}?secret={segredo}&issuer={quote(emissor)}&digits=6&period={PASSO_TOTP}"
 

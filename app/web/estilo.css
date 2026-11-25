@@ -261,7 +261,7 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .guia-textos { flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .guia-acoes { display: flex; gap: 6px; }
 
-/* ---------- Área de arrastar arquivo (base: File Dropzone do 21st.dev, no visual do Emittaê) ---------- */
+/* ---------- Área de arrastar arquivo (base: File Dropzone do 21st.dev, no visual do EmitHub) ---------- */
 .zona { display: flex; flex-direction: column; gap: 6px; }
 .zona-arquivo {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
@@ -302,7 +302,7 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 @keyframes zona-entra { from { transform: translateY(6px) scale(.9); opacity: 0; } }
 .form-grade .campo-largo { grid-column: 1 / -1; }
 
-/* ---------- Resumo do escritório (base: KPI Tile do 21st.dev, no visual do Emittaê) ---------- */
+/* ---------- Resumo do escritório (base: KPI Tile do 21st.dev, no visual do EmitHub) ---------- */
 .resumo-escritorio {
   position: relative; overflow: hidden; isolation: isolate; border-radius: 24px; padding: 20px 22px 22px;
   background: var(--noite); color: #fff; display: flex; flex-direction: column; gap: 14px;

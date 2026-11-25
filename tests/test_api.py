@@ -440,7 +440,7 @@ def test_pwa_manifesto_e_service_worker(anonimo):
 
 
 def test_pwa_abertura_e_offline(anonimo):
-    for caminho, texto in [("/abrir?origem=app", "emitta"), ("/offline", "Sem internet")]:
+    for caminho, texto in [("/abrir?origem=app", "EmitHub"), ("/offline", "Sem internet")]:
         r = anonimo.get(caminho)
         assert r.status_code == 200 and texto in r.text
         assert "Content-Security-Policy" in r.headers

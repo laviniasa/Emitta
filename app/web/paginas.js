@@ -23,7 +23,7 @@
   }
 
   canais().then((c) => {
-    const zap = c.whatsapp ? `https://wa.me/${c.whatsapp}?text=${encodeURIComponent("Olá! Tenho uma dúvida sobre o Emittaê.")}` : null;
+    const zap = c.whatsapp ? `https://wa.me/${c.whatsapp}?text=${encodeURIComponent("Olá! Tenho uma dúvida sobre o EmitHub.")}` : null;
     const email = c.email ? `mailto:${c.email}` : null;
 
     // Termos e privacidade: "fale com a gente ..."
@@ -42,7 +42,7 @@
       if (zap) botoes.append(link(zap, "Chamar no WhatsApp", "botao-pilula cheio", ICONE_ZAP));
       if (email) botoes.append(link(email, "Mandar e-mail", "botao-pilula", ICONE_EMAIL));
       if (!zap && !email && texto) {
-        texto.textContent = "Empresa ou MEI: fale com o seu contador. Dentro do Emittaê, a assistente do botão Ajuda também responde na hora.";
+        texto.textContent = "Empresa ou MEI: fale com o seu contador. Dentro do EmitHub, a assistente do botão Ajuda também responde na hora.";
       }
     }
   });

@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS recorrencias (
 );
 CREATE INDEX IF NOT EXISTS recorrencias_cliente ON recorrencias (cliente_id);
 
--- Notas emitidas fora do Emittaê, importadas de XML (faturamento do ano e clientes salvos)
+-- Notas emitidas fora do EmitHub, importadas de XML (faturamento do ano e clientes salvos)
 CREATE TABLE IF NOT EXISTS notas_externas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
@@ -457,7 +457,7 @@ class Repositorio:
         return int(self.con.execute("SELECT COUNT(*) FROM notas WHERE cliente_id = ?", (cliente_id,)).fetchone()[0])
 
     def remover_cliente(self, cliente_id: int) -> None:
-        """Apaga a empresa e tudo dela no Emittaê: notas guardadas, serviços, guias, notas recebidas
+        """Apaga a empresa e tudo dela no EmitHub: notas guardadas, serviços, guias, notas recebidas
         e os logins da empresa (com as sessões). As notas continuam no Emissor Nacional do governo."""
         with self.con:
             self.con.execute("DELETE FROM notas WHERE cliente_id = ?", (cliente_id,))
@@ -569,7 +569,7 @@ class Repositorio:
     # ---------------------------------------------------------------- resumo do escritório
     # ------------------------------------------------------------ resumo do ano
 
-    # Notas importadas de XML entram no faturamento, menos as que já existem no Emittaê (mesma chave).
+    # Notas importadas de XML entram no faturamento, menos as que já existem no EmitHub (mesma chave).
     _EXTERNAS_VALIDAS = ("SELECT cliente_id, data, valor_centavos FROM notas_externas e WHERE NOT EXISTS ("
                          "SELECT 1 FROM notas n WHERE n.cliente_id = e.cliente_id AND n.chave_acesso = e.chave)")
 

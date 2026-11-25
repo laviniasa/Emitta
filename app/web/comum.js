@@ -218,7 +218,7 @@ const Emitta = (() => {
     try { return localStorage.getItem(chave); } catch { return null; }
   }
 
-  // Área de "arraste o arquivo aqui" (inspirada no File Dropzone do 21st.dev, no visual do Emittaê).
+  // Área de "arraste o arquivo aqui" (inspirada no File Dropzone do 21st.dev, no visual do EmitHub).
   // Usa um <input type=file name=...> de verdade por dentro: os formulários continuam lendo .files.
   function zonaArquivo({ nome = "arquivo", accept = "", extensoes = [], maxBytes = 5 * 1024 * 1024, titulo = "Arraste o arquivo aqui", dica = "", tipo = "PDF" } = {}) {
     const $input = el("input", { type: "file", name: nome, accept, class: "visualmente-oculto", tabindex: "-1" });
@@ -271,7 +271,7 @@ const Emitta = (() => {
     return el("div", { class: "zona" }, $caixa, $input, $erro);
   }
 
-  // Canais de atendimento do Emittaê (definidos no servidor). Devolve { whatsapp: url|null, email: url|null, emailTexto }.
+  // Canais de atendimento do EmitHub (definidos no servidor). Devolve { whatsapp: url|null, email: url|null, emailTexto }.
   let _suporte;
   function suporte() {
     if (!_suporte) {
@@ -279,7 +279,7 @@ const Emitta = (() => {
         .then((r) => (r.ok ? r.json() : {}))
         .catch(() => ({}))
         .then((c) => ({
-          whatsapp: c.whatsapp ? `https://wa.me/${c.whatsapp}?text=${encodeURIComponent("Olá! Tenho uma dúvida sobre o Emittaê.")}` : null,
+          whatsapp: c.whatsapp ? `https://wa.me/${c.whatsapp}?text=${encodeURIComponent("Olá! Tenho uma dúvida sobre o EmitHub.")}` : null,
           email: c.email ? `mailto:${c.email}` : null,
           emailTexto: c.email || null,
         }));

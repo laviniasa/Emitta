@@ -82,7 +82,7 @@ class ContaPendente(ErroAutenticacao):
     pass
 
 
-MSG_PENDENTE = ("Sua conta ainda está aguardando aprovação do Emittaê. "
+MSG_PENDENTE = ("Sua conta ainda está aguardando aprovação do EmitHub. "
                 "Você vai conseguir entrar assim que ela for liberada.")
 
 
@@ -128,7 +128,7 @@ class ServicoAutenticacao:
         return self.repo.contar_admins() == 0
 
     def instalar(self, codigo: str, nome: str, email: str, senha: str) -> Usuario:
-        """Cria a conta de ADMINISTRAÇÃO da plataforma (dona do Emittaê). Exige o
+        """Cria a conta de ADMINISTRAÇÃO da plataforma (dona do EmitHub). Exige o
         código da variável EMITTA_CODIGO_INSTALACAO e só funciona uma vez."""
         if not self.precisa_instalar():
             raise AcessoNegado("A administração já foi configurada. Entre com a sua conta.")
@@ -213,7 +213,7 @@ class ServicoAutenticacao:
 
         self.repo.atualizar_usuario(usuario.id, falhas_seguidas=0, bloqueado_ate=None)
         if not usuario.ativo:
-            raise ContaDesativada("Esta conta está desativada. Fale com quem administra o Emittaê.")
+            raise ContaDesativada("Esta conta está desativada. Fale com quem administra o EmitHub.")
         if not usuario.aprovado:
             raise ContaPendente(MSG_PENDENTE)
 

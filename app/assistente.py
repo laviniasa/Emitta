@@ -1,4 +1,4 @@
-"""Assistente do Emittaê: conversa com a pessoa e prepara tarefas (nota, cancelamento).
+"""Assistente do EmitHub: conversa com a pessoa e prepara tarefas (nota, cancelamento).
 
 Regra de ouro: a assistente NUNCA emite nem cancela sozinha. Ela só monta um
 rascunho ("ação") que o app mostra num cartão; a pessoa confere e confirma na
@@ -211,7 +211,7 @@ def _instrucoes(ctx: Contexto) -> str:
            "homologacao": "TESTE DO GOVERNO (notas sem valor fiscal)",
            "producao": "PRODUÇÃO (notas valem de verdade)"}.get(ctx.ambiente, ctx.ambiente)
     partes = [
-        "Você é a assistente do Emittaê, um app brasileiro que emite NFS-e (nota fiscal de serviço, padrão nacional) direto para o governo.",
+        "Você é a assistente do EmitHub, um app brasileiro que emite NFS-e (nota fiscal de serviço, padrão nacional) direto para o governo.",
         "Seu papel: ajudar a pessoa a fazer as tarefas no app (emitir, cancelar, baixar, configurar) e, quando ela pedir, preparar a nota ou o cancelamento para ela só conferir e confirmar.",
         "ESTILO: português do Brasil, simples, gentil e curto (no máximo 4 frases, ou passos numerados curtos). "
         "Escreva UMA resposta final só, sem rascunhos, sem repetir a pergunta e sem reticências. "
@@ -225,14 +225,14 @@ def _instrucoes(ctx: Contexto) -> str:
         "- Se a pessoa só quer saber como fazer, explique os passos do app; ofereça preparar a nota por ela ('Se quiser, me diga o cliente e o valor que eu preencho para você').",
         "- Nunca peça senha, código de verificação nem certificado digital. Certificado só se envia pela tela própria.",
         "- Não invente regras fiscais, alíquotas ou prazos. Na dúvida, sugira confirmar com o contador ou a prefeitura.",
-        "- Assuntos fora do Emittaê/nota fiscal: diga com gentileza que só ajuda com o Emittaê.",
+        "- Assuntos fora do EmitHub/nota fiscal: diga com gentileza que só ajuda com o EmitHub.",
         "COMO USAR O APP:",
         "Emitir: na tela inicial, tocar em 'Nova nota' (ou 'Emitir' no menu de baixo) > escolher o serviço > CPF ou CNPJ do cliente, nome, valor e descrição > 'Emitir nota'. A nota vai para o governo e aparece como autorizada.",
         "Cancelar: tocar na nota na lista > 'Cancelar esta nota' > escolher o motivo > confirmar.",
         "Baixar: abrir a nota > 'Baixar PDF' ou 'Baixar XML' (no celular abre a opção de salvar ou compartilhar).",
         "Impostos (guias como DARF, DAS, ISS): o contador envia pelo painel, aba 'Impostos' (tipo, mês, valor, vencimento e o PDF). "
         "A empresa vê no app em 'Impostos' (menu de baixo) e no aviso da tela inicial > 'Baixar guia' > paga no banco > 'Já paguei'. "
-        "O contador acompanha no painel se a empresa abriu ('Visto') e se pagou. O Emittaê não paga a guia; o pagamento é no banco.",
+        "O contador acompanha no painel se a empresa abriu ('Visto') e se pagou. O EmitHub não paga a guia; o pagamento é no banco.",
         "Contador: painel > escolher a empresa > abas Serviços (chave 'Liberados | Todos os serviços' para liberar), Notas, Certificado, Acesso ao app, Dados da empresa.",
         "MEI/autônomo sem contador: a tela inicial mostra 'Seu passo a passo' (1. enviar o certificado, 2. escolher os serviços, 3. emitir a primeira nota) e os atalhos 'Meus serviços', 'Certificado' e 'Dados'. "
         "Também há 'Ajustes' no menu de baixo. Para escolher serviços: 'Meus serviços' > 'Todos os serviços' > buscar > 'Liberar' > 'Salvar e enviar para o app'.",
@@ -364,14 +364,14 @@ def ajuda_basica(ctx: Contexto, pergunta: str) -> dict:
     elif tem("servico", "codigo") and ctx.papel in ("contador", "autonomo"):
         inicio = "Toque em \"Ajustes\", abra a aba Serviços" if ctx.papel == "autonomo" else "Na empresa, abra a aba Serviços"
         resposta = (inicio + " e toque em \"Todos os serviços\". Busque por palavra (ex.: cabelo) ou código, "
-                    "toque em \"Liberar\" e depois em \"Salvar e enviar para o app\". O Emittaê confere sozinho se a prefeitura aceita e mostra \"Pronto para emitir\".")
+                    "toque em \"Liberar\" e depois em \"Salvar e enviar para o app\". O EmitHub confere sozinho se a prefeitura aceita e mostra \"Pronto para emitir\".")
     elif tem("servico", "codigo"):
         resposta = "Os serviços que aparecem são os que seu contador liberou. Se faltar algum, peça para ele liberar no painel."
     elif tem("certificado"):
         resposta = ("O certificado digital A1 (.pfx) é enviado na aba Certificado da empresa, com a senha dele. "
                     "Ele fica guardado criptografado. Nunca mande o certificado por mensagem.")
     elif tem("senha", "esqueci", "acesso", "login", "entrar"):
-        resposta = ("Se esqueceu a senha, fale com o suporte do Emittaê." if ctx.papel == "autonomo" else
+        resposta = ("Se esqueceu a senha, fale com o suporte do EmitHub." if ctx.papel == "autonomo" else
                     "Se esqueceu a senha, peça ao seu contador para gerar uma nova senha provisória na aba Acesso ao app.")
     elif tem("recus", "erro", "rejeit", "nao foi", "deu errado"):
         resposta = ("Quando a prefeitura recusa, nada é emitido. Leia a mensagem na tela, toque em \"Corrigir dados\" e envie de novo. "

@@ -109,7 +109,7 @@ class ServicoLiberado(BaseModel):
     codigo: str
     apelido: str | None = None
     codigo_municipal: str | None = None  # complemento da prefeitura (cTribMun), 3 dígitos
-    # Reforma Tributária (IBS/CBS). Vazios: o Emittaê usa a sugestão do Anexo VIII.
+    # Reforma Tributária (IBS/CBS). Vazios: o EmitHub usa a sugestão do Anexo VIII.
     nbs: str | None = Field(None, pattern=r"^\d{9}$")
     cind_op: str | None = Field(None, pattern=r"^\d{6}$")
     cclass_trib: str | None = Field(None, pattern=r"^\d{6}$")
@@ -319,7 +319,7 @@ def criar_app(
         if agendador_ is not None:
             agendador_.parar.set()
 
-    app = FastAPI(title="Emittaê", version="0.2.0", docs_url="/docs" if docs else None,
+    app = FastAPI(title="EmitHub", version="0.2.0", docs_url="/docs" if docs else None,
                   redoc_url="/redoc" if docs else None, openapi_url="/openapi.json" if docs else None,
                   lifespan=ciclo_de_vida)
 
@@ -330,10 +330,10 @@ def criar_app(
         caminho = request.url.path
         if request.method in METODOS_QUE_ALTERAM and request.headers.get(CABECALHO_CSRF) != "1":
             # Sem o cabeçalho: ou é um envio forjado por outro site, ou uma aba
-            # antiga do Emittaê (de antes do login) ainda aberta no aparelho.
+            # antiga do EmitHub (de antes do login) ainda aberta no aparelho.
             return JSONResponse({"detail": {
                 "codigo": "pagina_desatualizada",
-                "mensagem": "Esta página do Emittaê está desatualizada. Feche esta aba e abra "
+                "mensagem": "Esta página do EmitHub está desatualizada. Feche esta aba e abra "
                             "emitta.onrender.com/entrar numa aba nova.",
             }}, 403)
         resposta = await call_next(request)
@@ -433,7 +433,7 @@ def criar_app(
         # no-store: o navegador nunca guarda a página, então sempre pega a versão atual.
         return FileResponse(PASTA_WEB / nome, headers={"Cache-Control": "no-store"})
 
-    # Endereço que não existe, aberto no navegador: página com a cara do Emittaê (status 404).
+    # Endereço que não existe, aberto no navegador: página com a cara do EmitHub (status 404).
     # Chamadas da API (fetch, JSON) continuam recebendo o erro em JSON.
     from starlette.exceptions import HTTPException as ErroHttp
 
@@ -451,7 +451,7 @@ def criar_app(
 
     def veio_de_fora(request: Request) -> bool:
         # Link aberto de fora (WhatsApp, Instagram, digitado): sem endereço de volta
-        # e sem ter vindo de outra página do próprio Emittaê.
+        # e sem ter vindo de outra página do próprio EmitHub.
         if request.url.query:
             return False
         origem = request.headers.get("referer") or ""
@@ -460,7 +460,7 @@ def criar_app(
 
     @app.get("/entrar", include_in_schema=False)
     def pagina_entrar(request: Request):
-        # Quem chega por um link de fora vê primeiro a página que explica o Emittaê.
+        # Quem chega por um link de fora vê primeiro a página que explica o EmitHub.
         if veio_de_fora(request):
             return RedirectResponse("/", 307, headers={"Cache-Control": "no-store"})
         resposta = pagina("entrar.html")
@@ -543,7 +543,7 @@ def criar_app(
 
     @app.get("/status", tags=["status"])
     def status():
-        return {"app": "Emittaê", "ambiente": servico.config.ambiente}
+        return {"app": "EmitHub", "ambiente": servico.config.ambiente}
 
     # ------------------------------------------------------------ autenticação
 
@@ -886,14 +886,14 @@ def criar_app(
 
     @app.delete("/contador/clientes/{cliente_id}", status_code=204, tags=["contador"])
     def remover_empresa(cliente_id: int, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
-        """Remove a empresa da carteira do contador (com as notas guardadas no Emittaê)."""
+        """Remove a empresa da carteira do contador (com as notas guardadas no EmitHub)."""
         if usuario.papel != "contador":
             raise HTTPException(403, "Só o contador pode remover uma empresa.")
         cliente = cliente_ou_404(cliente_id)
         notas = repo.contar_notas(cliente_id)
         repo.remover_cliente(cliente_id)
         evento("empresa_removida", request, usuario,
-               detalhe=f"{cliente.razao_social} ({cliente.cnpj}) · {notas} nota(s) apagada(s) do Emittaê")
+               detalhe=f"{cliente.razao_social} ({cliente.cnpj}) · {notas} nota(s) apagada(s) do EmitHub")
         return Response(status_code=204)
 
     # ------------------------------------------------------------ consulta CNPJ
@@ -963,7 +963,7 @@ def criar_app(
 
     @app.delete("/contador/clientes/{cliente_id}/importacao", status_code=204, tags=["contador"])
     def desfazer_importacao(cliente_id: int, request: Request, usuario: Usuario = Depends(dono_do_cliente)):
-        """Apaga as notas importadas de XML desta empresa (as emitidas pelo Emittaê não mudam)."""
+        """Apaga as notas importadas de XML desta empresa (as emitidas pelo EmitHub não mudam)."""
         cliente_ou_404(cliente_id)
         repo.apagar_notas_externas(cliente_id)
         evento("notas_importadas_apagadas", request, usuario, detalhe=f"empresa {cliente_id}")
@@ -975,7 +975,7 @@ def criar_app(
 
     @app.get("/app/{cliente_id}/clientes-salvos", tags=["app da empresa"])
     def clientes_salvos(cliente_id: int, _: Usuario = Depends(autorizar_empresa)):
-        """Clientes das notas importadas de XML (os das notas do Emittaê o app já conhece)."""
+        """Clientes das notas importadas de XML (os das notas do EmitHub o app já conhece)."""
         servicos = {x["codigo"] for x in repo.servicos_liberados(cliente_id)}
         return [{**c, "valor": regras.centavos_para_texto(c.pop("valor_centavos")),
                  "codigo_servico": c["codigo_servico"] if c["codigo_servico"] in servicos else None}
@@ -1498,7 +1498,7 @@ def criar_app(
                     cliente = repo.buscar_cliente(cliente.id)
             except Exception as erro:  # a consulta é ajuda; sem ela usa o limite cheio
                 print(f"[resumo-ano] abertura indisponível: {erro}", flush=True)
-        # média só a partir do primeiro mês com nota no Emittaê (ou da abertura do CNPJ, se foi depois)
+        # média só a partir do primeiro mês com nota no EmitHub (ou da abertura do CNPJ, se foi depois)
         com_nota = [m["mes"] for m in meses if m["notas"]]
         primeiro_mes = max(com_nota[0] if com_nota else 1,
                            int(cliente.abertura[5:7]) if cliente.abertura and cliente.abertura[:4] == f"{ano:04d}" else 1)
@@ -1511,7 +1511,7 @@ def criar_app(
         return {"ano": ano, "total_centavos": total, "notas": notas,
                 "media_mensal_centavos": round(total / meses_ativos), "meses": meses, "mei": mei,
                 "importadas": sum(m.get("importadas", 0) for m in meses),
-                "observacao": "Soma das notas autorizadas emitidas pelo Emittaê (sem as canceladas)"
+                "observacao": "Soma das notas autorizadas emitidas pelo EmitHub (sem as canceladas)"
                 + (" e das notas importadas de XML." if any(m.get("importadas") for m in meses) else ".")}
 
     @app.get("/contador/clientes/{cliente_id}/resumo-ano", tags=["contador"])
@@ -1670,7 +1670,7 @@ def criar_app(
 
     @app.post("/assistente", tags=["assistente"])
     def conversar_com_assistente(dados: ConversaAssistente, usuario: Usuario = Depends(usuario_atual)):
-        """Assistente do Emittaê. Só monta rascunhos; quem emite ou cancela é a pessoa, no app."""
+        """Assistente do EmitHub. Só monta rascunhos; quem emite ou cancela é a pessoa, no app."""
         if usuario.papel == "admin":
             raise HTTPException(404, "Não encontrado.")
         if not limitador_assistente.permitir(f"assistente:{usuario.id}"):
