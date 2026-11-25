@@ -38,7 +38,7 @@ def _buscar_brasilapi(cnpj: str) -> dict:
 
 
 def _resumo(d: dict) -> dict:
-    """Só os campos que o Emitta usa."""
+    """Só os campos que o Emittaê usa."""
     simples = d.get("opcao_pelo_simples")
     mei = d.get("opcao_pelo_mei")
     return {

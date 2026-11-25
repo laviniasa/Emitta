@@ -173,7 +173,7 @@ class SefinNacional:
             except (requests.Timeout, requests.ConnectionError) as erro:
                 raise SemResposta(
                     "A prefeitura não respondeu a tempo. Não emita de novo: "
-                    "o Emitta vai conferir se a nota foi gerada."
+                    "o Emittaê vai conferir se a nota foi gerada."
                 ) from erro
 
     @staticmethod
@@ -199,7 +199,7 @@ class SefinNacional:
     def enviar_dps(self, xml_assinado, cert):
         resp = self._chamar("POST", "/nfse", cert, {"dpsXmlGZipB64": compactar(xml_assinado)})
         if resp.status_code >= 500:
-            raise SemResposta("O sistema da prefeitura está instável. O Emitta vai conferir a nota.")
+            raise SemResposta("O sistema da prefeitura está instável. O Emittaê vai conferir a nota.")
         if not resp.ok:
             return RespostaSefin(sucesso=False, mensagens=self._mensagens(resp))
         dados = resp.json()

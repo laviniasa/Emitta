@@ -105,7 +105,7 @@
       type: "button", class: "opcao-perfil", onclick: () => telaEntrar(perfil),
     }, el("strong", {}, titulo), el("span", {}, texto));
     $caixa.replaceChildren(
-      el("div", {}, el("h1", {}, "Bem-vindo ao Emitta"), el("p", { class: "sub" }, "Como você vai usar o Emitta?")),
+      el("div", {}, el("h1", {}, "Bem-vindo ao Emittaê"), el("p", { class: "sub" }, "Como você vai usar o Emittaê?")),
       opcao("Sou contador", "Cadastro as empresas e libero os serviços de cada uma.", "contador"),
       opcao("Sou empresa ou MEI", "Emito e cancelo as notas da minha empresa.", "pergunta-contador"),
     );
@@ -120,7 +120,7 @@
     $caixa.replaceChildren(
       voltarPara(telaEscolha),
       el("div", {}, el("h1", {}, "Você tem contador?"), el("p", { class: "sub" }, "Assim a gente te leva para o lugar certo.")),
-      opcao("Sim, tenho contador", "Meu contador criou o meu acesso ao Emitta.", "empresa"),
+      opcao("Sim, tenho contador", "Meu contador criou o meu acesso ao Emittaê.", "empresa"),
       opcao("Não, sou MEI ou não tenho contador", "Eu mesmo configuro e emito as minhas notas, com a ajuda da assistente.", "autonomo"),
     );
   }
@@ -167,8 +167,8 @@
     formulario(
       autonomo ? "Criar conta de MEI ou autônomo" : "Criar conta de contador",
       autonomo
-        ? "Depois de enviar, a sua conta passa por uma aprovação do Emitta. Aí você cadastra a sua empresa, envia o certificado digital e escolhe os seus serviços, com a ajuda da assistente."
-        : "Depois de enviar, a sua conta passa por uma aprovação do Emitta. Você vai ver só as empresas que cadastrar.",
+        ? "Depois de enviar, a sua conta passa por uma aprovação do Emittaê. Aí você cadastra a sua empresa, envia o certificado digital e escolhe os seus serviços, com a ajuda da assistente."
+        : "Depois de enviar, a sua conta passa por uma aprovação do Emittaê. Você vai ver só as empresas que cadastrar.",
       [
         el("label", { class: "campo" }, "Seu nome", el("input", { name: "nome", autocomplete: "name", maxlength: "120", required: true })),
         el("label", { class: "campo" }, "E-mail", el("input", { type: "email", name: "email", autocomplete: "username", inputmode: "email", required: true })),
@@ -197,14 +197,14 @@
     $caixa.replaceChildren(
       el("div", { style: "width:56px;height:56px;border-radius:50%;background:var(--verde-claro);color:var(--verde);display:grid;place-items:center" }, icone("relogio", 28)),
       el("div", {}, el("h1", {}, "Pedido enviado!"),
-        el("p", { class: "sub" }, `A sua conta (${email}) está aguardando aprovação do Emitta. Assim que for liberada, é só entrar com o e-mail e a senha que você criou.`)),
+        el("p", { class: "sub" }, `A sua conta (${email}) está aguardando aprovação do Emittaê. Assim que for liberada, é só entrar com o e-mail e a senha que você criou.`)),
       el("button", { type: "button", class: "botao botao-secundario botao-grande", onclick: () => telaEntrar(tipo) }, "Voltar para entrar"),
     );
   }
 
   function telaCodigo() {
     formulario(
-      "Verificação em duas etapas", "Abra o aplicativo autenticador no celular e digite o código de 6 dígitos do Emitta.",
+      "Verificação em duas etapas", "Abra o aplicativo autenticador no celular e digite o código de 6 dígitos do Emittaê.",
       [el("label", { class: "campo" }, "Código",
         el("input", { class: "codigo", name: "codigo", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", pattern: "[0-9]*", required: true }))],
       "Confirmar",

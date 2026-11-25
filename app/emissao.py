@@ -5,7 +5,7 @@ Proteção contra nota duplicada:
    chegar duas vezes (toque duplo, internet instável), devolvemos a nota que
    já existe em vez de emitir outra.
 2. A nota é gravada como "processando" ANTES de ir ao governo. Se a resposta
-   se perder, ela continua "processando" e o Emitta pergunta ao governo
+   se perder, ela continua "processando" e o Emittaê pergunta ao governo
    (GET /dps/{id}) se a nota foi gerada, antes de qualquer reenvio.
 """
 
@@ -42,7 +42,7 @@ class NotaNaoEncontrada(regras.ErroDeNegocio):
     pass
 
 
-MAX_PULOS_NUMERO = 50  # números já usados no governo que o Emitta pula sozinho (E0014)
+MAX_PULOS_NUMERO = 50  # números já usados no governo que o Emittaê pula sozinho (E0014)
 
 
 class RejeitadaPelaPrefeitura(regras.ErroDeNegocio):
@@ -229,7 +229,7 @@ class ServicoEmissao:
             except SemResposta:
                 raise NotaEmProcessamento(nota) from None
             # E0014 = o governo já tem uma nota com este número para este CNPJ (por exemplo,
-            # emitida antes de o banco do Emitta ser zerado). Pula para o próximo número.
+            # emitida antes de o banco do Emittaê ser zerado). Pula para o próximo número.
             if not resposta.sucesso and tentativa < MAX_PULOS_NUMERO and any("E0014" in m for m in resposta.mensagens):
                 print(f"[emissao] cliente {cliente_id}: número {numero} já usado no governo (E0014), tentando o próximo", flush=True)
                 self.repo.descartar_nota(nota.id)

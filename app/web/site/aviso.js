@@ -12,7 +12,7 @@
   var texto = document.createElement("p");
   texto.style.margin = "0";
   function link(href, rotulo) { var a = document.createElement("a"); a.href = href; a.textContent = rotulo; return a; }
-  texto.append("Usamos só cookies essenciais. Ao usar o Emitta, você concorda com os ",
+  texto.append("Usamos só cookies essenciais. Ao usar o Emittaê, você concorda com os ",
     link("/termos", "Termos de uso"), " e a ", link("/privacidade", "Política de privacidade"), ".");
   var botao = document.createElement("button");
   botao.type = "button";

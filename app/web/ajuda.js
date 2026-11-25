@@ -13,7 +13,7 @@
 
   // r: lista de blocos. Texto simples vira parágrafo; {ol:[...]} ou {ul:[...]} vira lista.
   const PERGUNTAS = [
-    { id: "o-que-e", cat: "comecar", q: "O que é o Emitta?", r: [
+    { id: "o-que-e", cat: "comecar", q: "O que é o Emittaê?", r: [
       "É um emissor de NFS-e para escritórios contábeis. O contador cadastra a empresa e libera os serviços que ela presta; a própria empresa emite a nota pelo celular, direto no Emissor Nacional do governo, sem precisar escolher código de serviço.",
       "Também funciona para MEI e autônomo que emitem as próprias notas, com a conta \"MEI ou autônomo\"." ] },
     { id: "cadastrar-empresa", cat: "comecar", q: "Como cadastro uma empresa no painel?", r: [
@@ -27,10 +27,10 @@
       "Se precisar de outro, use \"Todos os serviços\": a busca entende o jeito que o cliente fala (\"conserto de carro\", \"salão de beleza\", \"frete\") e também o código (ex.: 17.19). A empresa só vê, na hora de emitir, o que você liberou.",
       "Dois atalhos: \"Importar de notas antigas\" lê XMLs de notas que a empresa já emitiu e mostra os serviços dela; \"Mais usados no seu escritório\" mostra os serviços que você mais libera, para liberar com um toque." ] },
     { id: "acesso-empresa", cat: "comecar", q: "Como a empresa recebe o acesso ao app?", r: [
-      "Na aba \"Acesso ao app\", informe o nome e o e-mail de quem vai emitir. O Emitta mostra uma senha provisória uma única vez: passe para a pessoa por um canal seguro.",
+      "Na aba \"Acesso ao app\", informe o nome e o e-mail de quem vai emitir. O Emittaê mostra uma senha provisória uma única vez: passe para a pessoa por um canal seguro.",
       "No primeiro acesso ela cria a própria senha. Se esquecer, é só criar o acesso de novo com o mesmo e-mail que uma nova senha provisória é gerada." ] },
-    { id: "instalar-app", cat: "comecar", q: "Dá para instalar o Emitta no celular?", r: [
-      "Sim. Abra o Emitta no navegador do celular e toque em \"Instalar o app no celular\" na tela de entrar.",
+    { id: "instalar-app", cat: "comecar", q: "Dá para instalar o Emittaê no celular?", r: [
+      "Sim. Abra o Emittaê no navegador do celular e toque em \"Instalar o app no celular\" na tela de entrar.",
       { ul: [
         "iPhone: no Safari, toque em Compartilhar e depois em \"Adicionar à Tela de Início\".",
         "Android: no Chrome, toque nos três pontinhos e depois em \"Instalar app\"." ] },
@@ -39,7 +39,7 @@
     { id: "certificado-tipo", cat: "certificado", q: "Qual certificado digital preciso?", r: [
       "O certificado A1 da empresa, aquele que vem como arquivo .pfx (ou .p12) com uma senha. O certificado A3, de cartão ou token, não funciona em sistemas on-line." ] },
     { id: "certificado-enviar", cat: "certificado", q: "Como envio o certificado?", r: [
-      "Na aba \"Certificado\" da empresa, escolha o arquivo .pfx e digite a senha dele. O Emitta confere se o certificado é do mesmo CNPJ e se ainda está na validade.",
+      "Na aba \"Certificado\" da empresa, escolha o arquivo .pfx e digite a senha dele. O Emittaê confere se o certificado é do mesmo CNPJ e se ainda está na validade.",
       "O certificado e a senha ficam guardados criptografados e são usados só para assinar as notas dessa empresa. Você pode remover a qualquer momento." ] },
     { id: "certificado-vencendo", cat: "certificado", q: "E quando o certificado vence?", r: [
       "O painel avisa quando faltam 30 dias ou menos e marca a empresa na lista. Com o certificado vencido a emissão para. Renove com a certificadora e envie o arquivo novo na mesma aba." ] },
@@ -52,7 +52,7 @@
         "Informe o valor e confira o resumo.",
         "Toque em emitir. Em segundos a nota volta autorizada, com PDF e XML." ] } ] },
     { id: "rejeitada", cat: "notas", q: "A nota foi recusada. E agora?", r: [
-      "Quando o governo recusa, o Emitta mostra o motivo em português, sem código técnico. Na maioria das vezes é um dado do cliente ou do serviço: corrija e emita de novo.",
+      "Quando o governo recusa, o Emittaê mostra o motivo em português, sem código técnico. Na maioria das vezes é um dado do cliente ou do serviço: corrija e emita de novo.",
       "Se a mensagem falar de alíquota, serviço ou certificado, quem resolve é o contador, no painel." ] },
     { id: "cancelar", cat: "notas", q: "Como cancelo uma nota emitida errada?", r: [
       "Abra a nota e toque em \"Cancelar esta nota\", escolhendo o motivo. Se o problema foi um dado errado, cancele e emita uma nota nova com os dados certos.",
@@ -61,13 +61,13 @@
       "Cada nota tem os botões \"Baixar PDF\" e \"Baixar XML\".",
       "O contador também pode baixar tudo de uma vez em \"Notas do escritório\": escolha o mês e a empresa e baixe o pacote com PDFs, XMLs e uma planilha para importar no sistema contábil." ] },
     { id: "recebidas", cat: "notas", q: "O que são as \"Notas recebidas\"?", r: [
-      "São as notas de serviço que outras empresas emitiram para o CNPJ do seu cliente. O Emitta busca no Ambiente Nacional usando o certificado da empresa, e você pode baixar os XML para a escrituração." ] },
+      "São as notas de serviço que outras empresas emitiram para o CNPJ do seu cliente. O Emittaê busca no Ambiente Nacional usando o certificado da empresa, e você pode baixar os XML para a escrituração." ] },
     { id: "ibs-cbs", cat: "notas", q: "As notas já saem com IBS e CBS?", r: [
       "Sim. Em 2026 o grupo do IBS e da CBS é opcional e entra na nota quando o cliente é empresa com endereço completo. Com CPF, a nota sai sem esse grupo, o que é permitido neste ano." ] },
 
     { id: "guias", cat: "impostos", q: "Como funcionam as guias de impostos?", r: [
       "O contador envia o PDF da guia (DAS, DARF, ISS e outras) na aba \"Impostos\". A empresa recebe no app, baixa, paga no banco e toca em \"Já paguei\". O contador vê na hora o que já foi pago." ] },
-    { id: "limite-mei", cat: "impostos", q: "Como o Emitta acompanha o limite do MEI?", r: [
+    { id: "limite-mei", cat: "impostos", q: "Como o Emittaê acompanha o limite do MEI?", r: [
       "Para MEI, o painel soma o faturamento das notas no ano e compara com o limite de R$ 81.000. No ano de abertura o limite é proporcional: R$ 6.750 por mês de atividade.",
       "O aviso aparece ao chegar perto do limite e quando ele é passado. Até 20% acima, o MEI paga a diferença e vira ME no ano seguinte; acima disso o desenquadramento é retroativo. Vale conversar com o contador." ] },
     { id: "resumo-ano", cat: "impostos", q: "Onde vejo o faturamento do ano?", r: [
@@ -82,17 +82,17 @@
         "Toque em \"Todo mês\".",
         "Confira o valor e a descrição e escolha o dia do mês (1 a 28).",
         "Toque em \"Ativar nota automática\"." ] },
-      "No dia marcado o Emitta emite a nota sozinho e ela aparece nas suas notas. Se a prefeitura recusar, o aviso aparece na tela inicial com o motivo e o botão \"Tentar de novo\". Você pode pausar, mudar o valor ou excluir em \"Notas automáticas\"." ] },
+      "No dia marcado o Emittaê emite a nota sozinho e ela aparece nas suas notas. Se a prefeitura recusar, o aviso aparece na tela inicial com o motivo e o botão \"Tentar de novo\". Você pode pausar, mudar o valor ou excluir em \"Notas automáticas\"." ] },
     { id: "contato-pdf", cat: "comecar", q: "Como coloco o contato do escritório no PDF das notas?", r: [
       "No painel, abra \"Minha conta\" e preencha \"Contato do escritório na nota\": nome, telefone e e-mail. Eles aparecem no PDF das notas das suas empresas, no quadro \"Contabilidade responsável\"." ] },
     { id: "esqueci-senha", cat: "conta", q: "Esqueci a minha senha.", r: [
       { ul: [
         "Empresa: peça ao seu contador para criar o seu acesso de novo. Você recebe uma senha provisória.",
-        "Contador ou MEI: fale com o suporte do Emitta pelo contato no fim desta página." ] } ] },
+        "Contador ou MEI: fale com o suporte do Emittaê pelo contato no fim desta página." ] } ] },
     { id: "duas-etapas", cat: "conta", q: "Como ativo a verificação em duas etapas?", r: [
-      "Em \"Minha conta\" (no menu do painel), toque em ativar e leia o QR code com um aplicativo autenticador (Google Authenticator, Microsoft Authenticator ou similar). Depois disso, além da senha, o Emitta pede o código de 6 dígitos do aplicativo." ] },
+      "Em \"Minha conta\" (no menu do painel), toque em ativar e leia o QR code com um aplicativo autenticador (Google Authenticator, Microsoft Authenticator ou similar). Depois disso, além da senha, o Emittaê pede o código de 6 dígitos do aplicativo." ] },
     { id: "remover-empresa", cat: "conta", q: "Como removo uma empresa?", r: [
-      "Abra a empresa, vá em \"Dados da empresa\" e toque em \"Remover esta empresa\". Serviços, acessos, certificado, guias e as notas guardadas no Emitta são apagados.",
+      "Abra a empresa, vá em \"Dados da empresa\" e toque em \"Remover esta empresa\". Serviços, acessos, certificado, guias e as notas guardadas no Emittaê são apagados.",
       "As notas emitidas continuam no Emissor Nacional. Se precisar dos XML e PDF, baixe antes em \"Notas do escritório\"." ] },
     { id: "dados-seguros", cat: "conta", q: "Meus dados estão seguros?", r: [
       "A conexão é criptografada, o certificado fica criptografado, as senhas são guardadas de forma irreversível e cada contador vê só as próprias empresas. Os detalhes estão na Política de privacidade." ] },

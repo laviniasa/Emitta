@@ -1,6 +1,6 @@
 {
-  "name": "Emitta · Nota fiscal sem complicação",
-  "short_name": "emitta",
+  "name": "Emittaê · Nota fiscal sem complicação",
+  "short_name": "emittaê",
   "description": "Emita e cancele notas fiscais de serviço pelo celular, só com os serviços que o seu contador liberou.",
   "id": "/abrir",
   "start_url": "/abrir?origem=app",

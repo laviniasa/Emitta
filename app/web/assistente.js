@@ -1,4 +1,4 @@
-// Assistente do Emitta: botão "Ajuda" + conversa. Ela só monta rascunhos;
+// Assistente do Emittaê: botão "Ajuda" + conversa. Ela só monta rascunhos;
 // quem emite ou cancela é a pessoa, conferindo na tela de sempre.
 window.EmittaAssistente = (() => {
   const { api, el, icone, formatarDocumento, suporte } = Emitta;
@@ -27,10 +27,10 @@ window.EmittaAssistente = (() => {
       oninput: (e) => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; },
     });
     const $enviar = el("button", { class: "assist-enviar", type: "button", "aria-label": "Enviar", onclick: () => enviar() }, icone("enviar", 20));
-    const $painel = el("section", { class: "assist-painel", role: "dialog", "aria-label": "Assistente do Emitta", hidden: true },
+    const $painel = el("section", { class: "assist-painel", role: "dialog", "aria-label": "Assistente do Emittaê", hidden: true },
       el("header", { class: "assist-topo" },
         el("span", { class: "assist-avatar", "aria-hidden": "true" }, icone("balao", 18)),
-        el("div", {}, el("strong", {}, "Assistente Emitta"), el("span", { class: "assist-sub" }, "Eu preparo, você confere e confirma")),
+        el("div", {}, el("strong", {}, "Assistente Emittaê"), el("span", { class: "assist-sub" }, "Eu preparo, você confere e confirma")),
         el("button", { class: "assist-x", type: "button", "aria-label": "Fechar ajuda", onclick: () => alternar(false) }, icone("fechar", 20))),
       $lista,
       el("div", { class: "assist-rodape" }, $campo, $enviar));
@@ -133,7 +133,7 @@ window.EmittaAssistente = (() => {
         }
         mensagens.push({ de: "assistente", texto: r.resposta, acoes: r.acoes || [] });
       } catch (erro) {
-        mensagens.push({ de: "assistente", texto: erro.status ? (erro.message || "Não consegui responder agora. Tente de novo.") : "Não consegui falar com o Emitta agora. Confira a internet e tente de novo em alguns segundos." });
+        mensagens.push({ de: "assistente", texto: erro.status ? (erro.message || "Não consegui responder agora. Tente de novo.") : "Não consegui falar com o Emittaê agora. Confira a internet e tente de novo em alguns segundos." });
       }
       pensando = false;
       guardar();

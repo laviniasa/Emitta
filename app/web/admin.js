@@ -121,7 +121,7 @@
         el("ol", { class: "passos" },
           el("li", {}, "Instale no celular o Google Authenticator, Microsoft Authenticator ou Authy."),
           el("li", {}, "Toque em \"+\" e escolha \"Inserir chave de configuração\"."),
-          el("li", {}, "Nome da conta: Emitta Admin. Chave: o código abaixo, do tipo \"baseado em tempo\"."),
+          el("li", {}, "Nome da conta: Emittaê Admin. Chave: o código abaixo, do tipo \"baseado em tempo\"."),
           el("li", {}, "Digite o código de 6 dígitos que aparecer.")),
         el("div", { class: "segredo", "aria-label": "Chave de configuração" }, estado.segredo.segredo.match(/.{1,4}/g).join(" ")),
         el("a", { href: estado.segredo.uri, class: "botao botao-secundario" }, "Abrir no aplicativo autenticador (pelo celular)"),

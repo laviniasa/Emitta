@@ -272,7 +272,7 @@
   // ------------------------------------------------------------ área principal
 
   // ------------------------------------------------------------ resumo do escritório
-  // Cartões de números no topo (inspirados no KPI Tile do 21st.dev, no visual do Emitta):
+  // Cartões de números no topo (inspirados no KPI Tile do 21st.dev, no visual do Emittaê):
   // valor que sobe contando, variação contra o mês anterior e minigráfico dos últimos 14 dias.
   const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const calmo = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -514,7 +514,7 @@
       const resumo = faixaResumo();
       if (resumo) $principal.append(resumo);
       $principal.append(el("div", { class: "card", style: "padding:40px 24px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center" },
-        el("h1", { style: "font-size:22px" }, "Bem-vindo ao Emitta"),
+        el("h1", { style: "font-size:22px" }, "Bem-vindo ao Emittaê"),
         el("p", { class: "sub2", style: "max-width:460px" },
           estado.clientes.length
             ? "Escolha uma empresa ao lado para liberar os serviços que ela pode emitir."
@@ -752,7 +752,7 @@
               value: s.codigo_municipal || "", inputmode: "numeric", maxlength: 3, placeholder: "automático",
               oninput: (e) => { s.codigo_municipal = e.target.value.replace(/\D/g, "").slice(0, 3); e.target.value = s.codigo_municipal; marcarAlterado(); },
             })),
-          el("span", { class: "ajuda-pequena" }, "O Emitta preenche sozinho com o que a prefeitura pede. Só mude se a prefeitura ou o contador mandar.")));
+          el("span", { class: "ajuda-pequena" }, "O Emittaê preenche sozinho com o que a prefeitura pede. Só mude se a prefeitura ou o contador mandar.")));
       return el("article", { class: "cartao-servico" },
         el("div", { class: "cartao-topo" },
           el("div", { class: "textos" },
@@ -889,7 +889,7 @@
       $resultados];
   }
 
-  // Importar serviços de notas antigas: o contador escolhe XMLs e o Emitta mostra o que a empresa já emitia.
+  // Importar serviços de notas antigas: o contador escolhe XMLs e o Emittaê mostra o que a empresa já emitia.
   function blocoImportarXml(linha) {
     const id = estado.selecionado;
     const caixa = el("section", { class: "sugeridos importar-xml" });
@@ -918,7 +918,7 @@
       // 2) alíquota
       if (r.aliquota) {
         partes.push(el("div", { class: "aviso aviso-alerta imp-aviso" }, icone("alerta"),
-          el("span", {}, `As notas antigas usam ISS de ${r.aliquota.nas_notas.replace(".", ",")}%, mas no Emitta está ${r.aliquota.no_emitta.replace(".", ",")}%. `,
+          el("span", {}, `As notas antigas usam ISS de ${r.aliquota.nas_notas.replace(".", ",")}%, mas no Emittaê está ${r.aliquota.no_emitta.replace(".", ",")}%. `,
             el("button", { type: "button", class: "botao-link", onclick: () => irParaAba("dados") }, "Conferir em Dados da empresa"))));
       }
       // 3) notas: faturamento e clientes
@@ -938,7 +938,7 @@
                   avisar(g.novas ? "Notas guardadas." : "Essas notas já estavam guardadas.");
                 } catch (erro) { avisar(erro.message); }
                 desenhar();
-              } }, "Guardar no Emitta"),
+              } }, "Guardar no Emittaê"),
               el("span", { class: "sub2" }, `Entram no Resumo do ano${c.opcao_simples === "2" ? " e no limite do MEI" : ""}, e os clientes viram "clientes salvos" no app da empresa.`)));
       }
       // 4) sugestão de nota automática
@@ -970,7 +970,7 @@
       if (r.ja_importadas) {
         partes.push(el("p", { class: "sub2" }, `Esta empresa tem ${r.ja_importadas} nota${r.ja_importadas === 1 ? "" : "s"} importada${r.ja_importadas === 1 ? "" : "s"}. `,
           el("button", { type: "button", class: "botao-link perigo", onclick: async () => {
-            if (!window.confirm("Apagar todas as notas importadas de XML desta empresa? As notas emitidas pelo Emitta não mudam.")) return;
+            if (!window.confirm("Apagar todas as notas importadas de XML desta empresa? As notas emitidas pelo Emittaê não mudam.")) return;
             try { await api("DELETE", `/contador/clientes/${id}/importacao`); r.ja_importadas = 0; r.salvas = null; estado.resumoAno = null; avisar("Notas importadas apagadas."); }
             catch (erro) { avisar(erro.message); }
             desenhar();
@@ -1001,7 +1001,7 @@
       el("div", { class: "sugeridos-topo importar-topo" },
         el("div", {},
           el("h3", {}, "Importar de notas antigas"),
-          el("p", { class: "sub2" }, "Escolha XMLs de notas que a empresa já emitiu em outro sistema (nacional ou da prefeitura). O Emitta mostra os serviços, os clientes, o faturamento e as notas que se repetem todo mês.")),
+          el("p", { class: "sub2" }, "Escolha XMLs de notas que a empresa já emitiu em outro sistema (nacional ou da prefeitura). O Emittaê mostra os serviços, os clientes, o faturamento e as notas que se repetem todo mês.")),
         el("button", { class: "botao botao-secundario", type: "button", onclick: () => $entrada.click() }, icone("documento", 18), "Escolher XMLs")),
       $entrada, $res);
     desenhar();
@@ -1291,14 +1291,14 @@
       linha("Prazo para cancelar", c.prazo_cancelamento_dias ? `${c.prazo_cancelamento_dias} dias (informado por você)` : "Definido pela prefeitura"),
       !autonomo() && el("div", { class: "remover-empresa" },
         el("h3", {}, "Remover empresa"),
-        el("p", { class: "sub2" }, "Tira a empresa da sua lista e apaga do Emitta os serviços, os acessos dela, o certificado, as guias e as notas guardadas aqui. As notas emitidas continuam no Emissor Nacional do governo."),
+        el("p", { class: "sub2" }, "Tira a empresa da sua lista e apaga do Emittaê os serviços, os acessos dela, o certificado, as guias e as notas guardadas aqui. As notas emitidas continuam no Emissor Nacional do governo."),
         el("button", { class: "botao botao-texto-perigo", type: "button", onclick: () => removerEmpresa(c) }, "Remover esta empresa")));
   }
 
   async function removerEmpresa(c) {
     const ok = window.confirm(
       `Remover ${c.razao_social} (${formatarDocumento(c.cnpj)})?\n\n` +
-      "Serão apagados do Emitta: serviços liberados, acessos da empresa, certificado, guias e notas guardadas aqui.\n" +
+      "Serão apagados do Emittaê: serviços liberados, acessos da empresa, certificado, guias e notas guardadas aqui.\n" +
       "As notas emitidas continuam no Emissor Nacional. Se precisar dos XML e PDF, baixe antes em Notas do escritório.\n\n" +
       "Essa ação não pode ser desfeita.");
     if (!ok) return;
@@ -1324,13 +1324,13 @@
       el("div", {},
         el("h1", { style: "font-size:22px" }, autonomo() ? "Cadastre a sua empresa" : "Nova empresa"),
         el("p", { class: "sub2", style: "margin-top:4px" }, autonomo()
-          ? "Digite o seu CNPJ: o Emitta busca os dados na Receita. Depois você envia o certificado e escolhe os seus serviços. Dúvidas? Toque em Ajuda."
+          ? "Digite o seu CNPJ: o Emittaê busca os dados na Receita. Depois você envia o certificado e escolhe os seus serviços. Dúvidas? Toque em Ajuda."
           : "Depois de cadastrar, você escolhe os serviços que ela pode emitir.")),
       $erro,
       $dicaCnpj,
       el("div", { class: "form-grade" },
         campo("CNPJ", "cnpj", { required: true, inputmode: "text", autocapitalize: "characters", placeholder: "00.000.000/0000-00", autocomplete: "off" },
-          "Digite o CNPJ e o Emitta busca os dados na Receita."),
+          "Digite o CNPJ e o Emittaê busca os dados na Receita."),
         campo("Razão social", "razao_social", { required: true }),
         campo("Município", "municipio_nome", { required: true, placeholder: "Ex.: São Paulo" }),
         campo("Código IBGE do município", "municipio_ibge", { required: true, inputmode: "numeric", maxlength: "7", placeholder: "7 dígitos" },
@@ -1632,7 +1632,7 @@
         el("button", {
           class: "botao botao-secundario", type: "button",
           onclick: async () => {
-            const texto = `Seu acesso ao Emitta:\n${location.origin}/entrar\nE-mail: ${estado.acessoCriado.email}\nSenha provisória: ${estado.acessoCriado.senha_provisoria}`;
+            const texto = `Seu acesso ao Emittaê:\n${location.origin}/entrar\nE-mail: ${estado.acessoCriado.email}\nSenha provisória: ${estado.acessoCriado.senha_provisoria}`;
             try { await navigator.clipboard.writeText(texto); avisar("Copiado. Envie para a empresa por um canal privado."); }
             catch { avisar("Não foi possível copiar. Selecione a senha e copie manualmente."); }
           },
@@ -1756,7 +1756,7 @@
         el("ol", { class: "passos-2fa" },
           el("li", {}, "Instale no celular um aplicativo autenticador: Google Authenticator, Microsoft Authenticator ou Authy."),
           el("li", {}, "No aplicativo, toque em \"+\" e escolha \"Inserir chave de configuração\" (ou \"Digitar chave\")."),
-          el("li", {}, "Em nome da conta, escreva Emitta. Em chave, digite o código abaixo, do tipo \"baseado em tempo\"."),
+          el("li", {}, "Em nome da conta, escreva Emittaê. Em chave, digite o código abaixo, do tipo \"baseado em tempo\"."),
           el("li", {}, "Digite aqui o código de 6 dígitos que o aplicativo mostrar.")),
         el("div", { class: "segredo", "aria-label": "Chave de configuração" }, grupos),
         formSimples([el("label", { class: "campo" }, "Código de 6 dígitos",
@@ -1815,7 +1815,7 @@
       if (autonomo()) {
         // MEI/autônomo: só a própria empresa. Sem empresa ainda, abre o cadastro.
         document.body.classList.add("modo-autonomo");
-        document.title = "Emitta · Ajustes da minha empresa";
+        document.title = "Emittaê · Ajustes da minha empresa";
         const sub = document.querySelector(".marca-sub");
         if (sub) sub.textContent = "Ajustes da minha empresa";
         if (estado.clientes.length) await abrirCliente(estado.clientes[0].id);
