@@ -545,5 +545,5 @@ def test_pagina_nao_encontrada(app, anonimo):
 
 def test_previa_ao_compartilhar(anonimo):
     html = anonimo.get("/").text
-    assert 'property="og:image" content="https://emitta.onrender.com/static/site/img/compartilhar.jpg"' in html
+    assert 'property="og:image" content="https://emitta.onrender.com/static/site/img/compartilhar.jpg?v=53"' in html
     assert anonimo.get("/static/site/img/compartilhar.jpg").status_code == 200
