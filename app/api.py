@@ -761,6 +761,8 @@ def criar_app(
         return {
             "id": n.id,
             "numero_dps": n.numero_dps,
+            "numero_nfse": n.numero_nfse,
+            "numero": n.numero,
             "situacao": n.situacao,
             "chave_acesso": n.chave_acesso,
             "servico": n.codigo_servico,
@@ -1123,7 +1125,7 @@ def criar_app(
             return JSONResponse({"processando": True, "mensagem": str(erro), "nota": nota_json(erro.nota)}, 202)
         except regras.ErroDeNegocio as erro:
             raise traduzir_erro(erro)
-        evento("nota_emitida", request, usuario, detalhe=f"nº {nota.numero_dps}, R$ {regras.centavos_para_texto(nota.valor_centavos).replace('.', ',')}")
+        evento("nota_emitida", request, usuario, detalhe=f"nº {nota.numero}, R$ {regras.centavos_para_texto(nota.valor_centavos).replace('.', ',')}")
         return nota_json(nota)
 
     # ------------------------------------------------------------ notas recorrentes
@@ -1171,7 +1173,7 @@ def criar_app(
             "iss_retido": bool(rec["iss_retido"]), "dia": rec["dia"], "ativa": bool(rec["ativa"]),
             "proxima": recorrentes.proxima_data(rec, hoje) if not erro_do_mes else None,
             "erro": erro_do_mes,
-            "ultima_nota": {"id": nota.id, "numero": nota.numero_dps, "emitida_em": nota.emitida_em, "situacao": nota.situacao} if nota else None,
+            "ultima_nota": {"id": nota.id, "numero": nota.numero, "emitida_em": nota.emitida_em, "situacao": nota.situacao} if nota else None,
         }
 
     def recorrencia_da_empresa(cliente_id: int, recorrencia_id: int) -> dict:
@@ -1313,7 +1315,7 @@ def criar_app(
         cliente = cliente_ou_404(cliente_id)
         pdf = gerar_pdf(nota, cliente, servico.config.ambiente, contato=contato_do_escritorio(cliente))
         return RespostaBruta(pdf, media_type="application/pdf", headers={
-            "Content-Disposition": f'attachment; filename="nota-{nota.numero_dps:06d}.pdf"',
+            "Content-Disposition": f'attachment; filename="nota-{nota.numero:06d}.pdf"',
             "Cache-Control": "no-store",
         })
 
@@ -1388,7 +1390,7 @@ def criar_app(
                   "Valor (R$);ISS (R$);ISS retido;Situação;Chave de acesso"]
         for n in sorted(notas, key=lambda x: (x.cliente_id, x.numero_dps)):
             c = clientes[n.cliente_id]
-            campos = [c.razao_social, c.cnpj, f"{n.numero_dps}", n.emitida_em[:10], n.competencia or "",
+            campos = [c.razao_social, c.cnpj, f"{n.numero}", n.emitida_em[:10], n.competencia or "",
                       n.tomador_nome, n.tomador_documento, n.codigo_servico, reais(n.valor_centavos),
                       reais(n.iss_centavos), "sim" if n.iss_retido else "não", n.situacao, n.chave_acesso or ""]
             linhas.append(";".join(str(x).replace(";", ",") for x in campos))
@@ -1425,7 +1427,7 @@ def criar_app(
             for n in notas:
                 c = clientes[n.cliente_id]
                 pasta = re.sub(r"[^\w\- ]", "", c.razao_social).strip()[:60] or f"empresa-{c.id}"
-                base = f"{pasta}/nota-{n.numero_dps:06d}" + ("-cancelada" if n.situacao == "cancelada" else "")
+                base = f"{pasta}/nota-{n.numero:06d}" + ("-cancelada" if n.situacao == "cancelada" else "")
                 if tipo in ("pdf", "ambos"):
                     z.writestr(base + ".pdf", gerar_pdf(n, c, servico.config.ambiente, contato=contato_do_escritorio(c)))
                 if tipo in ("xml", "ambos"):
@@ -1698,7 +1700,7 @@ def criar_app(
                              "descricao": catalogo_.get(s["codigo"], {}).get("descricao", "")}
                             for s in repo.servicos_liberados(cliente_id)]
             for n in repo.listar_notas(cliente_id)[:15]:
-                notas.append({"id": n.id, "numero": str(n.numero_dps).zfill(6), "cliente": n.tomador_nome,
+                notas.append({"id": n.id, "numero": str(n.numero).zfill(6), "cliente": n.tomador_nome,
                               "valor": regras.centavos_para_texto(n.valor_centavos).replace(".", ","),
                               "situacao": n.situacao, "data": (n.emitida_em or "")[:10]})
 
@@ -1725,7 +1727,7 @@ def criar_app(
             nota = servico.cancelar(cliente_id, nota_id, dados.motivo, dados.texto)
         except regras.ErroDeNegocio as erro:
             raise traduzir_erro(erro)
-        evento("nota_cancelada", request, usuario, detalhe=f"nº {nota.numero_dps}")
+        evento("nota_cancelada", request, usuario, detalhe=f"nº {nota.numero}")
         return nota_json(nota)
 
     return app

@@ -106,7 +106,7 @@ def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> byte
     largura = A4[0] - 30 * mm
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm,
                             topMargin=15 * mm, bottomMargin=15 * mm,
-                            title=f"NFS-e {nota.numero_dps:06d} - {cliente.razao_social}", author="EmitHub")
+                            title=f"NFS-e {nota.numero:06d} - {cliente.razao_social}", author="EmitHub")
     sem_valor = ambiente != "producao"
     cancelada = nota.situacao == "cancelada"
 
@@ -118,8 +118,9 @@ def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> byte
         Table([[
             [Paragraph("NFS-e · Nota Fiscal de Serviço eletrônica", _E["titulo"]),
              Paragraph("Representação simplificada · padrão nacional", _E["sub"])],
-            [Paragraph(f"Nº {nota.numero_dps:06d}", ParagraphStyle("n", parent=_E["titulo"], alignment=TA_RIGHT)),
-             Paragraph(f"Emitida em {emitida:%d/%m/%Y %H:%M}", ParagraphStyle("d", parent=_E["sub"], alignment=TA_RIGHT))],
+            [Paragraph(f"Nº {nota.numero:06d}", ParagraphStyle("n", parent=_E["titulo"], alignment=TA_RIGHT)),
+             Paragraph(f"Emitida em {emitida:%d/%m/%Y %H:%M}", ParagraphStyle("d", parent=_E["sub"], alignment=TA_RIGHT)),
+             Paragraph(f"DPS nº {nota.numero_dps}", ParagraphStyle("dps", parent=_E["sub"], alignment=TA_RIGHT))],
         ]], colWidths=[largura * 0.65, largura * 0.35]),
         Spacer(1, 8),
     ]

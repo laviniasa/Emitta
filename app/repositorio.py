@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import functools
 import sqlite3
 import threading
@@ -260,6 +262,24 @@ class Nota:
     chave_envio: str | None = None
     info_compl: str | None = None
     ibscbs: str | None = None  # JSON com NBS, cIndOp, CST e cClassTrib usados na nota
+
+    @property
+    def numero_nfse(self) -> int | None:
+        """Número oficial da NFS-e, dado pelo governo na autorização (nNFSe). O numero_dps é o
+        do pedido (DPS), controlado pelo EmitHub, e pode pular quando já foi usado (E0014)."""
+        if self.xml_nfse:
+            achado = re.search(r"<(?:[\w.-]+:)?nNFSe>\s*(\d+)\s*<", self.xml_nfse)
+            if achado:
+                return int(achado.group(1))
+        c = self.chave_acesso or ""
+        if len(c) == 50 and c.isdigit():  # chave: município(7) amb(1) tpInsc(1) inscrição(14) nNFSe(13) ...
+            return int(c[23:36])
+        return None
+
+    @property
+    def numero(self) -> int:
+        """O número que aparece para as pessoas: o da NFS-e quando existe, senão o da DPS."""
+        return self.numero_nfse or self.numero_dps
 
 
 @dataclass

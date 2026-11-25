@@ -479,7 +479,7 @@
               el("th", {}, "Nº"), el("th", {}, "Data"), el("th", {}, "Empresa"), el("th", {}, "Cliente"),
               el("th", { style: "text-align:right" }, "Valor"), el("th", {}, "Situação"), el("th", {}, "Arquivos"))),
             el("tbody", {}, ...notas.map((n) => el("tr", {},
-              el("td", { class: "num" }, String(n.numero_dps).padStart(6, "0")),
+              el("td", { class: "num" }, String(n.numero || n.numero_dps).padStart(6, "0")),
               el("td", {}, dataHora(n.emitida_em)),
               el("td", {}, el("button", { type: "button", class: "botao-link", onclick: () => abrirCliente(n.cliente_id) }, n.empresa)),
               el("td", {}, n.tomador.nome),
@@ -1159,7 +1159,7 @@
               el("th", {}, "Nº"), el("th", {}, "Data"), el("th", {}, "Cliente"),
               el("th", {}, "Situação"), el("th", { style: "text-align:right" }, "Valor"), el("th", {}, "Arquivos"))),
             el("tbody", {}, estado.notas.map((n) => el("tr", {},
-              el("td", {}, String(n.numero_dps).padStart(6, "0")),
+              el("td", {}, String(n.numero || n.numero_dps).padStart(6, "0")),
               el("td", {}, dataHora(n.emitida_em)),
               el("td", {}, n.tomador.nome,
                 n.situacao === "cancelada" && n.motivo_cancelamento

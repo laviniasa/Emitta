@@ -202,7 +202,7 @@
     return el("button", { class: "nota-item", type: "button", onclick: () => { estado.nota = n; ir("detalhe"); } },
       el("span", { class: "esq" },
         el("span", { class: "nome" }, n.tomador.nome),
-        el("span", { class: "det" }, `Nº ${String(n.numero_dps).padStart(6, "0")} · ${dataHora(n.emitida_em)}`)),
+        el("span", { class: "det" }, `Nº ${String(n.numero || n.numero_dps).padStart(6, "0")} · ${dataHora(n.emitida_em)}`)),
       el("span", { class: "dir" },
         el("strong", {}, dinheiro(n.valor)),
         seloSituacao(n.situacao)),
@@ -879,7 +879,7 @@
       const n = estado.nota;
       const prazo = prazoRestante(n);
       return [
-        barra(`Nota nº ${String(n.numero_dps).padStart(6, "0")}`, "inicio"),
+        barra(`Nota nº ${String(n.numero || n.numero_dps).padStart(6, "0")}`, "inicio"),
         el("main", { class: "conteudo" },
           el("div", { style: "display:flex;justify-content:center" }, seloSituacao(n.situacao)),
           detalhesNota(n),
@@ -914,7 +914,7 @@
         el("main", { class: "conteudo" },
           el("section", { class: "card", style: "display:flex;justify-content:space-between;align-items:center;gap:12px" },
             el("span", {},
-              el("strong", { style: "display:block" }, `Nota nº ${String(n.numero_dps).padStart(6, "0")}`),
+              el("strong", { style: "display:block" }, `Nota nº ${String(n.numero || n.numero_dps).padStart(6, "0")}`),
               el("span", { class: "ajuda-pequena" }, `${n.tomador.nome} · ${dataHora(n.emitida_em)}`)),
             el("strong", {}, dinheiro(n.valor))),
           prazo && el("div", { class: foraDoPrazo ? "aviso aviso-alerta" : "aviso aviso-info" },
@@ -958,7 +958,7 @@
           el("span", { class: "circulo carimbo", style: "background:var(--vermelho-claro)" }, icone("x", 30, "#B42318")),
           el("p", { class: "grande" }, "Nota cancelada"),
           el("p", { class: "ajuda-pequena", style: "font-size:14px" },
-            `A prefeitura registrou o cancelamento da nota nº ${String(estado.nota.numero_dps).padStart(6, "0")}.`),
+            `A prefeitura registrou o cancelamento da nota nº ${String(estado.nota.numero || estado.nota.numero_dps).padStart(6, "0")}.`),
           el("p", { class: "ajuda-pequena", style: "font-size:14px" }, `Motivo: ${estado.nota.motivo_cancelamento}.`))),
       el("footer", { class: "rodape" },
         el("button", { class: "botao botao-grande", type: "button", onclick: () => ir("inicio") }, "Voltar ao início")),
@@ -967,7 +967,7 @@
 
   function detalhesNota(n) {
     return el("section", { class: "card detalhes" },
-      el("div", { class: "linha" }, el("span", {}, "Número"), el("strong", { style: "font-size:17px" }, String(n.numero_dps).padStart(6, "0"))),
+      el("div", { class: "linha" }, el("span", {}, "Número"), el("strong", { style: "font-size:17px" }, String(n.numero || n.numero_dps).padStart(6, "0"))),
       el("div", { class: "linha" }, el("span", {}, "Emitida em"), el("span", {}, dataHora(n.emitida_em))),
       el("div", { class: "linha" }, el("span", {}, "Cliente"), el("span", {}, n.tomador.nome)),
       el("div", { class: "linha" }, el("span", {}, n.tomador.tipo), el("span", {}, formatarDocumento(n.tomador.documento))),

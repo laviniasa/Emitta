@@ -233,3 +233,16 @@ def test_leiaute_nt004_na_producao_ate_30_11(monkeypatch):
     assinar(antigo, "infDPS", cert); assinar(novo, "infDPS", cert)
     assert validar_xsd(antigo, xsd) == []
     assert validar_xsd(novo, xsd) != []
+
+
+def test_numero_da_nfse_vem_do_governo_e_nao_da_dps():
+    from app.repositorio import Nota
+    base = dict(id=1, cliente_id=1, numero_dps=7, codigo_servico="171901", tomador_tipo="CNPJ", tomador_documento="1",
+                tomador_nome="x", descricao="x", valor_centavos=1, iss_centavos=0, situacao="autorizada", mensagem=None,
+                emitida_em="2026-11-25T15:35:00-03:00", cancelada_em=None, motivo_cancelamento=None)
+    # chave real de produção: NFS-e nº 1, DPS nº 7 (1 a 6 já usados no governo)
+    n = Nota(**base, chave_acesso="35503082266248732000103000000000000126114597430184", xml_nfse=None)
+    assert n.numero_nfse == 1 and n.numero == 1
+    n = Nota(**base, chave_acesso=None, xml_nfse='<NFSe><infNFSe><nNFSe>42</nNFSe></infNFSe></NFSe>')
+    assert n.numero == 42
+    assert Nota(**base, chave_acesso=None, xml_nfse=None).numero == 7

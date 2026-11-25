@@ -225,7 +225,8 @@ class ServicoEmissao:
                 chave_envio=chave_envio,
                 info_compl=info_compl,
                 ibscbs=json.dumps({"nbs": rtc.get("nbs"), "cind_op": rtc.get("cind_op"), "cclass_trib": rtc.get("cclass_trib")})
-                if rtc.get("nbs") and rtc.get("cind_op") and rtc.get("cclass_trib") and endereco_valido(tomador_endereco) else None,
+                if self.config.leiaute == "nt009" and rtc.get("nbs") and rtc.get("cind_op") and rtc.get("cclass_trib")
+                and endereco_valido(tomador_endereco) else None,  # na NT 004 o grupo IBS/CBS não vai no XML
             )
 
             # 4. Envia
