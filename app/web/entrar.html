@@ -15,21 +15,23 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="EmitHub">
 <meta property="og:locale" content="pt_BR">
-<meta property="og:title" content="Entrar · EmitHub">
+<meta property="og:title" content="EmitHub · Sua central de emissão">
 <meta property="og:description" content="Entre no EmitHub para emitir e acompanhar as notas de serviço.">
 <meta property="og:url" content="https://emitta.onrender.com/entrar">
-<meta property="og:image" content="https://emitta.onrender.com/static/site/img/compartilhar.jpg?v=53">
+<meta property="og:image" content="https://emitta.onrender.com/static/site/img/compartilhar.jpg?v=54">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="EmitHub: o cliente emite a nota, o contador só acompanha">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/static/estilo.css?v=53">
+<link rel="stylesheet" href="/static/estilo.css?v=54">
 <style>
   body { background: var(--noite); min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; }
   .marca { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; margin-bottom: 24px; }
   .marca:hover { color: #fff; }
+  .marca-texto { display: flex; flex-direction: column; line-height: 1.15; }
+  .slogan { font-size: 13px; font-weight: 500; color: #C6F36B; letter-spacing: .01em; }
   .nome { font-size: 20px; font-weight: 700; }
   .caixa { width: 100%; max-width: 420px; background: #fff; border-radius: 18px; padding: 28px 24px; display: flex; flex-direction: column; gap: 18px; }
   .caixa h1 { font-size: 22px; }
@@ -65,7 +67,7 @@
 </style>
 </head>
 <body>
-<a class="marca" href="/"><svg class="marca-svg" width="34" height="40" viewBox="17 10 66 78" aria-hidden="true"><path class="logo-papel" d="M27 14 H73 Q79 14 79 20 V84 L71.75 78.5 L64.5 84 L57.25 78.5 L50 84 L42.75 78.5 L35.5 84 L28.25 78.5 L21 84 V20 Q21 14 27 14 Z" fill="#C6F36B"/><path class="logo-e" pathLength="1" d="M35 46 H65 A15 15 0 1 0 60.6 56.6" fill="none" stroke="#0F2A24" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="nome">EmitHub</span></a>
+<a class="marca" href="/"><svg class="marca-svg" width="34" height="40" viewBox="17 10 66 78" aria-hidden="true"><path class="logo-papel" d="M27 14 H73 Q79 14 79 20 V84 L71.75 78.5 L64.5 84 L57.25 78.5 L50 84 L42.75 78.5 L35.5 84 L28.25 78.5 L21 84 V20 Q21 14 27 14 Z" fill="#C6F36B"/><path class="logo-e" pathLength="1" d="M35 46 H65 A15 15 0 1 0 60.6 56.6" fill="none" stroke="#0F2A24" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="marca-texto"><span class="nome">EmitHub</span><span class="slogan">Sua central de emissão</span></span></a>
 <main class="caixa" id="caixa" aria-live="polite"></main>
 <p class="rodape-seguro" id="rodape"></p>
 <p style="text-align:center;margin:14px 0 0"><button class="instalar" type="button" data-instalar hidden>Instalar o app no celular</button></p>
@@ -78,8 +80,8 @@
   </ol>
 </div>
 <a class="acesso-adm" href="/admin" aria-label="Administração" title="Administração"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/></svg></a>
-<script src="/static/comum.js?v=53"></script>
-<script src="/static/entrar.js?v=53"></script>
-<script src="/static/pwa.js?v=53"></script>
+<script src="/static/comum.js?v=54"></script>
+<script src="/static/entrar.js?v=54"></script>
+<script src="/static/pwa.js?v=54"></script>
 </body>
 </html>

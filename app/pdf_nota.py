@@ -211,7 +211,7 @@ def gerar_pdf(nota, cliente, ambiente: str, contato: dict | None = None) -> byte
                  _campo("Contato", " · ".join(x for x in (contato.get("telefone"), contato.get("email")) if x))]
         partes += _bloco("CONTABILIDADE RESPONSÁVEL", [linha], [meia, meia])
 
-    partes.append(Paragraph("Gerado pelo EmitHub", _E["rodape"]))
+    partes.append(Paragraph("Gerado pelo EmitHub · Sua central de emissão", _E["rodape"]))
 
     def marca_dagua(canvas, _doc):
         if not (sem_valor or cancelada):
