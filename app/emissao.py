@@ -96,6 +96,10 @@ class ServicoEmissao:
             raise ClienteNaoEncontrado("Empresa não encontrada.")
         return cliente
 
+    def _xsd(self, nome: str) -> str:
+        """XSD do leiaute em uso: app/xsd (NT 009) ou app/xsd/nt004 (produção até 30/11/2026)."""
+        return f"nt004/{nome}" if self.config.leiaute == "nt004" else nome
+
     def _validar_xsd(self, xml, nome_xsd: str) -> None:
         if not self.config.pasta_xsd:
             return
@@ -198,8 +202,7 @@ class ServicoEmissao:
                 leiaute=self.config.leiaute,
             ))
             assinar(xml, "infDPS", cert)
-            if self.config.leiaute == "nt009":  # o XSD local é o da NT 009; na NT 004 quem valida é o governo
-                self._validar_xsd(xml, "DPS_v1.01.xsd")
+            self._validar_xsd(xml, self._xsd("DPS_v1.01.xsd"))
             xml_bytes = para_bytes(xml)
 
             # 3. Grava ANTES de enviar (se a resposta se perder, sabemos o que conferir)
@@ -322,12 +325,10 @@ class ServicoEmissao:
             chave_acesso=nota.chave_acesso,
             codigo_motivo=codigo_motivo,
             texto_motivo=descricao_motivo,
-            leiaute=self.config.leiaute,
         ))
         cert = self.certificados.para(cliente)
         assinar(xml, "infPedReg", cert)
-        if self.config.leiaute == "nt009":
-            self._validar_xsd(xml, "pedRegEvento_v1.01.xsd")
+        self._validar_xsd(xml, self._xsd("pedRegEvento_v1.01.xsd"))
 
         try:
             resposta = self.sefin.enviar_evento(nota.chave_acesso, para_bytes(xml), cert)

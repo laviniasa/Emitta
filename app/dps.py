@@ -125,9 +125,12 @@ def montar_dps(d: DadosDPS) -> etree._Element:
     _sub(cserv, "cTribNac", d.codigo_servico.zfill(6))
     if d.codigo_municipal:
         _sub(cserv, "cTribMun", d.codigo_municipal)
-    if d.nbs:
-        _sub(cserv, "cNBS", d.nbs)  # no leiaute, o NBS vem antes da descrição
+    # NT 009: cNBS antes da descrição; NT 004 (produção até 30/11/2026): depois
+    if d.nbs and d.leiaute == "nt009":
+        _sub(cserv, "cNBS", d.nbs)
     _sub(cserv, "xDescServ", texto_leiaute(d.descricao)[:2000])
+    if d.nbs and d.leiaute != "nt009":
+        _sub(cserv, "cNBS", d.nbs)
     if texto_leiaute(d.info_compl):
         _sub(_sub(serv, "infoCompl"), "xInfComp", texto_leiaute(d.info_compl, " / ")[:2000])
 
@@ -190,7 +193,6 @@ class DadosCancelamento:
     codigo_motivo: str
     texto_motivo: str
     numero_pedido: int = 1
-    leiaute: str = "nt009"
 
 
 def montar_pedido_cancelamento(d: DadosCancelamento) -> etree._Element:
@@ -198,19 +200,13 @@ def montar_pedido_cancelamento(d: DadosCancelamento) -> etree._Element:
         f"{{{NS_NFSE}}}pedRegEvento", nsmap={None: NS_NFSE}, versao=VERSAO_LEIAUTE
     )
     inf = _sub(raiz, "infPedReg")
-    if d.leiaute == "nt009":
-        # NT 009: Id = "PRE" + chave de acesso (50) + código do evento (6) = 59 caracteres
-        inf.set("Id", f"PRE{d.chave_acesso}{CODIGO_EVENTO_CANCELAMENTO}")
-    else:
-        # NT 004: + número do pedido (3) = 62 caracteres, e o nPedRegEvento no corpo
-        inf.set("Id", f"PRE{d.chave_acesso}{CODIGO_EVENTO_CANCELAMENTO}{d.numero_pedido:03d}")
+    # Id = "PRE" + chave de acesso (50) + código do evento (6) = 59 caracteres (igual na produção e na homologação)
+    inf.set("Id", f"PRE{d.chave_acesso}{CODIGO_EVENTO_CANCELAMENTO}")
     _sub(inf, "tpAmb", d.tp_amb)
     _sub(inf, "verAplic", d.versao_aplicativo)
     _sub(inf, "dhEvento", d.quando.isoformat(timespec="seconds"))
     _sub(inf, "CNPJAutor", d.autor_cnpj)
     _sub(inf, "chNFSe", d.chave_acesso)
-    if d.leiaute != "nt009":
-        _sub(inf, "nPedRegEvento", str(d.numero_pedido))
     evento = _sub(inf, f"e{CODIGO_EVENTO_CANCELAMENTO}")
     _sub(evento, "xDesc", "Cancelamento de NFS-e")
     _sub(evento, "cMotivo", d.codigo_motivo)

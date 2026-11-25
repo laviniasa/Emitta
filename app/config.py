@@ -47,7 +47,7 @@ class Config:
         "nt009": leiaute novo (NT 009, com finNFSe), na produção restrita (homologação) e,
         a partir de 01/12/2026, também na produção.
         "nt004": leiaute anterior, o único aceito na produção até 30/11/2026: sem finNFSe,
-        sem o grupo IBS/CBS (opcional) e com nPedRegEvento no cancelamento.
+        sem o grupo IBS/CBS (opcional) e com o cNBS depois da descrição (XSD em app/xsd/nt004).
         NFSE_LEIAUTE=nt004|nt009 força um dos dois (caso o governo mude o cronograma).
         """
         forcado = os.getenv("NFSE_LEIAUTE", "").lower()
