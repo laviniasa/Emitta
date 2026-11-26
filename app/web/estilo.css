@@ -644,3 +644,10 @@ body:has(.assist-botao:not(.oculto)) .toast { bottom: calc(96px + env(safe-area-
 .contato-vazio .contato-avatar { background: var(--fundo); color: var(--texto-3); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .contato-copiar .troca svg { transition: opacity .15s; transform: none !important; filter: none !important; } }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* ---------- Trazer nota de outro sistema: abas Chave | XML ---------- */
+.abas-trazer { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--card); border: 1px solid var(--borda); }
+.aba-trazer { min-height: 42px; border: 0; border-radius: 10px; background: transparent; color: var(--texto-2); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+  transition: background-color .15s, color .15s; }
+.aba-trazer[aria-selected="true"] { background: var(--noite); color: #fff; }
+.aba-trazer:focus-visible { outline: 3px solid rgba(28,122,67,.35); outline-offset: 2px; }

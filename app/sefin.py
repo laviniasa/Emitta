@@ -61,6 +61,8 @@ class ClienteSefin(Protocol):
 
     def consultar_dps(self, id_dps: str, cert: Certificado | None) -> RespostaSefin | None: ...
 
+    def consultar_nfse(self, chave_acesso: str, cert: Certificado | None) -> str | None: ...
+
     def enviar_evento(
         self, chave_acesso: str, xml_assinado: bytes, cert: Certificado | None
     ) -> RespostaSefin: ...
@@ -114,6 +116,9 @@ class SefinSimulada:
             return None
         return RespostaSefin(sucesso=True, chave_acesso=chave,
                              xml=f"<NFSe simulada='true'><chNFSe>{chave}</chNFSe></NFSe>")
+
+    def consultar_nfse(self, chave_acesso, cert):
+        return None  # a simulação não guarda NFS-e de outros sistemas
 
     def enviar_evento(self, chave_acesso, xml_assinado, cert):
         self.enviados.append(xml_assinado)
@@ -222,6 +227,16 @@ class SefinNacional:
         if nota.ok and nota.json().get("nfseXmlGZipB64"):
             xml = descompactar(nota.json()["nfseXmlGZipB64"])
         return RespostaSefin(sucesso=True, chave_acesso=chave, xml=xml)
+
+    def consultar_nfse(self, chave_acesso, cert):
+        """XML da NFS-e pela chave de acesso (None se o governo não achar)."""
+        resp = self._chamar("GET", f"/nfse/{chave_acesso}", cert)
+        if resp.status_code == 404:
+            return None
+        if not resp.ok:
+            raise SemResposta("Não foi possível buscar a nota no sistema nacional agora.")
+        xml = resp.json().get("nfseXmlGZipB64")
+        return descompactar(xml) if xml else None
 
     def enviar_evento(self, chave_acesso, xml_assinado, cert):
         resp = self._chamar("POST", f"/nfse/{chave_acesso}/eventos", cert,

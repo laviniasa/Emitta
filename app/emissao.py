@@ -11,6 +11,8 @@ Proteção contra nota duplicada:
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -306,6 +308,44 @@ class ServicoEmissao:
 
     # ---------------------------------------------------------------- cancelar
 
+    def trazer_nota_externa(self, cliente_id: int, chave: str | None = None, xml: str | None = None) -> Nota:
+        """Traz para o EmitHub uma NFS-e emitida em outro sistema (Emissor Nacional, app do
+        governo...), pela chave de acesso ou pelo XML, para poder ver, baixar o PDF e cancelar."""
+        cliente = self._cliente(cliente_id)
+        chave = "".join(ch for ch in (chave or "") if ch.isdigit())
+        dados = ler_nfse_externa(xml) if xml else None
+        if dados:
+            chave = dados["chave"] or chave
+        if not chave_valida(chave):
+            raise regras.ErroDeNegocio("A chave de acesso tem 50 números. Confira e cole de novo.")
+        cnpj_da_chave = chave[9:23] if chave[8] == "2" else None
+        prestador = (dados or {}).get("prestador") or cnpj_da_chave
+        if prestador != cliente.cnpj:
+            raise regras.ErroDeNegocio("Esta nota foi emitida por outro CNPJ. Só dá para trazer notas emitidas por esta empresa.")
+        ja = self.repo.buscar_nota_por_chave_acesso(cliente_id, chave)
+        if ja:
+            return ja
+        if not dados:  # só a chave: pede o XML ao sistema nacional, com o certificado da empresa
+            cert = self.certificados.para(cliente)
+            try:
+                xml = self.sefin.consultar_nfse(chave, cert)
+            except SemResposta as erro:
+                raise regras.ErroDeNegocio(str(erro)) from None
+            dados = ler_nfse_externa(xml) if xml else None
+        agora = self.agora().isoformat()
+        d = dados or {}
+        return self.repo.salvar_nota(
+            cliente_id=cliente_id, numero_dps=self.repo.numero_para_nota_externa(cliente_id),
+            codigo_servico=d.get("codigo_servico") or "", tomador_tipo=d.get("tomador_tipo") or "",
+            tomador_documento=d.get("tomador_documento") or "",
+            tomador_nome=d.get("tomador_nome") or "Nota trazida pela chave de acesso",
+            descricao=d.get("descricao") or "", valor_centavos=d.get("valor_centavos") or 0,
+            iss_centavos=d.get("iss_centavos") or 0, situacao="autorizada", chave_acesso=chave,
+            xml_nfse=xml, mensagem=None, emitida_em=d.get("emitida_em") or agora, cancelada_em=None,
+            motivo_cancelamento=None, competencia=d.get("competencia"), iss_retido=d.get("iss_retido") or 0,
+            info_compl=d.get("info_compl"), origem="externa",
+        )
+
     def cancelar(self, cliente_id: int, nota_id: int, motivo: str, texto: str | None = None) -> Nota:
         cliente = self._cliente(cliente_id)
         nota = self.repo.buscar_nota(nota_id)
@@ -314,9 +354,10 @@ class ServicoEmissao:
 
         regras.verificar_situacao_cancelavel(nota.situacao)
         agora = self.agora()
-        regras.verificar_prazo_cancelamento(
-            datetime.fromisoformat(nota.emitida_em), cliente.prazo_cancelamento_dias, agora
-        )
+        if nota.origem != "externa":  # nota de fora: quem confere o prazo é o governo
+            regras.verificar_prazo_cancelamento(
+                datetime.fromisoformat(nota.emitida_em), cliente.prazo_cancelamento_dias, agora
+            )
         codigo_motivo, descricao_motivo = regras.motivo_cancelamento(motivo, texto)
 
         xml = montar_pedido_cancelamento(DadosCancelamento(
@@ -339,6 +380,59 @@ class ServicoEmissao:
         if not resposta.sucesso:
             raise RejeitadaPelaPrefeitura(resposta.mensagens)
         return self.repo.marcar_cancelada(nota_id, descricao_motivo, agora.isoformat())
+
+
+def _txt(raiz, *caminhos: str) -> str | None:
+    """Primeiro texto encontrado (por nome local) em qualquer profundidade."""
+    for caminho in caminhos:
+        xp = ".//" + "/".join(f"*[local-name()='{p}']" for p in caminho.split("/"))
+        for n in raiz.xpath(xp):
+            if n.text and n.text.strip():
+                return n.text.strip()
+    return None
+
+
+def ler_nfse_externa(xml: str) -> dict:
+    """Dados de uma NFS-e nacional autorizada (XML do Emissor Nacional, do app do governo ou de
+    outro sistema). Levanta ErroDeNegocio se não for uma NFS-e nacional."""
+    from lxml import etree
+    parser = etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False)
+    try:
+        raiz = etree.fromstring(xml.encode("utf-8") if isinstance(xml, str) else xml, parser)
+    except etree.XMLSyntaxError:
+        raise regras.ErroDeNegocio("Este arquivo não é um XML válido.") from None
+    inf = raiz.xpath(".//*[local-name()='infNFSe']") or ([raiz] if etree.QName(raiz).localname == "infNFSe" else [])
+    if not inf:
+        raise regras.ErroDeNegocio("Este XML não é de uma NFS-e nacional autorizada (falta o bloco infNFSe).")
+    inf = inf[0]
+    digitos = "".join(ch for ch in (inf.get("Id") or "") if ch.isdigit())
+    chave = digitos[-50:] if len(digitos) >= 50 else (_txt(raiz, "chNFSe") or "")
+    valor = _txt(inf, "vServPrest/vServ") or "0"
+    try:
+        centavos = int((Decimal(valor) * 100).quantize(Decimal("1")))
+    except Exception:
+        centavos = 0
+    iss = _txt(inf, "valores/vISSQN")
+    tipo = "CNPJ" if _txt(inf, "toma/CNPJ") else "CPF" if _txt(inf, "toma/CPF") else "NIF" if _txt(inf, "toma/NIF") else ""
+    return {
+        "chave": chave,
+        "prestador": _txt(inf, "emit/CNPJ", "prest/CNPJ", "emit/CPF", "prest/CPF") or chave[9:23],
+        "tomador_tipo": tipo,
+        "tomador_documento": _txt(inf, "toma/CNPJ", "toma/CPF", "toma/NIF") or "",
+        "tomador_nome": _txt(inf, "toma/xNome") or "Tomador não identificado",
+        "codigo_servico": _txt(inf, "cServ/cTribNac") or "",
+        "descricao": _txt(inf, "cServ/xDescServ") or "",
+        "valor_centavos": centavos,
+        "iss_centavos": int((Decimal(iss) * 100).quantize(Decimal("1"))) if iss else 0,
+        "emitida_em": _txt(inf, "dhProc", "dhEmi"),
+        "competencia": _txt(inf, "dCompet"),
+        "iss_retido": 1 if _txt(inf, "tribMun/tpRetISSQN") in ("2", "3") else 0,
+        "info_compl": _txt(inf, "infoCompl/xInfComp"),
+    }
+
+
+def chave_valida(chave: str) -> bool:
+    return len(chave) == 50 and chave.isdigit()
 
 
 def xml_para_download(nota: Nota, ambiente: str) -> tuple[str, str]:

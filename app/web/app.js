@@ -569,6 +569,9 @@
           ...(estado.notas.length
             ? estado.notas.slice(0, 20).map(itemNota)
             : [el("div", { class: "card vazio" }, "Você ainda não emitiu nenhuma nota.")]),
+          el("button", { class: "botao botao-texto", type: "button", style: "align-self:center",
+            onclick: () => { estado.trazer = { modo: "chave", chave: "", xml: null, arquivo: "" }; ir("trazer"); } },
+            icone("documento", 18), "Trazer uma nota emitida em outro sistema"),
         ),
         menu("inicio"),
       ];
@@ -877,13 +880,70 @@
         el("button", { class: "botao botao-secundario", type: "button", onclick: () => ir("inicio") }, "Voltar ao início")),
     ],
 
+    // Nota emitida fora do EmitHub (Emissor Nacional, app do governo...): pela chave ou pelo XML
+    trazer: () => {
+      const s = estado.trazer;
+      const $erro = el("div", { class: "aviso aviso-erro", role: "alert", hidden: true });
+      const aba = (id, rotulo) => el("button", {
+        type: "button", role: "tab", class: "aba-trazer", "aria-selected": String(s.modo === id),
+        onclick: () => { s.modo = id; desenhar(); },
+      }, rotulo);
+      async function enviar(botao) {
+        $erro.hidden = true;
+        const corpo = s.modo === "chave" ? { chave: s.chave } : { xml: s.xml };
+        if (s.modo === "chave" && s.chave.replace(/\D/g, "").length !== 50) {
+          $erro.textContent = "A chave de acesso tem 50 números. Confira e cole de novo."; $erro.hidden = false; return;
+        }
+        if (s.modo === "xml" && !s.xml) { $erro.textContent = "Escolha o arquivo XML da nota."; $erro.hidden = false; return; }
+        botao.disabled = true;
+        try {
+          const nota = await api("POST", `/app/${estado.empresa.id}/notas/trazer`, corpo);
+          await recarregarNotas();
+          estado.nota = nota;
+          avisar("Nota trazida para o EmitHub. Agora dá para baixar o PDF ou cancelar.");
+          ir("detalhe");
+        } catch (erro) {
+          botao.disabled = false;
+          $erro.textContent = erro.message; $erro.hidden = false;
+        }
+      }
+      return [
+        barra("Trazer nota de outro sistema", "inicio"),
+        el("main", { class: "conteudo" },
+          el("p", { class: "ajuda-pequena", style: "font-size:14px" },
+            "Emitiu uma nota pelo Emissor Nacional, pelo app do governo ou por outro sistema? Traga para cá para ver, baixar o PDF no modelo oficial ou cancelar."),
+          el("div", { class: "abas-trazer", role: "tablist" }, aba("chave", "Colar a chave"), aba("xml", "Escolher o XML")),
+          s.modo === "chave"
+            ? el("label", { class: "campo" }, "Chave de acesso da NFS-e (50 números)",
+              el("textarea", { rows: 3, maxlength: 80, inputmode: "numeric", placeholder: "3550308...",
+                style: "font-family:ui-monospace,Menlo,monospace;letter-spacing:.02em",
+                oninput: (e) => { s.chave = e.target.value; } }, s.chave),
+              el("span", { class: "ajuda-pequena" }, "Fica no PDF da nota, em \u201cChave de acesso\u201d. Com a chave, o EmitHub busca a nota no sistema nacional usando o certificado da empresa."))
+            : el("label", { class: "campo" }, "Arquivo XML da NFS-e",
+              el("input", { type: "file", accept: ".xml,text/xml,application/xml",
+                onchange: async (e) => {
+                  const f = e.target.files[0];
+                  if (!f) return;
+                  if (f.size > 1000000) { avisar("O arquivo passa de 1 MB."); return; }
+                  s.xml = await f.text(); s.arquivo = f.name;
+                } }),
+              el("span", { class: "ajuda-pequena" }, s.arquivo ? `Escolhido: ${s.arquivo}` : "O XML que o Emissor Nacional deixa baixar junto com a nota.")),
+          el("div", { class: "aviso aviso-info" }, icone("escudo"), "Só entram notas emitidas por esta empresa (o CNPJ precisa ser o mesmo)."),
+          $erro),
+        el("footer", { class: "rodape" },
+          el("button", { class: "botao botao-grande", type: "button", onclick: (e) => enviar(e.currentTarget) }, "Trazer nota")),
+      ];
+    },
+
     detalhe: () => {
       const n = estado.nota;
-      const prazo = prazoRestante(n);
+      const prazo = n.origem === "externa" ? null : prazoRestante(n);
       return [
         barra(`Nota nº ${String(n.numero || n.numero_dps).padStart(6, "0")}`, "inicio"),
         el("main", { class: "conteudo" },
           el("div", { style: "display:flex;justify-content:center" }, seloSituacao(n.situacao)),
+          n.origem === "externa" && el("div", { class: "aviso aviso-info" }, icone("documento"),
+            "Nota emitida em outro sistema e trazida para o EmitHub."),
           detalhesNota(n),
           (n.situacao === "autorizada" || n.situacao === "cancelada") && botoesDownload(n),
           n.situacao === "processando" && el("button", { class: "botao", type: "button", onclick: (e) => verificar(e.currentTarget) },
@@ -903,7 +963,7 @@
 
     cancelar: () => {
       const n = estado.nota;
-      const prazo = prazoRestante(n);
+      const prazo = n.origem === "externa" ? null : prazoRestante(n);
       const motivos = [
         ["erro", "Emiti por engano", "Nota duplicada ou para o cliente errado"],
         ["nao_prestado", "O serviço não foi feito", "O cliente desistiu ou o serviço foi cancelado"],

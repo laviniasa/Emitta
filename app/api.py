@@ -189,6 +189,11 @@ class ConversaAssistente(BaseModel):
     cliente_id: int | None = None
 
 
+class NotaExterna(BaseModel):
+    chave: str | None = Field(default=None, max_length=80, description="Chave de acesso (50 números)")
+    xml: str | None = Field(default=None, max_length=1_000_000, description="XML da NFS-e autorizada")
+
+
 class PedidoCancelamento(BaseModel):
     motivo: str = Field(description="erro | nao_prestado | outro")
     texto: str | None = None
@@ -778,6 +783,7 @@ def criar_app(
             "iss_retido": bool(n.iss_retido),
             "informacoes_complementares": n.info_compl,
             "ibscbs": json.loads(n.ibscbs) if n.ibscbs else None,
+            "origem": n.origem,
             "pdf": f"/app/{n.cliente_id}/notas/{n.id}/pdf",
             "xml": f"/app/{n.cliente_id}/notas/{n.id}/xml",
         }
@@ -1728,6 +1734,20 @@ def criar_app(
         except regras.ErroDeNegocio as erro:
             raise traduzir_erro(erro)
         evento("nota_cancelada", request, usuario, detalhe=f"nº {nota.numero}")
+        return nota_json(nota)
+
+    @app.post("/app/{cliente_id}/notas/trazer", tags=["app da empresa"], status_code=201)
+    def trazer_nota(cliente_id: int, dados: NotaExterna, request: Request,
+                    usuario: Usuario = Depends(autorizar_empresa)):
+        """Traz uma NFS-e emitida em outro sistema (pela chave de acesso ou pelo XML), para ver,
+        baixar e cancelar pelo EmitHub."""
+        if not (dados.chave or dados.xml):
+            raise HTTPException(400, "Cole a chave de acesso ou escolha o XML da nota.")
+        try:
+            nota = servico.trazer_nota_externa(cliente_id, chave=dados.chave, xml=dados.xml)
+        except regras.ErroDeNegocio as erro:
+            raise traduzir_erro(erro)
+        evento("nota_trazida", request, usuario, detalhe=f"chave {nota.chave_acesso}")
         return nota_json(nota)
 
     return app

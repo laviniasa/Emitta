@@ -174,3 +174,43 @@ def test_nota_leva_soma_dos_tributos_nas_informacoes(servico, cliente, sefin):
     de_novo = regras.info_complementar_com_tributos(regras.texto_tributos_simples(10000, "6"), nota.info_compl)
     assert de_novo.count("Totais aproximados") == 1 and de_novo.startswith(
         "Totais aproximados dos Tributos cfe. Lei n° 12.741/2012: R$ 6,00 (6,00%)") and de_novo.endswith("/ Pagamento via Pix")
+
+
+def _xml_externo(cnpj_prestador):
+    from pathlib import Path
+    xml = (Path(__file__).parent / "dados" / "nfse_marilia_simples.xml").read_text(encoding="utf-8")
+    chave = "35503082" + "2" + cnpj_prestador + "0000000000001" + "2611" + "459743018" + "4"
+    assert len(chave) == 50
+    return xml.replace("66248732000103", cnpj_prestador), chave
+
+
+def test_trazer_nota_de_fora_pelo_xml_e_cancelar(servico, cliente, sefin):
+    """Nota emitida em outro sistema: entra pelo XML, aparece com o número oficial e cancela."""
+    xml, chave = _xml_externo(cliente.cnpj)
+    nota = servico.trazer_nota_externa(cliente.id, xml=xml)
+    assert nota.origem == "externa" and nota.situacao == "autorizada" and nota.chave_acesso == chave
+    assert nota.numero_dps < 0 and nota.numero == 1  # nNFSe do XML
+    assert nota.tomador_nome == "JUNIO MOREIRA RODRIGUES LTDA" and nota.valor_centavos == 52400
+    assert servico.trazer_nota_externa(cliente.id, chave=chave).id == nota.id  # não duplica
+    emitida = emitir(servico, cliente)  # a numeração própria continua normal
+    assert emitida.numero_dps == 1
+    cancelada = servico.cancelar(cliente.id, nota.id, "erro")
+    assert cancelada.situacao == "cancelada"
+    assert chave.encode() in sefin.enviados[-1]
+
+
+def test_trazer_nota_pela_chave_e_recusas(servico, cliente, sefin):
+    import pytest
+    from app.regras import ErroDeNegocio
+    _, chave = _xml_externo(cliente.cnpj)
+    nota = servico.trazer_nota_externa(cliente.id, chave=chave[:10] + " " + chave[10:])  # aceita espaços
+    assert nota.chave_acesso == chave and nota.origem == "externa"
+    with pytest.raises(ErroDeNegocio, match="50 números"):
+        servico.trazer_nota_externa(cliente.id, chave="123")
+    _, de_outro = _xml_externo("11444777000161")
+    with pytest.raises(ErroDeNegocio, match="outro CNPJ"):
+        servico.trazer_nota_externa(cliente.id, chave=de_outro)
+    with pytest.raises(ErroDeNegocio, match="não é de uma NFS-e"):
+        servico.trazer_nota_externa(cliente.id, xml="<DPS><infDPS/></DPS>")
+    with pytest.raises(ErroDeNegocio, match="XML válido"):
+        servico.trazer_nota_externa(cliente.id, xml="isto não é xml")

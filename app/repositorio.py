@@ -262,6 +262,7 @@ class Nota:
     chave_envio: str | None = None
     info_compl: str | None = None
     ibscbs: str | None = None  # JSON com NBS, cIndOp, CST e cClassTrib usados na nota
+    origem: str | None = None  # "externa": emitida em outro sistema e trazida (para cancelar, PDF etc.)
 
     @property
     def numero_nfse(self) -> int | None:
@@ -345,6 +346,7 @@ class Repositorio:
         "notas": {
             "competencia": "TEXT", "iss_retido": "INTEGER NOT NULL DEFAULT 0", "id_dps": "TEXT",
             "xml_dps": "TEXT", "chave_envio": "TEXT", "info_compl": "TEXT", "ibscbs": "TEXT",
+            "origem": "TEXT",  # None = emitida pelo EmitHub; "externa" = trazida de outro sistema
         },
     }
 
@@ -530,7 +532,7 @@ class Repositorio:
 
     def proximo_numero_dps(self, cliente_id: int) -> int:
         linha = self.con.execute(
-            "SELECT COALESCE(MAX(numero_dps), 0) + 1 FROM notas WHERE cliente_id = ?",
+            "SELECT COALESCE(MAX(numero_dps), 0) + 1 FROM notas WHERE cliente_id = ? AND numero_dps > 0",
             (cliente_id,),
         ).fetchone()
         return int(linha[0])
@@ -553,6 +555,19 @@ class Repositorio:
             "SELECT * FROM notas WHERE cliente_id = ? AND situacao != 'descartada' ORDER BY id DESC", (cliente_id,)
         ).fetchall()
         return [Nota(**dict(l)) for l in linhas]
+
+    def buscar_nota_por_chave_acesso(self, cliente_id: int, chave: str) -> Nota | None:
+        linha = self.con.execute(
+            "SELECT * FROM notas WHERE cliente_id = ? AND chave_acesso = ?", (cliente_id, chave)
+        ).fetchone()
+        return Nota(**dict(linha)) if linha else None
+
+    def numero_para_nota_externa(self, cliente_id: int) -> int:
+        """Notas trazidas de fora não usam a numeração de DPS do EmitHub: ficam com números
+        negativos (-1, -2...), para nunca colidir. O número que aparece é o da NFS-e."""
+        menor = self.con.execute(
+            "SELECT MIN(numero_dps) FROM notas WHERE cliente_id = ?", (cliente_id,)).fetchone()[0]
+        return min(0, menor or 0) - 1
 
     def buscar_nota_por_chave_envio(self, cliente_id: int, chave_envio: str) -> Nota | None:
         linha = self.con.execute(
